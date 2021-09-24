@@ -36,6 +36,7 @@ if(WIN32)
 endif(WIN32)
 ########################################
 
+set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
 if(UNIX)
@@ -60,11 +61,13 @@ endif(UNIX)
 
 set(GLM_ROOT_DIR "external")
 find_package(GLM REQUIRED)
-include_directories(${GLM_INCLUDE_DIRS})
+include_directories(${GLM_INCLUDE_DIRS} "external/include")
+message("\tFind GLM_INCLUDE_DIRS at: ${GLM_INCLUDE_DIRS}")
 
 set(headers
     src/main.h
     src/image.h
+    src/stb.hpp
     src/interactions.h
     src/intersections.h
     src/glslUtility.hpp
@@ -77,7 +80,6 @@ set(headers
 
 set(sources
     src/main.cpp
-    src/stb.cpp
     src/image.cpp
     src/glslUtility.cpp
     src/pathtrace.cu
@@ -89,7 +91,7 @@ set(sources
 list(SORT headers)
 list(SORT sources)
 
-source_group(Headers FILES ${headers})
+source_group(Headers FILES ${headers} ${EXTERNAL_HEADERS})
 source_group(Sources FILES ${sources})
 
 #add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
