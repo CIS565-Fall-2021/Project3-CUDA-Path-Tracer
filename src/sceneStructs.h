@@ -57,6 +57,8 @@ struct RenderState {
     int traceDepth;
     std::vector<glm::vec3> image;
     std::string imageName;
+
+    int recordDepth = -1;
 };
 
 struct PathSegment {
@@ -70,7 +72,11 @@ struct PathSegment {
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+    __host__ __device__ bool operator<(const ShadeableIntersection& s) const {
+        return materialId < s.materialId;
+    }
+
+    float t;
+    glm::vec3 surfaceNormal;
+    int materialId;
 };

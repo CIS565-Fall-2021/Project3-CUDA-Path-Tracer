@@ -20,13 +20,12 @@
 #include "utilities.h"
 #include "scene.h"
 
-using namespace std;
-
 //-------------------------------
 //----------PATH TRACER----------
 //-------------------------------
 
 extern Scene* scene;
+extern RenderState* renderState;
 extern int iteration;
 
 extern int width;

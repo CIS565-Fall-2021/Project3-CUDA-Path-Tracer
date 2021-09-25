@@ -3,6 +3,9 @@
 #include "main.h"
 #include "preview.h"
 
+#pragma warning(push)
+#pragma warning(disable:4996)
+
 GLuint positionLocation = 0;
 GLuint texcoordsLocation = 1;
 GLuint pbo;
@@ -173,7 +176,10 @@ void mainLoop() {
         glfwPollEvents();
         runCuda();
 
-        string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations";
+        std::string title = "CIS565 Path Tracer | "
+            + utilityCore::convertIntToString(renderState->traceDepth) + " Depths" " | "
+            + (renderState->recordDepth < 0 ? " All Bounce Recorded" " | " : (utilityCore::convertIntToString(renderState->recordDepth) + " Bounce or Upper Recorded" " | "))
+            + utilityCore::convertIntToString(iteration) + " Iterations";
         glfwSetWindowTitle(window, title.c_str());
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
@@ -188,3 +194,5 @@ void mainLoop() {
     glfwDestroyWindow(window);
     glfwTerminate();
 }
+
+#pragma warning(pop)

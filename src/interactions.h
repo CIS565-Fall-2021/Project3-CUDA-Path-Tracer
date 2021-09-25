@@ -2,6 +2,11 @@
 
 #include "intersections.h"
 
+namespace RayRemainingBounce {
+    constexpr int FIND_EMIT_SOURCE = -1;
+    constexpr int OUT_OF_SCENE = -2;
+}
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -41,6 +46,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+#define SWITCH_IN_OUT_RAY 0
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -67,13 +74,78 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 __host__ __device__
-void scatterRay(
-        PathSegment & pathSegment,
+void scatterRaySimple(
+        PathSegment & pathSegment, 
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
+    // DONE: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+    if (pathSegment.remainingBounces < 0) {
+        return;
+    }
+    glm::vec3 in = glm::normalize(pathSegment.ray.direction);
+    glm::vec3 multColor(1.0f);
+
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float prob = u01(rng);
+    glm::vec3 scatterDir;
+#if SWITCH_IN_OUT_RAY
+    float cosNI = glm::dot(normal, -in);
+#else // SWITCH_IN_OUT_RAY
+#endif // SWITCH_IN_OUT_RAY
+    if (!m.hasReflective || prob < 0.5f) {
+        scatterDir = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        //multColor *= m.color / PI;
+        multColor *= m.color;
+    }
+    else {
+        scatterDir = glm::reflect(in, normal);
+#if SWITCH_IN_OUT_RAY
+        float cosNO = glm::dot(normal, scatterDir);
+        cosNO = max(cosNO, 0.f);
+        multColor *= m.specular.color * powf(cosNO, m.specular.exponent);
+#else // SWITCH_IN_OUT_RAY
+        float cosNI = glm::dot(normal, -in);
+        cosNI = max(cosNI, 0.f);
+        multColor *= m.specular.color * powf(cosNI, m.specular.exponent);
+        //multColor *= m.specular.color * powf(cosNI, m.specular.exponent) * TWO_PI;
+        //multColor *= m.specular.color * powf(cosNI, m.specular.exponent) * 0.5f; // m.color / PI / (0.5f / PI);
+#endif // SWITCH_IN_OUT_RAY
+    }
+#if SWITCH_IN_OUT_RAY
+    cosNI = max(cosNI, 0.f);
+    multColor *= cosNI;
+#else // SWITCH_IN_OUT_RAY
+    float cosNO = glm::dot(normal, scatterDir);
+
+    //if (cosNO < 0.5f) {
+    //    printf("cosNO = %f\n", cosNO);
+    //}
+
+    cosNO = max(cosNO, 0.f);
+    multColor *= cosNO;
+#endif // SWITCH_IN_OUT_RAY
+
+    if (multColor.r > 1.0f || multColor.g > 1.0f || multColor.b > 1.0f) {
+        printf("multColor = %f, %f, %f\n", multColor.r, multColor.g, multColor.b);
+    }
+
+    pathSegment.color *= multColor;
+    pathSegment.ray.origin = intersect;
+    pathSegment.ray.direction = scatterDir;
+    --pathSegment.remainingBounces;
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+struct SampleResult {
+    glm::vec3 scatterDir;
+    float probability = 1.f / TWO_PI;
+    glm::vec3 bsdf;
+};
+
+#undef SWITCH_IN_OUT_RAY

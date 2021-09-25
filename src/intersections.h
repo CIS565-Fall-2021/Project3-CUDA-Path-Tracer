@@ -63,7 +63,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
             float ta = glm::min(t1, t2);
             float tb = glm::max(t1, t2);
             glm::vec3 n;
-            n[xyz] = t2 < t1 ? +1 : -1;
+            n[xyz] = t2 < t1 ? +1.f : -1.f;
             if (ta > 0 && ta > tmin) {
                 tmin = ta;
                 tmin_n = n;
@@ -75,7 +75,8 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
         }
     }
 
-    if (tmax >= tmin && tmax > 0) {
+    //if (tmax >= tmin && tmax > 0) {
+    if (tmax >= tmin && tmax > FLT_EPSILON) {
         outside = true;
         if (tmin <= 0) {
             tmin = tmax;
@@ -111,7 +112,8 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     rt.direction = rd;
 
     float vDotDirection = glm::dot(rt.origin, rt.direction);
-    float radicand = vDotDirection * vDotDirection - (glm::dot(rt.origin, rt.origin) - powf(radius, 2));
+    //float radicand = vDotDirection * vDotDirection - (glm::dot(rt.origin, rt.origin) - powf(radius, 2));
+    float radicand = vDotDirection * vDotDirection - (glm::dot(rt.origin, rt.origin) - radius * radius);
     if (radicand < 0) {
         return -1;
     }

@@ -2,6 +2,9 @@
 #include "preview.h"
 #include <cstring>
 
+#pragma warning(push)
+#pragma warning(disable:4996)
+
 static std::string startTimeString;
 
 // For camera controls
@@ -33,12 +36,18 @@ int height;
 int main(int argc, char** argv) {
     startTimeString = currentTimeString();
 
-    if (argc < 2) {
-        printf("Usage: %s SCENEFILE.txt\n", argv[0]);
-        return 1;
-    }
 
-    const char *sceneFile = argv[1];
+    const char* sceneFile = nullptr;
+
+    if (argc < 2) {
+        //printf("Usage: %s SCENEFILE.txt\n", argv[0]);
+        //return 1;
+        sceneFile = "../scenes/cornell.txt";
+        //sceneFile = "../scenes/cornell2.txt";
+    }
+    else {
+        sceneFile = argv[1];
+    }
 
     // Load scene file
     scene = new Scene(sceneFile);
@@ -76,9 +85,9 @@ int main(int argc, char** argv) {
 }
 
 void saveImage() {
-    float samples = iteration;
+    float samples = static_cast<float>(iteration);
     // output image file
-    image img(width, height);
+    Image::image img(width, height);
 
     for (int x = 0; x < width; x++) {
         for (int y = 0; y < height; y++) {
@@ -117,7 +126,7 @@ void runCuda() {
         cameraPosition += cam.lookAt;
         cam.position = cameraPosition;
         camchanged = false;
-      }
+    }
 
     // Map OpenGL buffer object for writing from CUDA on a single GPU
     // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
@@ -127,7 +136,7 @@ void runCuda() {
         pathtraceInit(scene);
     }
 
-    if (iteration < renderState->iterations) {
+    if (static_cast<unsigned int>(iteration) < renderState->iterations) {
         uchar4 *pbo_dptr = NULL;
         iteration++;
         cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
@@ -148,21 +157,44 @@ void runCuda() {
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
-      switch (key) {
-      case GLFW_KEY_ESCAPE:
-        saveImage();
-        glfwSetWindowShouldClose(window, GL_TRUE);
-        break;
-      case GLFW_KEY_S:
-        saveImage();
-        break;
-      case GLFW_KEY_SPACE:
-        camchanged = true;
-        renderState = &scene->state;
-        Camera &cam = renderState->camera;
-        cam.lookAt = ogLookAt;
-        break;
-      }
+        switch (key) {
+        case GLFW_KEY_ESCAPE:
+            saveImage();
+            glfwSetWindowShouldClose(window, GL_TRUE);
+            break;
+        case GLFW_KEY_S:
+            saveImage();
+            break;
+        case GLFW_KEY_SPACE:
+            camchanged = true;
+            renderState = &scene->state;
+            renderState->camera.lookAt = ogLookAt;
+            break;
+        case GLFW_KEY_UP:
+            camchanged = true;
+            //renderState = &scene->state;
+            //renderState->camera.lookAt = ogLookAt;
+            ++renderState->traceDepth;
+            break;
+        case GLFW_KEY_DOWN:
+            camchanged = true;
+            //renderState = &scene->state;
+            //renderState->camera.lookAt = ogLookAt;
+            renderState->traceDepth = std::max(0, renderState->traceDepth - 1);
+            break;
+        case GLFW_KEY_RIGHT:
+            camchanged = true;
+            //renderState = &scene->state;
+            //renderState->camera.lookAt = ogLookAt;
+            renderState->recordDepth = std::min(renderState->traceDepth, renderState->recordDepth + 1);
+            break;
+        case GLFW_KEY_LEFT:
+            camchanged = true;
+            //renderState = &scene->state;
+            //renderState->camera.lookAt = ogLookAt;
+            renderState->recordDepth = std::max(-1, renderState->recordDepth - 1);
+            break;
+        }
     }
 }
 
@@ -176,13 +208,13 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
   if (xpos == lastX || ypos == lastY) return; // otherwise, clicking back into window causes re-start
   if (leftMousePressed) {
     // compute new camera parameters
-    phi -= (xpos - lastX) / width;
-    theta -= (ypos - lastY) / height;
+    phi -= static_cast<float>(xpos - lastX) / width;
+    theta -= static_cast<float>(ypos - lastY) / height;
     theta = std::fmax(0.001f, std::fmin(theta, PI));
     camchanged = true;
   }
   else if (rightMousePressed) {
-    zoom += (ypos - lastY) / height;
+    zoom += static_cast<float>(ypos - lastY) / height;
     zoom = std::fmax(0.1f, zoom);
     camchanged = true;
   }
@@ -203,3 +235,5 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
   lastX = xpos;
   lastY = ypos;
 }
+
+#pragma warning(pop)

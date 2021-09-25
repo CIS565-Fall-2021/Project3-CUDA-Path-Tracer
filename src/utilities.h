@@ -1,5 +1,9 @@
 #pragma once
 
+#pragma warning(push)
+#pragma warning(disable:4244)
+#pragma warning(disable:4996)
+
 #include "glm/glm.hpp"
 #include <algorithm>
 #include <istream>
@@ -13,6 +17,10 @@
 #define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
 #define EPSILON           0.00001f
+
+#define ADVANCED_PIPELINE 0
+#define ENABLE_COMPACTION 1
+#define JITTER_ANTI_ALIASING 1//1
 
 namespace utilityCore {
     extern float clamp(float f, float min, float max);
