@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cuda_runtime.h>
+
 #include <string>
 #include <vector>
-#include <cuda_runtime.h>
+
 #include "glm/glm.hpp"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
