@@ -31,6 +31,7 @@ int height;
 //-------------------------------
 
 int main(int argc, char** argv) {
+    // Used for creating a distinguishable name for image files
     startTimeString = currentTimeString();
 
     if (argc < 2) {
@@ -75,6 +76,7 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+// Save an image in Project3-CUDA-Path-Tracer/build/ in a distinguishable format
 void saveImage() {
     float samples = iteration;
     // output image file

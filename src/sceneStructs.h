@@ -29,19 +29,27 @@ struct Geom {
 };
 
 struct Material {
+    // RGB entry in scene file
     glm::vec3 color;
     struct {
+        // SPECEX
         float exponent;
+        // SPECRGB
         glm::vec3 color;
     } specular;
+    // REFL
     float hasReflective;
+    // REFR
     float hasRefractive;
+    // REFRIOR
     float indexOfRefraction;
+    // EMITTANCE
     float emittance;
 };
 
 struct Camera {
     glm::ivec2 resolution;
+    // EYE
     glm::vec3 position;
     glm::vec3 lookAt;
     glm::vec3 view;
@@ -54,8 +62,10 @@ struct Camera {
 struct RenderState {
     Camera camera;
     unsigned int iterations;
+    // DEPTH in Camera
     int traceDepth;
     std::vector<glm::vec3> image;
+    // FILE in Camera
     std::string imageName;
 };
 

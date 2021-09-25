@@ -10,6 +10,7 @@ GLuint displayImage;
 
 GLFWwindow *window;
 
+// Return a string of current time in UTC 
 std::string currentTimeString() {
     time_t now;
     time(&now);
