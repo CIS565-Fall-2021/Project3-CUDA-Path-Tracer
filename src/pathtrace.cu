@@ -412,6 +412,18 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         cudaDeviceSynchronize();
         depth++;
 
+#if ENABLE_COMPACTION
+        // Sort
+        thrust::device_ptr<PathSegment> thrust_dev_paths(dev_paths);
+#if !ADVANCED_PIPELINE
+        thrust::device_ptr<ShadeableIntersection> thrust_dev_intersection(dev_intersections);
+        thrust::sort_by_key(thrust_dev_intersection, thrust_dev_intersection + num_paths, thrust_dev_paths);
+#else // ADVANCED_PIPELINE
+#endif // ADVANCED_PIPELINE
+        checkCUDAError("sort");
+
+#endif // ENABLE_COMPACTION
+
 #if !ADVANCED_PIPELINE
         // DONE:
         // --- Shading Stage ---
@@ -437,20 +449,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 #if ENABLE_COMPACTION
         // Stream compaction
-        thrust::device_ptr<PathSegment> thrust_dev_paths(dev_paths);
         thrust::device_ptr<PathSegment> thrust_dev_paths_end = thrust::remove_if(thrust_dev_paths, thrust_dev_paths + num_paths, streamCompactionPredicate);
         dev_path_end = thrust_dev_paths_end.get();
         num_paths = dev_path_end - dev_paths;
         checkCUDAError("compaction");
-
-        // Sort
-#if !ADVANCED_PIPELINE
-        thrust::device_ptr<ShadeableIntersection> thrust_dev_intersection(dev_intersections);
-        thrust::sort_by_key(thrust_dev_intersection, thrust_dev_intersection + num_paths, thrust_dev_paths);
-#else // ADVANCED_PIPELINE
-#endif // ADVANCED_PIPELINE
-        checkCUDAError("sort");
-
 #endif // ENABLE_COMPACTION
 
         iterationComplete = depth >= traceDepth || num_paths == 0;

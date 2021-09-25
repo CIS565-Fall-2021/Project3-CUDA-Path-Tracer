@@ -4,31 +4,41 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-Scene::Scene(std::string filename) {
-    std::cout << "Reading scene from " << filename << " ..." << std::endl;
-    std::cout << " " << std::endl;
-    char* fname = (char*)filename.c_str();
-    fp_in.open(fname);
-    if (!fp_in.is_open()) {
-        std::cout << "Error reading from file - aborting!" << std::endl;
-        throw;
-    }
-    while (fp_in.good()) {
-        std::string line;
-        utilityCore::safeGetline(fp_in, line);
-        if (!line.empty()) {
+
+int Scene::loadMaterial(std::string materialid) {
+    int id = atoi(materialid.c_str());
+    if (id != materials.size()) {
+        std::cout << "ERROR: MATERIAL ID does not match expected number of materials" << std::endl;
+        return -1;
+    } else {
+        std::cout << "Loading Material " << id << "..." << std::endl;
+        Material newMaterial;
+
+        //load static properties
+        for (int i = 0; i < 7; i++) {
+            std::string line;
+            utilityCore::safeGetline(fp_in, line);
             std::vector<std::string> tokens = utilityCore::tokenizeString(line);
-            if (strcmp(tokens[0].c_str(), "MATERIAL") == 0) {
-                loadMaterial(tokens[1]);
-                std::cout << " " << std::endl;
-            } else if (strcmp(tokens[0].c_str(), "OBJECT") == 0) {
-                loadGeom(tokens[1]);
-                std::cout << " " << std::endl;
-            } else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
-                loadCamera();
-                std::cout << " " << std::endl;
+            if (strcmp(tokens[0].c_str(), "RGB") == 0) {
+                glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
+                newMaterial.color = color;
+            } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
+                newMaterial.specular.exponent = atof(tokens[1].c_str());
+            } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
+                glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+                newMaterial.specular.color = specColor;
+            } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
+                newMaterial.hasReflective = atof(tokens[1].c_str());
+            } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
+                newMaterial.hasRefractive = atof(tokens[1].c_str());
+            } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
+                newMaterial.indexOfRefraction = atof(tokens[1].c_str());
+            } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
+                newMaterial.emittance = atof(tokens[1].c_str());
             }
         }
+        materials.push_back(newMaterial);
+        return 1;
     }
 }
 
@@ -159,39 +169,42 @@ int Scene::loadCamera() {
     return 1;
 }
 
-int Scene::loadMaterial(std::string materialid) {
-    int id = atoi(materialid.c_str());
-    if (id != materials.size()) {
-        std::cout << "ERROR: MATERIAL ID does not match expected number of materials" << std::endl;
-        return -1;
-    } else {
-        std::cout << "Loading Material " << id << "..." << std::endl;
-        Material newMaterial;
+bool Scene::readFromToken(const std::vector<std::string>& tokens) {
+    if (strcmp(tokens[0].c_str(), "MATERIAL") == 0) {
+        loadMaterial(tokens[1]);
+        std::cout << " " << std::endl;
+        return true;
+    } 
+    else if (strcmp(tokens[0].c_str(), "OBJECT") == 0) {
+        loadGeom(tokens[1]);
+        std::cout << " " << std::endl;
+        return true;
+    } 
+    else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
+        loadCamera();
+        std::cout << " " << std::endl;
+        return true;
+    }
+    return false;
+}
 
-        //load static properties
-        for (int i = 0; i < 7; i++) {
-            std::string line;
-            utilityCore::safeGetline(fp_in, line);
+Scene::Scene(std::string filename) {
+    std::cout << "Reading scene from " << filename << " ..." << std::endl;
+    std::cout << " " << std::endl;
+    char* fname = (char*)filename.c_str();
+    fp_in.open(fname);
+    if (!fp_in.is_open()) {
+        std::cout << "Error reading from file - aborting!" << std::endl;
+        throw;
+    }
+    while (fp_in.good()) {
+        std::string line;
+        utilityCore::safeGetline(fp_in, line);
+        if (!line.empty()) {
             std::vector<std::string> tokens = utilityCore::tokenizeString(line);
-            if (strcmp(tokens[0].c_str(), "RGB") == 0) {
-                glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
-                newMaterial.color = color;
-            } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
-                newMaterial.specular.exponent = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
-                glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-                newMaterial.specular.color = specColor;
-            } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
-                newMaterial.hasReflective = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
-                newMaterial.hasRefractive = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
-                newMaterial.indexOfRefraction = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
-                newMaterial.emittance = atof(tokens[1].c_str());
-            }
+            readFromToken(tokens);
         }
-        materials.push_back(newMaterial);
-        return 1;
     }
 }
+
+Scene::~Scene() {}

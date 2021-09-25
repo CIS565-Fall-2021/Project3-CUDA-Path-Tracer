@@ -14,9 +14,11 @@ private:
     int loadMaterial(std::string materialid);
     int loadGeom(std::string objectid);
     int loadCamera();
+protected:
+    virtual bool readFromToken(const std::vector<std::string>& tokens);
 public:
     Scene(std::string filename);
-    ~Scene();
+    virtual ~Scene();
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
