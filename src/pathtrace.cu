@@ -1,4 +1,5 @@
 #include <cuda.h>
+#include <device_launch_parameters.h>
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
