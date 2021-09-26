@@ -80,8 +80,8 @@ static PathSegment *dev_paths                   = NULL;
 static ShadeableIntersection *dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
-int *dev_materialIDs       = NULL;
-int *dev_materialIDBuffers = NULL;
+static int *dev_materialIDs       = NULL;
+static int *dev_materialIDBuffers = NULL;
 
 void pathtraceInit(Scene *scene) {
   hst_scene            = scene;
