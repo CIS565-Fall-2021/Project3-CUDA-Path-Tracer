@@ -10,7 +10,7 @@ EMITTANCE   5
 
 // Camera
 CAMERA
-RES         1600 1600
+RES         2560 1440
 FOVY        45
 ITERATIONS  5000
 DEPTH       8
