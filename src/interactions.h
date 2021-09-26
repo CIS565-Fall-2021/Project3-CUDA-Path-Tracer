@@ -8,7 +8,7 @@
  * Used for diffuse lighting.
  */
 __host__ __device__ glm::vec3 calculateRandomDirectionInHemisphere(
-    glm::vec3 normal, thrust::default_random_engine &rng) {
+    const glm::vec3 normal, thrust::default_random_engine &rng) {
   thrust::uniform_real_distribution<float> u01(0, 1);
 
   float up     = sqrt(u01(rng));     // cos(theta)
@@ -54,21 +54,24 @@ __host__ __device__ glm::vec3 calculateRandomDirectionInHemisphere(
  *   and a specular bounce), but divide the resulting color of either branch
  *   by its probability (0.5), to counteract the chance (0.5) of the branch
  *   being taken.
- *   - This way is inefficient, but serves as a good starting point - it
+ *   - This way is inefficient, but serves as a good starting point --- it
  *     converges slowly, especially for pure-diffuse or pure-specular.
  * - Pick the split based on the intensity of each material color, and divide
  *   branch result by that branch's probability (whatever probability you use).
  *
- * This method applies its changes to the Ray parameter `ray` in place.
- * It also modifies the color `color` of the ray in place.
- *
  * You may need to change the parameter list for your purposes!
+ *
+ * @return  This method applies its changes to the Ray parameter `ray` in place.
+ * It also modifies the color `color` of the ray in place.
  */
 __host__ __device__ void scatterRay(PathSegment &pathSegment,
-                                    glm::vec3 intersect, glm::vec3 normal,
-                                    const Material &m,
+                                    const glm::vec3 intersect,
+                                    const glm::vec3 normal, const Material &m,
                                     thrust::default_random_engine &rng) {
   // TODO: implement this.
   // A basic implementation of pure-diffuse shading will just call the
   // calculateRandomDirectionInHemisphere defined above.
+  pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+  pathSegment.ray.origin    = intersect;
+  pathSegment.color *= (0.5f * m.color);
 }
