@@ -4,41 +4,8 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
-
-#define BACKGROUND_COLOR (glm::vec3(0.0f))
-
-enum GeomType {
-    SPHERE,
-    CUBE,
-};
-
-struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction;
-};
-
-struct Geom {
-    enum GeomType type;
-    int materialid;
-    glm::vec3 translation;
-    glm::vec3 rotation;
-    glm::vec3 scale;
-    glm::mat4 transform;
-    glm::mat4 inverseTransform;
-    glm::mat4 invTranspose;
-};
-
-struct Material {
-    glm::vec3 color;
-    struct {
-        float exponent;
-        glm::vec3 color;
-    } specular;
-    float hasReflective;
-    float hasRefractive;
-    float indexOfRefraction;
-    float emittance;
-};
+#include "scenestruct/material.h"
+#include "scenestruct/geometry.h"
 
 struct Camera {
     glm::ivec2 resolution;
@@ -78,5 +45,7 @@ struct ShadeableIntersection {
 
     float t;
     glm::vec3 surfaceNormal;
+    glm::vec2 uv;
+    //glm::vec3 barycentric;
     int materialId;
 };

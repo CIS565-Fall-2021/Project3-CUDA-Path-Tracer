@@ -73,6 +73,15 @@ set(headers
     src/sceneStructs.h
     src/preview.h
     src/utilities.h
+    
+    src/scenestruct/texture.h
+    src/scenestruct/material.h
+    src/scenestruct/geometry.h
+    
+    src/scenestruct/material.inl
+    src/scenestruct/geometry.inl
+    
+    src/thirdparty/tiny_obj_loader.h
     )
 
 set(sources
@@ -84,6 +93,10 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
+    
+    src/scene.cu
+    
+    src/thirdparty/tiny_obj_loader.cc
     )
 
 list(SORT headers)

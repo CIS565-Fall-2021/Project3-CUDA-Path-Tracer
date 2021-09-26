@@ -18,9 +18,22 @@
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
 #define EPSILON           0.00001f
 
-#define ADVANCED_PIPELINE 0
-#define ENABLE_COMPACTION 1
+#define ENABLE_COMPACTION 0//1
+#define ENABLE_SORTING 0//1
 #define JITTER_ANTI_ALIASING 1//1
+#define ENABLE_BVH 0//1
+#define ENABLE_ADVANCED_PIPELINE 1//0
+
+using ui8 = unsigned char;
+using ui16 = unsigned short;
+using ui32 = unsigned int;
+using ui64 = unsigned long long;
+using i8 = char;
+using i16 = short;
+using i32 = int;
+using i64 = long long;
+using f32 = float;
+using f64 = double;
 
 namespace utilityCore {
     extern float clamp(float f, float min, float max);
@@ -31,4 +44,5 @@ namespace utilityCore {
     extern glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
     extern std::string convertIntToString(int number);
     extern std::istream& safeGetline(std::istream& is, std::string& t); //Thanks to http://stackoverflow.com/a/6089413
+    //extern 
 }

@@ -16,6 +16,12 @@
 #include "intersections.h"
 #include "interactions.h"
 
+#if ENABLE_ADVANCED_PIPELINE
+#define shadePipeline shadeAndScatter
+#else // ENABLE_ADVANCED_PIPELINE
+#define shadePipeline shadeFakeMaterial
+#endif // ENABLE_ADVANCED_PIPELINE
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -153,7 +159,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     }
 }
 
-// TODO:
+// DONE:
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
@@ -175,12 +181,17 @@ __global__ void computeIntersections(
         float t;
         glm::vec3 intersect_point;
         glm::vec3 normal;
+        glm::vec3 barycentric;
         float t_min = FLT_MAX;
         int hit_geom_index = -1;
         bool outside = true;
+        int triangleId = -1;
 
         glm::vec3 tmp_intersect;
         glm::vec3 tmp_normal;
+
+        glm::vec3 tmp_barycentric;
+        int tmp_triangleId = -1;
 
         // naive parse through global geoms
 
@@ -196,7 +207,11 @@ __global__ void computeIntersections(
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
-            // TODO: add more intersection tests here... triangle? metaball? CSG?
+            else if (geom.type == TRI_MESH)
+            {
+                t = trimeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_barycentric, tmp_normal, tmp_triangleId);
+            }
+            // LOOK: add more intersection tests here... triangle? metaball? CSG?
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -206,6 +221,8 @@ __global__ void computeIntersections(
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
+                barycentric = tmp_barycentric;
+                triangleId = tmp_triangleId;
             }
         }
 
@@ -219,6 +236,10 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
+            if (geoms[hit_geom_index].type == TRI_MESH) {
+                Triangle triangle = geoms[hit_geom_index].trimesh_ptr->triangles[triangleId];
+                intersections[path_index].uv = barycentricInterpolation(barycentric, triangle.uv00, triangle.uv01, triangle.uv02);
+            }
         }
     }
 }
@@ -241,6 +262,7 @@ __global__ void shadeFakeMaterial (
     , Material * materials
     , int traceDepth
     , int recordDepth
+    , glm::vec3 backgroundColor
     ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths && pathSegments[idx].remainingBounces >= 0) {
@@ -294,8 +316,136 @@ __global__ void shadeFakeMaterial (
             // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
             // used for opacity, in which case they can indicate "no opacity".
             // This can be useful for post-processing and image compositing.
-            pathSegments[idx].color = glm::vec3(0.0f);
-            pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;
+            if (backgroundColor == glm::vec3(0.0f)) {
+                pathSegments[idx].color *= backgroundColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;
+                shadeableIntersections[idx].materialId = INT_MAX;
+                
+            }
+            else {
+                pathSegments[idx].color *= backgroundColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
+                shadeableIntersections[idx].materialId = INT_MAX;
+            }
+        }
+    }
+}
+
+////////////////////////////// ADVANCED
+
+__host__ __device__
+void scatterRayGeneric(
+    PathSegment & pathSegment, 
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    glm::vec2 uv, 
+    const Material &m,
+    thrust::default_random_engine &rng) {
+    // DONE: implement this.
+    // A basic implementation of pure-diffuse shading will just call the
+    // calculateRandomDirectionInHemisphere defined above.
+
+    if (pathSegment.remainingBounces < 0) {
+        return;
+    }
+    glm::vec3 in = glm::normalize(pathSegment.ray.direction);
+    glm::vec3 multColor(1.0f);
+
+    MonteCarloPair mcpair = m.sampleScatter(in, normal, uv, rng);
+    glm::vec3 scatterDir = mcpair.out;
+    multColor *= mcpair.bsdfTimesCosSlashPDF;
+    
+//#if SWITCH_IN_OUT_RAY
+//    float cosNI = glm::dot(normal, -in);
+//    cosNI = max(cosNI, 0.f);
+//    multColor *= cosNI;
+//#else // SWITCH_IN_OUT_RAY
+//    float cosNO = glm::dot(normal, scatterDir);
+//
+//    //if (cosNO < 0.5f) {
+//    //    printf("cosNO = %f\n", cosNO);
+//    //}
+//
+//    cosNO = max(cosNO, 0.f);
+//    multColor *= cosNO;
+//#endif // SWITCH_IN_OUT_RAY
+
+    //if (multColor.r > 1.0f || multColor.g > 1.0f || multColor.b > 1.0f) {
+    //    printf("multColor = %f, %f, %f\n", multColor.r, multColor.g, multColor.b);
+    //}
+
+    pathSegment.color *= multColor;
+    pathSegment.ray.origin = intersect;// +scatterDir * EPSILON;
+    pathSegment.ray.direction = scatterDir;
+    --pathSegment.remainingBounces;
+}
+
+__global__ void shadeAndScatter (
+    int iter
+    , int depth
+    , int num_paths
+    , ShadeableIntersection * shadeableIntersections
+    , PathSegment * pathSegments
+    , Material * materials
+    , int traceDepth
+    , int recordDepth
+    , glm::vec3 backgroundColor
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths && pathSegments[idx].remainingBounces >= 0) {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > 0.0f) { // if the intersection exists...
+                                     // Set up the RNG
+                                     // LOOK: this is how you use thrust's RNG! Please look at
+                                     // makeSeededRandomEngine as well.
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+            intersection.surfaceNormal = glm::normalize(intersection.surfaceNormal);
+            // TODO: Normal map?
+
+            // If the material indicates that the object was a light, "light" the ray
+            if (material.emittance > 0.0f) {
+                glm::vec3 emitColor = materialColor * material.emittance;
+                if (recordDepth >= 0) {
+                    if (traceDepth - pathSegments[idx].remainingBounces < recordDepth + 1) {
+                        //if (traceDepth - pathSegments[idx].remainingBounces != recordDepth) {
+                        emitColor *= 0.f;
+                    }
+                    //else {
+                    //    if (recordDepth > 1 && (pathSegments[idx].color.r > 0.5f || pathSegments[idx].color.g > 0.5f || pathSegments[idx].color.b > 0.5f)) {
+                    //        printf("cur idx color : %f, %f, %f\n", pathSegments[idx].color.r, pathSegments[idx].color.g, pathSegments[idx].color.b);
+                    //    }
+                    //}
+                }
+                pathSegments[idx].color *= emitColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
+            }
+            else {
+                glm::vec3 intersect = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                scatterRayGeneric(
+                    pathSegments[idx],
+                    intersect,
+                    intersection.surfaceNormal,
+                    intersection.uv,
+                    material,
+                    rng);
+            }
+        } 
+        else {
+            if (backgroundColor == glm::vec3(0.0f)) {
+                pathSegments[idx].color *= backgroundColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;
+                shadeableIntersections[idx].materialId = INT_MAX;
+
+            }
+            else {
+                pathSegments[idx].color *= backgroundColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
+                shadeableIntersections[idx].materialId = INT_MAX;
+            }
         }
     }
 }
@@ -412,7 +562,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         cudaDeviceSynchronize();
         depth++;
 
-#if ENABLE_COMPACTION
+#if ENABLE_SORTING
         // Sort
         thrust::device_ptr<PathSegment> thrust_dev_paths(dev_paths);
 #if !ADVANCED_PIPELINE
@@ -422,9 +572,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 #endif // ADVANCED_PIPELINE
         checkCUDAError("sort");
 
-#endif // ENABLE_COMPACTION
+#endif // ENABLE_SORTING
 
-#if !ADVANCED_PIPELINE
         // DONE:
         // --- Shading Stage ---
         // Shade path segments based on intersections and generate new rays by
@@ -433,19 +582,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // materials you have in the scenefile.
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
-
-        shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
+        
+        //shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
+        shadePipeline<<<numblocksPathSegmentTracing, blockSize1d>>> (
             iter,
-            depth, 
+            depth,
             num_paths,
             dev_intersections,
             dev_paths,
             dev_materials,
             traceDepth,
-            recordDepth);
+            recordDepth,
+            hst_scene->backgroundColor);
         checkCUDAError("shade one bounce");
-#else // ADVANCED_PIPELINE
-#endif // ADVANCED_PIPELINE
 
 #if ENABLE_COMPACTION
         // Stream compaction

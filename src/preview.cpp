@@ -17,7 +17,10 @@ std::string currentTimeString() {
     time_t now;
     time(&now);
     char buf[sizeof "0000-00-00_00-00-00z"];
-    strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%Sz", gmtime(&now));
+
+    strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%Sz", localtime(&now));
+    //strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%Sz", gmtime(&now));
+
     return std::string(buf);
 }
 

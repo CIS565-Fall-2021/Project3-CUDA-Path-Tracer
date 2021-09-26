@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
     if (argc < 2) {
         //printf("Usage: %s SCENEFILE.txt\n", argv[0]);
         //return 1;
+        //sceneFile = "../scenes/cornell_klee.txt";
         sceneFile = "../scenes/cornell.txt";
         //sceneFile = "../scenes/cornell2.txt";
     }

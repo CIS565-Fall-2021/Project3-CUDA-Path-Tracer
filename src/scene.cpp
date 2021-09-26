@@ -14,6 +14,8 @@ int Scene::loadMaterial(std::string materialid) {
         std::cout << "Loading Material " << id << "..." << std::endl;
         Material newMaterial;
 
+        bool customMaterialType = false;
+
         //load static properties
         for (int i = 0; i < 7; i++) {
             std::string line;
@@ -22,20 +24,53 @@ int Scene::loadMaterial(std::string materialid) {
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
-            } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
+            } 
+            else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
                 newMaterial.specular.exponent = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
+            } 
+            else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
                 glm::vec3 specColor(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
                 newMaterial.specular.color = specColor;
-            } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
-                newMaterial.hasReflective = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
-                newMaterial.hasRefractive = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
+            } 
+            else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
+                newMaterial.hasReflective = atoi(tokens[1].c_str());
+            } 
+            else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
+                newMaterial.hasRefractive = atoi(tokens[1].c_str());
+            } 
+            else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
-            } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
+            } 
+            else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
+            } 
+            else if (strcmp(tokens[0].c_str(), "ROUGHNESS") == 0) {
+                newMaterial.roughness = atof(tokens[1].c_str());
+            } 
+            else if (strcmp(tokens[0].c_str(), "MATERIAL_TYPE") == 0) {
+                if (strcmp(tokens[1].c_str(), "PHONG") == 0) {
+                    std::cout << "Creating new Phong material..." << std::endl;
+                    newMaterial.materialType = MaterialType::PHONG;
+                    customMaterialType = true;
+                } 
+                else if (strcmp(line.c_str(), "COOK_TOLERANCE") == 0) {
+                    std::cout << "Creating new Cook-Tolerance material..." << std::endl;
+                    newMaterial.materialType = MaterialType::COOK_TOLERANCE;
+                    customMaterialType = true;
+                }
             }
+            else if (strcmp(tokens[0].c_str(), "DIFFUSE_TEXTURE") == 0) {
+                newMaterial.diffuseTexture = loadTexture(tokens[1].c_str());
+            }
+            else if (strcmp(tokens[0].c_str(), "SPECULAR_TEXTURE") == 0) {
+                newMaterial.specularTexture = loadTexture(tokens[1].c_str());
+            }
+            else if (strcmp(tokens[0].c_str(), "NORMAL_TEXTURE") == 0) {
+                newMaterial.normalTexture = loadTexture(tokens[1].c_str());
+            }
+        }
+        if (!customMaterialType) {
+            std::cout << "Creating new Phong material..." << std::endl;
         }
         materials.push_back(newMaterial);
         return 1;
@@ -58,9 +93,14 @@ int Scene::loadGeom(std::string objectid) {
             if (strcmp(line.c_str(), "sphere") == 0) {
                 std::cout << "Creating new sphere..." << std::endl;
                 newGeom.type = SPHERE;
-            } else if (strcmp(line.c_str(), "cube") == 0) {
+            } 
+            else if (strcmp(line.c_str(), "cube") == 0) {
                 std::cout << "Creating new cube..." << std::endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(line.c_str(), "trimesh") == 0) {
+                std::cout << "Creating new trimesh..." << std::endl;
+                newGeom.type = TRI_MESH;
             }
         }
 
@@ -130,6 +170,9 @@ int Scene::loadCamera() {
 #if JITTER_ANTI_ALIASING
     state.imageName += "_JAA";
 #endif // JITTER_ANTI_ALIASING
+#if ENABLE_ADVANCED_PIPELINE
+    state.imageName += "_ADVPIPE";
+#endif // ENABLE_ADVANCED_PIPELINE
     state.imageName += "_depth" + std::to_string(state.traceDepth);
     // End image name
 
@@ -163,9 +206,27 @@ int Scene::loadCamera() {
     //set up render camera stuff
     int arraylen = camera.resolution.x * camera.resolution.y;
     state.image.resize(arraylen);
-    std::fill(state.image.begin(), state.image.end(), glm::vec3());
+    std::fill(state.image.begin(), state.image.end(), backgroundColor);
 
     std::cout << "Loaded camera!" << std::endl;
+    return 1;
+}
+
+int Scene::loadBackground() {
+    std::cout << "Loading Background ..." << std::endl;
+    std::string line;
+    utilityCore::safeGetline(fp_in, line);
+    while (!line.empty() && fp_in.good()) {
+        std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+        if (strcmp(tokens[0].c_str(), "RGB") == 0) {
+            backgroundColor = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+
+        utilityCore::safeGetline(fp_in, line);
+    }
+    std::fill(state.image.begin(), state.image.end(), backgroundColor);
+
+    std::cout << "Loaded background!" << std::endl;
     return 1;
 }
 
@@ -182,6 +243,11 @@ bool Scene::readFromToken(const std::vector<std::string>& tokens) {
     } 
     else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
         loadCamera();
+        std::cout << " " << std::endl;
+        return true;
+    }
+    else if (strcmp(tokens[0].c_str(), "BACKGROUND") == 0) {
+        loadBackground();
         std::cout << " " << std::endl;
         return true;
     }
@@ -207,4 +273,6 @@ Scene::Scene(std::string filename) {
     }
 }
 
-Scene::~Scene() {}
+Scene::~Scene() {
+    freeTextures();
+}
