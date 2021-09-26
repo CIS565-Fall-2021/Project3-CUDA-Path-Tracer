@@ -337,8 +337,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // --- PathSegment Tracing Stage ---
   // Shoot ray into scene, bounce between objects, push shading chunks
 
-  bool iterationComplete = false;
-  while (!iterationComplete) {
+  while (num_active_paths > 0) {
     // clean shading chunks
     cudaMemset(dev_intersections, 0,
                pixelcount * sizeof(ShadeableIntersection));
@@ -383,7 +382,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     num_active_paths =
         stream_compaction::rayCompaction(dev_paths, num_active_paths);
     checkCUDAError("ray compaction");
-    iterationComplete = (num_active_paths == 0);
   }
 
   // Assemble this iteration and apply it to the image
