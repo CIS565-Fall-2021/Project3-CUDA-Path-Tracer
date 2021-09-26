@@ -71,7 +71,7 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment,
                                     const glm::vec3 normal, const Material &m,
                                     thrust::default_random_engine &rng) {
   pathSegment.ray.origin = intersect;
-  pathSegment.color *= (0.5f * m.color);
+  pathSegment.color *= (0.7f * m.color);
 
   if (m.emittance > 0.0f) {
     pathSegment.color *= (m.color * m.emittance);
