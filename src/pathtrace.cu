@@ -239,23 +239,11 @@ __global__ void shadeMaterial(
       thrust::default_random_engine rng =
           makeSeededRandomEngine(iter, idx, depth);
 
-      const Material material       = materials[intersection.materialId];
-      const glm::vec3 materialColor = material.color;
-
-      // If the material hits the light, "light" the ray and terminates bouncing
-      if (material.emittance > 0.0f) {
-        path_segment.color *= (materialColor * material.emittance);
-        path_segment.remainingBounces = 0;
-      }
-      // Otherwise, apply BSDF evaluation to update ray color
-      else {
-        glm::vec3 intersect_pos = path_segment.ray.origin +
-                                  intersection.t * path_segment.ray.direction;
-        scatterRay(path_segment, intersect_pos, intersection.surfaceNormal,
-                   material, rng);
-        --path_segment.remainingBounces;
-      }
-      path_segment.bounced = true;
+      const Material material = materials[intersection.materialId];
+      glm::vec3 intersect_pos =
+          path_segment.ray.origin + intersection.t * path_segment.ray.direction;
+      scatterRay(path_segment, intersect_pos, intersection.surfaceNormal,
+                 material, rng);
     }
     // If there was no intersection, color the ray black, terminates bouncing
     else {

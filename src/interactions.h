@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thrust/random.h>
+
 #include "intersections.h"
 
 // CHECKITOUT
@@ -68,10 +70,23 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment,
                                     const glm::vec3 intersect,
                                     const glm::vec3 normal, const Material &m,
                                     thrust::default_random_engine &rng) {
-  // TODO: implement this.
-  // A basic implementation of pure-diffuse shading will just call the
-  // calculateRandomDirectionInHemisphere defined above.
-  pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
-  pathSegment.ray.origin    = intersect;
+  pathSegment.ray.origin = intersect;
   pathSegment.color *= (0.5f * m.color);
+
+  if (m.emittance > 0.0f) {
+    pathSegment.color *= (m.color * m.emittance);
+    pathSegment.remainingBounces = 0;
+  } else {
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    const float material_reflective = m.hasReflective;
+    if (u01(rng) < material_reflective) {
+      pathSegment.ray.direction =
+          glm::reflect(pathSegment.ray.direction, normal);
+    } else {
+      pathSegment.ray.direction =
+          calculateRandomDirectionInHemisphere(normal, rng);
+      pathSegment.bounced = true;
+    }
+    --pathSegment.remainingBounces;
+  }
 }
