@@ -163,10 +163,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth,
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
-__global__ void computeIntersections(int depth, int num_paths,
-                                     PathSegment *pathSegments, Geom *geoms,
-                                     int geoms_size,
-                                     ShadeableIntersection *intersections) {
+__global__ void computeIntersections(const int depth, const int num_paths,
+                                     const PathSegment *pathSegments,
+                                     const Geom *geoms, const int geoms_size,
+                                     ShadeableIntersection *intersections,
+                                     int *materialIDs) {
   int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (path_index < num_paths) {
@@ -185,7 +186,7 @@ __global__ void computeIntersections(int depth, int num_paths,
     // naive parse through global geoms
 
     for (int i = 0; i < geoms_size; i++) {
-      Geom &geom = geoms[i];
+      const Geom &geom = geoms[i];
 
       if (geom.type == CUBE) {
         t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect,
@@ -208,11 +209,14 @@ __global__ void computeIntersections(int depth, int num_paths,
 
     if (hit_geom_index == -1) {
       intersections[path_index].t = -1.0f;
+      materialIDs[path_index]     = -1;
     } else {
       // The ray hits something
+      int material_id                      = geoms[hit_geom_index].materialid;
       intersections[path_index].t          = t_min;
-      intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+      intersections[path_index].materialId = material_id;
       intersections[path_index].surfaceNormal = normal;
+      materialIDs[path_index]                 = material_id;
     }
   }
 }
@@ -259,22 +263,6 @@ __global__ void shadeMaterial(
       path_segment.remainingBounces = 0;
     }
     pathSegments[idx] = path_segment;
-  }
-}
-
-/**
- * Extracts each intersection's material IDs into array
- *
- * @return  int*: dev_materialIDs
- */
-__global__ void extractMaterialID(int num_paths, int *dev_materialIDs,
-                                  const ShadeableIntersection *intersections) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < num_paths) {
-    const ShadeableIntersection intersection = intersections[idx];
-    if (intersection.t > 0.0f) {
-      dev_materialIDs[idx] = intersection.materialId;
-    }
   }
 }
 
@@ -360,7 +348,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         (num_active_paths + blockSize1d - 1) / blockSize1d;
     computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
         depth, num_active_paths, dev_paths, dev_geoms, hst_scene->geoms.size(),
-        dev_intersections);
+        dev_intersections, dev_materialIDs);
     checkCUDAError("trace one bounce");
     cudaDeviceSynchronize();
     depth++;
@@ -375,11 +363,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     //
     // a) sort intersections & paths with ray material ID
     if (enable_radixSort) {
-      cudaMemset(dev_materialIDs, -1, pixelcount * sizeof(int));
-      extractMaterialID<<<numblocksPathSegmentTracing, blockSize1d>>>(
-          num_active_paths, dev_materialIDs, dev_intersections);
-      checkCUDAError("extract materia ID");
-      cudaDeviceSynchronize();
       cudaMemcpy(dev_materialIDBuffers, dev_materialIDs,
                  num_active_paths * sizeof(int), cudaMemcpyDeviceToDevice);
       thrust::sort_by_key(thrust::device, dev_materialIDs,
