@@ -223,7 +223,7 @@ __global__ void computeIntersections(int depth, int num_paths,
  * @return  updates pathSegments
  */
 __global__ void shadeMaterial(
-    int iter, int num_paths,
+    int iter, int depth, int num_paths,
     const ShadeableIntersection *shadeableIntersections,
     const Material *materials, PathSegment *pathSegments) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -232,7 +232,8 @@ __global__ void shadeMaterial(
     PathSegment path_segment                 = pathSegments[idx];
     if (intersection.t > 0.0f) {  // if the intersection exists
       // Set up an random number generator
-      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+      thrust::default_random_engine rng =
+          makeSeededRandomEngine(iter, idx, depth);
 
       const Material material       = materials[intersection.materialId];
       const glm::vec3 materialColor = material.color;
@@ -390,7 +391,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // b) Use BSDF to shade & advance each path segment
     shadeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
-        iter, num_active_paths, dev_intersections, dev_materials, dev_paths);
+        iter, depth, num_active_paths, dev_intersections, dev_materials,
+        dev_paths);
     checkCUDAError("shade material");
     cudaDeviceSynchronize();
 
