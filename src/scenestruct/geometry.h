@@ -16,7 +16,8 @@ struct Ray {
     glm::vec3 direction;
 };
 
-enum GeomType {
+enum class GeomType : ui8 {
+    NONE,
     SPHERE,
     CUBE,
     TRI_MESH,
@@ -40,7 +41,7 @@ struct Triangle {
 
     union {
         struct { glm::vec3 pos0, pos1, pos2; };
-        glm::vec3 pos[3];
+        glm::vec3 position[3];
     };
     union {
         struct { glm::vec3 nrm0, nrm1, nrm2; };
@@ -74,13 +75,17 @@ struct TriMesh {
     BoundingVolumeHierarchy<TriMesh> localBVH;
 #endif // BUILD_BVH_FOR_TRIMESH
 
+    GLM_FUNC_QUALIFIER bool isReadable() const {
+        return triangles != nullptr;
+    }
+    GLM_FUNC_QUALIFIER float worldIntersectionTest(glm::mat4 transform, Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId);
     GLM_FUNC_QUALIFIER float localIntersectionTest(Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId);
 };
 
 struct Geom {
-    enum GeomType type;
+    enum GeomType type = GeomType::NONE;
     int materialid;
-    TriMesh* trimesh_ptr = nullptr;
+    TriMesh trimeshRes;
     glm::vec3 translation;
     glm::vec3 rotation;
     glm::vec3 scale;

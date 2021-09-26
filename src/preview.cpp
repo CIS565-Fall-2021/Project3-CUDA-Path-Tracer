@@ -166,6 +166,8 @@ bool init() {
     initTextures();
     initCuda();
     initPBO();
+    scene->execInitCallbacks();
+    checkCUDAError("initOtherStuff");
     GLuint passthroughProgram = initShader();
 
     glUseProgram(passthroughProgram);

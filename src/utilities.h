@@ -44,5 +44,15 @@ namespace utilityCore {
     extern glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
     extern std::string convertIntToString(int number);
     extern std::istream& safeGetline(std::istream& is, std::string& t); //Thanks to http://stackoverflow.com/a/6089413
-    //extern 
+    extern std::string getBaseDirectory(const std::string& filename);
+
+    template<typename T>
+    T* getPtrInStruct(const void* struct_ptr,i64 offset);
+    extern i64 getAddrOffsetInStruct(const void* struct_ptr, const void* var_ptr);
+    extern std::string getModelExtension(const std::string& filename);
+}
+
+template<typename T>
+T* utilityCore::getPtrInStruct(const void* struct_ptr, i64 offset) {
+    return reinterpret_cast<T*>(reinterpret_cast<i64>(struct_ptr) + offset);
 }

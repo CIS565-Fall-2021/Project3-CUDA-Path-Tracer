@@ -1,3 +1,4 @@
+#include "geometry.h"
 
 __host__ __device__ inline
 glm::vec3 tangentSpaceToWorldSpace(const glm::vec3& dir, const glm::vec3& normal) {
@@ -83,8 +84,8 @@ GLM_FUNC_QUALIFIER void BoundingVolumeHierarchy<TriMesh>::buildBVH(TriMesh* dev_
 template<>
 GLM_FUNC_QUALIFIER BBox BBox::getLocalBoundingBox(const Triangle& geom) {
     return BBox{
-        glm::min(geom.pos[0], glm::min(geom.pos[1], geom.pos[2])),
-        glm::max(geom.pos[0], glm::max(geom.pos[1], geom.pos[2])),
+        glm::min(geom.pos0, glm::min(geom.pos1, geom.pos2)),
+        glm::max(geom.pos0, glm::max(geom.pos1, geom.pos2)),
         1
     };
 }
@@ -123,21 +124,62 @@ GLM_FUNC_QUALIFIER glm::vec4 getBarycentric(const glm::vec3& p, const glm::vec3&
     return glm::vec4(alpha, beta, gamma, 1.f);
 }
 
+__host__ __device__ inline glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v);
+
+GLM_FUNC_QUALIFIER float TriMesh::worldIntersectionTest(glm::mat4 transform, Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
+#if BUILD_BVH_FOR_TRIMESH
+
+#else // BUILD_BVH_FOR_TRIMESH
+    float tnear = FLT_MAX;
+    float tmp_t = -1.f;
+    int tmp_triangleId = -1;
+    for (int i = 0; i < triangleNum; ++i) {
+        Triangle tri = triangles[i];
+        tri.pos0 = multiplyMV(transform, glm::vec4(tri.pos0, 1.f));
+        tri.pos1 = multiplyMV(transform, glm::vec4(tri.pos1, 1.f));
+        tri.pos2 = multiplyMV(transform, glm::vec4(tri.pos2, 1.f));
+
+        tri.nrm0 = multiplyMV(transform, glm::vec4(tri.nrm0, 0.f));
+        tri.nrm1 = multiplyMV(transform, glm::vec4(tri.nrm1, 0.f));
+        tri.nrm2 = multiplyMV(transform, glm::vec4(tri.nrm2, 0.f));
+
+        tmp_t = tri.triangleLocalIntersectionTest(r, intersectionPoint, intersectionBarycentric, normal);
+        if (tmp_t > 0.f && tmp_t < tnear) {
+            tmp_triangleId = i;
+            tnear = tmp_t;
+        }
+}
+    if (tmp_triangleId == -1) {
+        return -1.f;
+    }
+    triangleId = tmp_triangleId;
+    return tnear;
+#endif // BUILD_BVH_FOR_TRIMESH
+}
+
 GLM_FUNC_QUALIFIER float TriMesh::localIntersectionTest(Ray q, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
 #if BUILD_BVH_FOR_TRIMESH
 
 #else // BUILD_BVH_FOR_TRIMESH
-    float tnear = -1.f;
+    float tnear = FLT_MAX;
+    float tmp_t = -1.f;
+    int tmp_triangleId = -1;
     for (int i = 0; i < triangleNum; ++i) {
-        tnear = triangles[i].triangleLocalIntersectionTest(q, intersectionPoint, intersectionBarycentric, normal);
-        if (tnear > 0.f) {
-            triangleId = i;
-            return tnear;
+        tmp_t = triangles[i].triangleLocalIntersectionTest(q, intersectionPoint, intersectionBarycentric, normal);
+        if (tmp_t > 0.f && tmp_t < tnear) {
+            tmp_triangleId = i;
+            tnear = tmp_t;
         }
     }
-    return -1.f;
+    if (tmp_triangleId == -1) {
+        return -1.f;
+    }
+    triangleId = tmp_triangleId;
+    return tnear;
 #endif // BUILD_BVH_FOR_TRIMESH
 }
+
+#define TRIANGLE_INTERSECTION_EPSILON 0.f //0.005f // 0.001f
 
 GLM_FUNC_QUALIFIER float Triangle::triangleLocalIntersectionTest(Ray q, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal) {
     glm::vec3 e1 = pos1 - pos0, e2 = pos2 - pos0;
@@ -162,15 +204,22 @@ GLM_FUNC_QUALIFIER float Triangle::triangleLocalIntersectionTest(Ray q, glm::vec
     float v = s2_dot_dir / s1_dot_e1;
     float w = 1.f - u - v;
 
-    if (tnear < EPSILON || u < 0.f || v < 0.f || w < 0.f) {
+    if (tnear < EPSILON || u < -TRIANGLE_INTERSECTION_EPSILON || v < -TRIANGLE_INTERSECTION_EPSILON || w < -TRIANGLE_INTERSECTION_EPSILON) {
         return -1.f;
     }
+    //if (tnear < EPSILON || u < 0.f || v < 0.f || w < 0.f) {
+    //    return -1.f;
+    //}
 
-    intersectionBarycentric.x = u;
-    intersectionBarycentric.y = v;
-    intersectionBarycentric.z = w;
+    intersectionBarycentric.x = w;
+    intersectionBarycentric.y = u;
+    intersectionBarycentric.z = v;
 
     intersectionPoint = barycentricInterpolation(intersectionBarycentric, pos0, pos1, pos2);
+    normal = glm::normalize(barycentricInterpolation(intersectionBarycentric, nrm0, nrm1, nrm2));
+    if (twoSided && s2_dot_dir < 0.f) {
+        normal = -normal;
+    }
     return tnear;
 }
 

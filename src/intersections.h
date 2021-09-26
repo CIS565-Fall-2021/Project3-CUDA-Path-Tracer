@@ -146,56 +146,76 @@ __host__ __device__ inline float sphereIntersectionTest(Geom sphere, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
-__host__ __device__ inline float trimeshIntersectionTest(Geom trigeom, Ray r,
+#define TRIANGLE_INTERSECTION_IN_WORLD_SPACE 1
+
+__host__ __device__ inline float trimeshIntersectionTest(Geom trimeshgeom, Ray r,
     glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
-    if (!trigeom.trimesh_ptr) {
+    if (!trimeshgeom.trimeshRes.isReadable()) {
         return -1.f;
     }
+
+#if TRIANGLE_INTERSECTION_IN_WORLD_SPACE
+    ///////////////////////////////
+
+    float t = trimeshgeom.trimeshRes.worldIntersectionTest(trimeshgeom.transform, r, intersectionPoint, intersectionBarycentric, normal, triangleId);
+
+    return t;
+
+    ///////////////////////////////
+#else // TRIANGLE_INTERSECTION_IN_WORLD_SPACE
 
     Ray q;
-    q.origin    =                multiplyMV(trigeom.inverseTransform, glm::vec4(r.origin   , 1.0f));
-    q.direction = glm::normalize(multiplyMV(trigeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    q.origin    =                multiplyMV(trimeshgeom.inverseTransform, glm::vec4(r.origin   , 1.0f));
+    q.direction = glm::normalize(multiplyMV(trimeshgeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-    TriMesh* trimesh_ptr = trigeom.trimesh_ptr;
-    return trimesh_ptr->localIntersectionTest(q, intersectionPoint, intersectionBarycentric, normal, triangleId);
+    float t = trimeshgeom.trimeshRes.localIntersectionTest(q, intersectionPoint, intersectionBarycentric, normal, triangleId);
+
+    intersectionPoint = multiplyMV(trimeshgeom.transform, glm::vec4(intersectionPoint, 1.f));
+    normal = glm::normalize(multiplyMV(trimeshgeom.invTranspose, glm::vec4(normal, 0.f)));
+    return t;
+#endif // TRIANGLE_INTERSECTION_IN_WORLD_SPACE
 }
 
-__host__ __device__ inline float triangleIntersectionTest(Geom trigeom, Triangle triangle, Ray r,
-    glm::vec3 &intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3 &normal) {
-    Ray q;
-    q.origin    =                multiplyMV(trigeom.inverseTransform, glm::vec4(r.origin   , 1.0f));
-    q.direction = glm::normalize(multiplyMV(trigeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
-
-    glm::vec3 e1 = triangle.pos1 - triangle.pos0, e2 = triangle.pos2 - triangle.pos0;
-    glm::vec3 s = q.origin - triangle.pos0;
-    glm::vec3 s1 = glm::cross(q.direction, e2), s2 = glm::cross(s, e1);
-
-    float s1_dot_e1 = glm::dot(s1, e1);
-    float s2_dot_e2 = glm::dot(s2, e2);
-    float s1_dot_s = glm::dot(s1, s);
-    float s2_dot_dir = glm::dot(s2, q.direction);
-
-    if (fabs(s2_dot_dir) < EPSILON) {
-        return -1.f;
-    }
-
-    if (!triangle.twoSided && s2_dot_dir < 0.f) {
-        return -1.f;
-    }
-
-    float tnear = s2_dot_e2 / s1_dot_e1;
-    float u = s1_dot_s / s1_dot_e1;
-    float v = s2_dot_dir / s1_dot_e1;
-    float w = 1.f - u - v;
-
-    if (tnear < EPSILON || u < 0.f || v < 0.f || w < 0.f) {
-        return -1.f;
-    }
-
-    intersectionBarycentric.x = u;
-    intersectionBarycentric.y = v;
-    intersectionBarycentric.z = w;
-
-    intersectionPoint = barycentricInterpolation(intersectionBarycentric, triangle.pos0, triangle.pos1, triangle.pos2);
-    return tnear;
-}
+//__host__ __device__ inline float triangleIntersectionTest(Geom trigeom, Triangle triangle, Ray r,
+//    glm::vec3 &intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3 &normal) {
+//    Ray q;
+//    q.origin    =                multiplyMV(trigeom.inverseTransform, glm::vec4(r.origin   , 1.0f));
+//    q.direction = glm::normalize(multiplyMV(trigeom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+//
+//    glm::vec3 e1 = triangle.pos1 - triangle.pos0, e2 = triangle.pos2 - triangle.pos0;
+//    glm::vec3 s = q.origin - triangle.pos0;
+//    glm::vec3 s1 = glm::cross(q.direction, e2), s2 = glm::cross(s, e1);
+//
+//    float s1_dot_e1 = glm::dot(s1, e1);
+//    float s2_dot_e2 = glm::dot(s2, e2);
+//    float s1_dot_s = glm::dot(s1, s);
+//    float s2_dot_dir = glm::dot(s2, q.direction);
+//
+//    if (fabs(s2_dot_dir) < EPSILON) {
+//        return -1.f;
+//    }
+//
+//    if (!triangle.twoSided && s2_dot_dir < 0.f) {
+//        return -1.f;
+//    }
+//
+//    float tnear = s2_dot_e2 / s1_dot_e1;
+//    float u = s1_dot_s / s1_dot_e1;
+//    float v = s2_dot_dir / s1_dot_e1;
+//    float w = 1.f - u - v;
+//
+//    if (tnear < EPSILON || u < 0.f || v < 0.f || w < 0.f) {
+//        return -1.f;
+//    }
+//
+//    intersectionBarycentric.x = u;
+//    intersectionBarycentric.y = v;
+//    intersectionBarycentric.z = w;
+//
+//    intersectionPoint = barycentricInterpolation(intersectionBarycentric, triangle.pos0, triangle.pos1, triangle.pos2);
+//    normal = glm::normalize(barycentricInterpolation(intersectionBarycentric, triangle.nrm0, triangle.nrm1, triangle.nrm2));
+//
+//    intersectionPoint = multiplyMV(trigeom.transform, glm::vec4(intersectionPoint, 1.f));
+//    normal = glm::normalize(multiplyMV(trigeom.invTranspose, glm::vec4(normal, 0.f)));
+//    return tnear;
+//}

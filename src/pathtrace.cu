@@ -22,10 +22,26 @@
 #define shadePipeline shadeFakeMaterial
 #endif // ENABLE_ADVANCED_PIPELINE
 
+#define DEBUG_COLLISION 0
+
+#if DEBUG_COLLISION
+#undef shadePipeline
+#define shadePipeline shadeDebugCollision
+__global__ void shadeDebugCollision(
+    int iter
+    , int depth
+    , int num_paths
+    , ShadeableIntersection* shadeableIntersections
+    , PathSegment* pathSegments
+    , Material* materials
+    , int traceDepth
+    , int recordDepth
+    , glm::vec3 backgroundColor
+);
+#endif // DEBUG_COLLISION
+
 #define ERRORCHECK 1
 
-#define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #if ERRORCHECK
     cudaDeviceSynchronize();
@@ -42,6 +58,7 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #  ifdef _WIN32
     getchar();
 #  endif
+    _CrtDbgBreak();
     exit(EXIT_FAILURE);
 #endif
 }
@@ -110,11 +127,11 @@ void pathtraceInit(Scene *scene) {
 }
 
 void pathtraceFree() {
-    cudaFree(dev_image);  // no-op if dev_image is null
-    cudaFree(dev_paths);
-    cudaFree(dev_geoms);
-    cudaFree(dev_materials);
-    cudaFree(dev_intersections);
+    if(dev_image) cudaFree(dev_image);  // no-op if dev_image is null
+    if(dev_paths) cudaFree(dev_paths);
+    if(dev_geoms) cudaFree(dev_geoms);
+    if(dev_materials) cudaFree(dev_materials);
+    if(dev_intersections) cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -199,15 +216,15 @@ __global__ void computeIntersections(
         {
             Geom & geom = geoms[i];
 
-            if (geom.type == CUBE)
+            if (geom.type == GeomType::CUBE)
             {
                 t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
-            else if (geom.type == SPHERE)
+            else if (geom.type == GeomType::SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
-            else if (geom.type == TRI_MESH)
+            else if (geom.type == GeomType::TRI_MESH)
             {
                 t = trimeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_barycentric, tmp_normal, tmp_triangleId);
             }
@@ -236,8 +253,8 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
-            if (geoms[hit_geom_index].type == TRI_MESH) {
-                Triangle triangle = geoms[hit_geom_index].trimesh_ptr->triangles[triangleId];
+            if (geoms[hit_geom_index].type == GeomType::TRI_MESH) {
+                Triangle triangle = geoms[hit_geom_index].trimeshRes.triangles[triangleId];
                 intersections[path_index].uv = barycentricInterpolation(barycentric, triangle.uv00, triangle.uv01, triangle.uv02);
             }
         }
@@ -623,3 +640,72 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     checkCUDAError("pathtrace");
 }
+
+////////////////// START DEBUG COLLISION /////////////////////////
+
+__global__ void shadeDebugCollision (
+    int iter
+    , int depth
+    , int num_paths
+    , ShadeableIntersection * shadeableIntersections
+    , PathSegment * pathSegments
+    , Material * materials
+    , int traceDepth
+    , int recordDepth
+    , glm::vec3 backgroundColor
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths && pathSegments[idx].remainingBounces >= 0) {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > 0.0f) { // if the intersection exists...
+                                     // Set up the RNG
+                                     // LOOK: this is how you use thrust's RNG! Please look at
+                                     // makeSeededRandomEngine as well.
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+            intersection.surfaceNormal = glm::normalize(intersection.surfaceNormal);
+            // TODO: Normal map?
+
+            // If the material indicates that the object was a light, "light" the ray
+            if (material.emittance > 0.0f) {
+                glm::vec3 emitColor = materialColor * material.emittance;
+                if (recordDepth >= 0) {
+                    if (traceDepth - pathSegments[idx].remainingBounces < recordDepth + 1) {
+                        //if (traceDepth - pathSegments[idx].remainingBounces != recordDepth) {
+                        emitColor *= 0.f;
+                    }
+                    //else {
+                    //    if (recordDepth > 1 && (pathSegments[idx].color.r > 0.5f || pathSegments[idx].color.g > 0.5f || pathSegments[idx].color.b > 0.5f)) {
+                    //        printf("cur idx color : %f, %f, %f\n", pathSegments[idx].color.r, pathSegments[idx].color.g, pathSegments[idx].color.b);
+                    //    }
+                    //}
+                }
+                pathSegments[idx].color *= emitColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
+            }
+            else {
+                glm::vec3 intersect = getPointOnRay(pathSegments[idx].ray, intersection.t);
+                pathSegments[idx].color *= materialColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
+            }
+        } 
+        else {
+            if (backgroundColor == glm::vec3(0.0f)) {
+                pathSegments[idx].color *= backgroundColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;
+                shadeableIntersections[idx].materialId = INT_MAX;
+
+            }
+            else {
+                pathSegments[idx].color *= backgroundColor;
+                pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
+                shadeableIntersections[idx].materialId = INT_MAX;
+            }
+        }
+    }
+}
+
+////////////////// END DEBUG COLLISION /////////////////////////

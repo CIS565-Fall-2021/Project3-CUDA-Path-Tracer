@@ -5,19 +5,24 @@
 
 template<typename TPixelType>
 struct Texture2D {
-    GLM_FUNC_QUALIFIER operator bool() const;
+    //GLM_FUNC_QUALIFIER operator bool() const;
     GLM_FUNC_QUALIFIER bool isReadable() const;
     GLM_FUNC_QUALIFIER TPixelType getPixel(int x, int y) const;
     GLM_FUNC_QUALIFIER TPixelType getPixelByUVBilinear(float u, float v) const;
+
+
+    static GLM_FUNC_QUALIFIER i32 index2Dto1D(glm::vec2 size, i32 x, i32 y) {
+        return x * size.y + y;
+    }
 
     TPixelType* buffer = nullptr;
     glm::ivec2 size;
 };
 
-template<typename TPixelType>
-GLM_FUNC_QUALIFIER Texture2D<TPixelType>::operator bool() const {
-    return isReadable();
-}
+//template<typename TPixelType>
+//GLM_FUNC_QUALIFIER Texture2D<TPixelType>::operator bool() const {
+//    return isReadable();
+//}
 
 template<typename TPixelType>
 GLM_FUNC_QUALIFIER bool Texture2D<TPixelType>::isReadable() const {
@@ -26,7 +31,7 @@ GLM_FUNC_QUALIFIER bool Texture2D<TPixelType>::isReadable() const {
 
 template<typename TPixelType>
 GLM_FUNC_QUALIFIER TPixelType Texture2D<TPixelType>::getPixel(int x, int y) const {
-    return buffer[y * size.x + x];
+    return buffer[index2Dto1D(size, x, y)];
 }
 
 template<typename TPixelType>

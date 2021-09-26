@@ -1,5 +1,4 @@
 #include "geometry.h"
-#include "material.h"
 
 // Start Uniform
 

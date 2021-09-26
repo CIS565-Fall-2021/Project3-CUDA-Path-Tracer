@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define DEBUG_TOKENS 0//1
 
 int Scene::loadMaterial(std::string materialid) {
     int id = atoi(materialid.c_str());
@@ -16,11 +17,27 @@ int Scene::loadMaterial(std::string materialid) {
 
         bool customMaterialType = false;
 
-        //load static properties
-        for (int i = 0; i < 7; i++) {
-            std::string line;
+        ////load static properties
+        //for (int i = 0; i < 7; i++) {
+        //    std::string line;
+        //    utilityCore::safeGetline(fp_in, line);
+        std::string line;
+        while (fp_in.good()) {
             utilityCore::safeGetline(fp_in, line);
+            if (line.empty()) {
+                break;
+            }
             std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+#if DEBUG_TOKENS
+            for (size_t i = 0; i < tokens.size(); ++i) {
+                std::cout << "token[" << i << "] = <" << tokens[i] << '>' << std::endl;
+            }
+            std::cout << std::endl;
+#endif // DEBUG_TOKENS
+            if (tokens.empty() || tokens[0].empty()) {
+                break;
+            }
+
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
@@ -60,13 +77,16 @@ int Scene::loadMaterial(std::string materialid) {
                 }
             }
             else if (strcmp(tokens[0].c_str(), "DIFFUSE_TEXTURE") == 0) {
-                newMaterial.diffuseTexture = loadTexture(tokens[1].c_str());
+                addTextureToLoad(materials.size(), utilityCore::getAddrOffsetInStruct(&newMaterial, &newMaterial.diffuseTexture), basePath + tokens[1]);
+                //newMaterial.diffuseTexture = loadTexture((basePath + tokens[1]).c_str());
             }
             else if (strcmp(tokens[0].c_str(), "SPECULAR_TEXTURE") == 0) {
-                newMaterial.specularTexture = loadTexture(tokens[1].c_str());
+                addTextureToLoad(materials.size(), utilityCore::getAddrOffsetInStruct(&newMaterial, &newMaterial.specularTexture), basePath + tokens[1]);
+                //newMaterial.specularTexture = loadTexture((basePath + tokens[1]).c_str());
             }
             else if (strcmp(tokens[0].c_str(), "NORMAL_TEXTURE") == 0) {
-                newMaterial.normalTexture = loadTexture(tokens[1].c_str());
+                addTextureToLoad(materials.size(), utilityCore::getAddrOffsetInStruct(&newMaterial, &newMaterial.normalTexture), basePath + tokens[1]);
+                //newMaterial.normalTexture = loadTexture((basePath + tokens[1]).c_str());
             }
         }
         if (!customMaterialType) {
@@ -87,35 +107,62 @@ int Scene::loadGeom(std::string objectid) {
         Geom newGeom;
         std::string line;
 
-        //load object type
-        utilityCore::safeGetline(fp_in, line);
-        if (!line.empty() && fp_in.good()) {
-            if (strcmp(line.c_str(), "sphere") == 0) {
-                std::cout << "Creating new sphere..." << std::endl;
-                newGeom.type = SPHERE;
-            } 
-            else if (strcmp(line.c_str(), "cube") == 0) {
-                std::cout << "Creating new cube..." << std::endl;
-                newGeom.type = CUBE;
-            }
-            else if (strcmp(line.c_str(), "trimesh") == 0) {
-                std::cout << "Creating new trimesh..." << std::endl;
-                newGeom.type = TRI_MESH;
-            }
-        }
+        ////load object type
+        //utilityCore::safeGetline(fp_in, line);
+        //if (!line.empty() && fp_in.good()) {
+        //    if (strcmp(line.c_str(), "sphere") == 0) {
+        //        std::cout << "Creating new sphere..." << std::endl;
+        //        newGeom.type = GeomType::SPHERE;
+        //    } 
+        //    else if (strcmp(line.c_str(), "cube") == 0) {
+        //        std::cout << "Creating new cube..." << std::endl;
+        //        newGeom.type = GeomType::CUBE;
+        //    }
+        //    else if (strcmp(line.c_str(), "trimesh") == 0) {
+        //        std::cout << "Creating new trimesh..." << std::endl;
+        //        newGeom.type = GeomType::TRI_MESH;
+        //    }
+        //}
 
-        //link material
-        utilityCore::safeGetline(fp_in, line);
-        if (!line.empty() && fp_in.good()) {
-            std::vector<std::string> tokens = utilityCore::tokenizeString(line);
-            newGeom.materialid = atoi(tokens[1].c_str());
-            std::cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << std::endl;
-        }
+        ////link material
+        //utilityCore::safeGetline(fp_in, line);
+        //if (!line.empty() && fp_in.good()) {
+        //    std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+        //    newGeom.materialid = atoi(tokens[1].c_str());
+        //    std::cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << std::endl;
+        //}
 
         //load transformations
         utilityCore::safeGetline(fp_in, line);
         while (!line.empty() && fp_in.good()) {
             std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+
+#if DEBUG_TOKENS
+            for (size_t i = 0; i < tokens.size(); ++i) {
+                std::cout << "token[" << i << "] = <" << tokens[i] << '>' << std::endl;
+            }
+            std::cout << std::endl;
+#endif // DEBUG_TOKENS
+            //load geom type
+            if (strcmp(tokens[0].c_str(), "sphere") == 0) {
+                std::cout << "Creating new sphere..." << std::endl;
+                newGeom.type = GeomType::SPHERE;
+            } 
+            else if (strcmp(tokens[0].c_str(), "cube") == 0) {
+                std::cout << "Creating new cube..." << std::endl;
+                newGeom.type = GeomType::CUBE;
+            }
+            else if (strcmp(tokens[0].c_str(), "trimesh") == 0) {
+                std::cout << "Creating new trimesh..." << std::endl;
+                newGeom.type = GeomType::TRI_MESH;
+            }
+
+            //link material
+            if (strcmp(tokens[0].c_str(), "material") == 0) {
+                std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+                newGeom.materialid = atoi(tokens[1].c_str());
+                std::cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << std::endl;
+            }
 
             //load tranformations
             if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
@@ -125,6 +172,12 @@ int Scene::loadGeom(std::string objectid) {
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             }
+
+            //load models
+            if (strcmp(tokens[0].c_str(), "MODEL") == 0) {
+                addModelToLoad(geoms.size(), utilityCore::getAddrOffsetInStruct(&newGeom, &newGeom.trimeshRes), basePath + tokens[1]);
+            }
+
 
             utilityCore::safeGetline(fp_in, line);
         }
@@ -147,11 +200,28 @@ int Scene::loadCamera() {
 
     state.imageName = "../img/output/";
 
-    //load static properties
-    for (int i = 0; i < 5; i++) {
-        std::string line;
+    ////load static properties
+    //for (int i = 0; i < 5; i++) {
+    //    std::string line;
+    //    utilityCore::safeGetline(fp_in, line);
+    std::string line;
+    while (fp_in.good()) {
         utilityCore::safeGetline(fp_in, line);
+        if (line.empty()) {
+            break;
+        }
+
         std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+#if DEBUG_TOKENS
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            std::cout << "token[" << i << "] = <" << tokens[i] << '>' << std::endl;
+        }
+        std::cout << std::endl;
+#endif // DEBUG_TOKENS
+        if (tokens.empty() || tokens[0].empty()) {
+            break;
+        }
+
         if (strcmp(tokens[0].c_str(), "RES") == 0) {
             camera.resolution.x = atoi(tokens[1].c_str());
             camera.resolution.y = atoi(tokens[2].c_str());
@@ -163,6 +233,15 @@ int Scene::loadCamera() {
             state.traceDepth = atoi(tokens[1].c_str());
         } else if (strcmp(tokens[0].c_str(), "FILE") == 0) {
             state.imageName += tokens[1];
+        }
+
+
+        if (strcmp(tokens[0].c_str(), "EYE") == 0) {
+            camera.position = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        } else if (strcmp(tokens[0].c_str(), "LOOKAT") == 0) {
+            camera.lookAt = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
+            camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         }
     }
 
@@ -176,20 +255,19 @@ int Scene::loadCamera() {
     state.imageName += "_depth" + std::to_string(state.traceDepth);
     // End image name
 
-    std::string line;
-    utilityCore::safeGetline(fp_in, line);
-    while (!line.empty() && fp_in.good()) {
-        std::vector<std::string> tokens = utilityCore::tokenizeString(line);
-        if (strcmp(tokens[0].c_str(), "EYE") == 0) {
-            camera.position = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-        } else if (strcmp(tokens[0].c_str(), "LOOKAT") == 0) {
-            camera.lookAt = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-        } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
-            camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-        }
+    //utilityCore::safeGetline(fp_in, line);
+    //while (!line.empty() && fp_in.good()) {
+    //    std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+    //    if (strcmp(tokens[0].c_str(), "EYE") == 0) {
+    //        camera.position = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+    //    } else if (strcmp(tokens[0].c_str(), "LOOKAT") == 0) {
+    //        camera.lookAt = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+    //    } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
+    //        camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+    //    }
 
-        utilityCore::safeGetline(fp_in, line);
-    }
+    //    utilityCore::safeGetline(fp_in, line);
+    //}
 
     //calculate fov based on resolution
     float yscaled = tan(fovy * (PI / 180));
@@ -218,6 +296,12 @@ int Scene::loadBackground() {
     utilityCore::safeGetline(fp_in, line);
     while (!line.empty() && fp_in.good()) {
         std::vector<std::string> tokens = utilityCore::tokenizeString(line);
+#if DEBUG_TOKENS
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            std::cout << "token[" << i << "] = <" << tokens[i] << '>' << std::endl;
+        }
+        std::cout << std::endl;
+#endif // DEBUG_TOKENS
         if (strcmp(tokens[0].c_str(), "RGB") == 0) {
             backgroundColor = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         }
@@ -263,6 +347,10 @@ Scene::Scene(std::string filename) {
         std::cout << "Error reading from file - aborting!" << std::endl;
         throw;
     }
+
+    basePath = utilityCore::getBaseDirectory(filename);
+    std::cout << "Base path: " << basePath << std::endl;
+    
     while (fp_in.good()) {
         std::string line;
         utilityCore::safeGetline(fp_in, line);
@@ -271,8 +359,25 @@ Scene::Scene(std::string filename) {
             readFromToken(tokens);
         }
     }
+
+    //initCallbacks.push([this]() {
+    //    initTextures();
+    //});    
+    //initCallbacks.push([this]() {
+    //    initModels();
+    //});
 }
 
 Scene::~Scene() {
+    freeModels();
     freeTextures();
+}
+
+void Scene::execInitCallbacks() {
+    initTextures();
+    initModels();
+    //while (initCallbacks.size()) {
+    //    initCallbacks.front()();
+    //    initCallbacks.pop();
+    //}
 }

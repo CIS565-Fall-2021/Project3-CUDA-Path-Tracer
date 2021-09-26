@@ -96,15 +96,15 @@ GLM_FUNC_QUALIFIER glm::vec3 Material::evalBSDF(glm::vec3 in, glm::vec3 normal, 
 }
 
 GLM_FUNC_QUALIFIER glm::vec3 Material::getDiffuse(glm::vec2 uv) const {
-    return diffuseTexture ? diffuseTexture.getPixelByUVBilinear(uv.x, uv.y) : color;
+    return diffuseTexture.isReadable() ? diffuseTexture.getPixelByUVBilinear(uv.x, uv.y) : color;
 }
 
 GLM_FUNC_QUALIFIER glm::vec3 Material::getSpecular(glm::vec2 uv) const {
-    return specularTexture ? specularTexture.getPixelByUVBilinear(uv.x, uv.y) : specular.color;
+    return specularTexture.isReadable() ? specularTexture.getPixelByUVBilinear(uv.x, uv.y) : specular.color;
 }
 
 GLM_FUNC_QUALIFIER glm::vec3 Material::getNormal(glm::vec2 uv) const {
-    return normalTexture ? glm::normalize(normalTexture.getPixelByUVBilinear(uv.x, uv.y)) : glm::vec3(0.f, 0.f, 1.f);
+    return normalTexture.isReadable() ? glm::normalize(normalTexture.getPixelByUVBilinear(uv.x, uv.y)) : glm::vec3(0.f, 0.f, 1.f);
 }
 
 #include "material.inl"
