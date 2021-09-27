@@ -57,6 +57,7 @@ struct RenderState {
     int traceDepth;
     std::vector<glm::vec3> image;
     std::string imageName;
+    int spp;
 };
 
 struct PathSegment {
@@ -73,4 +74,19 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+};
+
+// Predicate for checking if a path is complete or not
+struct isPathCompleted {
+  __host__ __device__
+    bool operator()(const PathSegment& pathSegment) {
+    return pathSegment.remainingBounces <= 0;
+  }
+};
+
+struct compareIntersections {
+  __host__ __device__
+    bool operator()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
+    return a.materialId < b.materialId;
+  }
 };

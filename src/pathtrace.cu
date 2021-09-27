@@ -4,6 +4,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/sort.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -71,7 +73,8 @@ static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
-static PathSegment * dev_paths = NULL;
+static PathSegment * dev_paths = NULL;  
+static PathSegment * dev_final_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -85,6 +88,7 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
+    dev_final_paths = dev_paths;
 
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
@@ -129,7 +133,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         PathSegment & segment = pathSegments[index];
 
         segment.ray.origin = cam.position;
-    segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
         segment.ray.direction = glm::normalize(cam.view
@@ -208,8 +212,50 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
+            
+            // TODO:
+            // store intersect point?
         }
     }
+}
+
+__global__ void shadeBSDF(
+  int iter
+  , int num_paths
+  , ShadeableIntersection* shadeableIntersections
+  , PathSegment* pathSegments
+  , Material* materials) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num_paths) {
+    ShadeableIntersection intersection = shadeableIntersections[idx];
+    PathSegment& pathSegment = pathSegments[idx];
+    if (intersection.t > 0.0f) {
+
+      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+      thrust::uniform_real_distribution<float> u01(0, 1);
+
+      Material material = materials[intersection.materialId];
+      glm::vec3 materialColor = material.color;
+
+      // If the material indicates that the object was a light, "light" the ray
+      if (material.emittance > 0.0f) {
+        pathSegment.color *= (materialColor * material.emittance);
+        pathSegment.remainingBounces = 0;
+      }
+      else {
+        glm::vec3 intersect = getPointOnRay(pathSegment.ray, intersection.t);
+        scatterRay(pathSegment, intersect, intersection.surfaceNormal, material, rng);
+
+        --pathSegment.remainingBounces;
+      }
+    }
+    else {
+      pathSegment.color = glm::vec3(0.0f);
+      pathSegment.remainingBounces = 0;
+    }
+
+  }
 }
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
@@ -222,8 +268,8 @@ __global__ void computeIntersections(
 // Your shaders should handle that - this can allow techniques such as
 // bump mapping.
 __global__ void shadeFakeMaterial (
-  int iter
-  , int num_paths
+      int iter
+    , int num_paths
     , ShadeableIntersection * shadeableIntersections
     , PathSegment * pathSegments
     , Material * materials
@@ -331,54 +377,65 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
-    int num_paths = dev_path_end - dev_paths;
+    int N = pixelcount;
+    int num_paths = N;
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
 
-  bool iterationComplete = false;
+    bool iterationComplete = false;
     while (!iterationComplete) {
 
-    // clean shading chunks
-    cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+      // clean shading chunks
+      cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
 
-    // tracing
-    dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-    computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
-        depth
-        , num_paths
-        , dev_paths
-        , dev_geoms
-        , hst_scene->geoms.size()
-        , dev_intersections
+      // tracing
+      dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+      computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+          depth
+          , num_paths
+          , dev_paths
+          , dev_geoms
+          , hst_scene->geoms.size()
+          , dev_intersections
+          );
+      checkCUDAError("trace one bounce");
+      cudaDeviceSynchronize();
+      depth++;
+
+      // sort the intersections based on materials
+      thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, compareIntersections());
+
+      // TODO:
+      // --- Shading Stage ---
+      // Shade path segments based on intersections and generate new rays by
+      // evaluating the BSDF.
+      // Start off with just a big kernel that handles all the different
+      // materials you have in the scenefile.
+      // TODO: compare between directly shading the path segments and shading
+      // path segments that have been reshuffled to be contiguous in memory.
+      shadeBSDF <<<numblocksPathSegmentTracing, blockSize1d>>> (
+        iter,
+        num_paths,
+        dev_intersections,
+        dev_paths,
+        dev_materials
         );
-    checkCUDAError("trace one bounce");
-    cudaDeviceSynchronize();
-    depth++;
+      checkCUDAError("shadeBSDF failed");
 
+      dev_paths = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, isPathCompleted());
 
-    // TODO:
-    // --- Shading Stage ---
-    // Shade path segments based on intersections and generate new rays by
-  // evaluating the BSDF.
-  // Start off with just a big kernel that handles all the different
-  // materials you have in the scenefile.
-  // TODO: compare between directly shading the path segments and shading
-  // path segments that have been reshuffled to be contiguous in memory.
+      num_paths = dev_path_end - dev_paths;
 
-  shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
-    iter,
-    num_paths,
-    dev_intersections,
-    dev_paths,
-    dev_materials
-  );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+      iterationComplete = num_paths == 0;
     }
 
-  // Assemble this iteration and apply it to the image
-  dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+    // Assemble this iteration and apply it to the image
+    dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
+    finalGather<<<numBlocksPixels, blockSize1d>>>(N, dev_image, dev_final_paths);
+
+    // Reset dev_paths to point to first element
+    dev_paths = dev_final_paths;  
 
     ///////////////////////////////////////////////////////////////////////////
 
