@@ -2,6 +2,8 @@
 
 #include "intersections.h"
 
+#define ONE_OVER_PI 0.318309886183790671537767526745028724f
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -73,7 +75,45 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+  // TODO: implement this.
+  // A basic implementation of pure-diffuse shading will just call the
+  // calculateRandomDirectionInHemisphere defined above.
+
+  // If the material indicates that the object was a light, "light" the ray
+  if (m.emittance > 0.0f) {
+    pathSegment.color *= (m.color * m.emittance);
+    pathSegment.remainingBounces = 0;
+  }
+  else {
+    // find the new direction of the ray based on material (BSDF)
+    pathSegment.ray.origin = intersect;
+
+    bool divideColorInHalf = false;
+    glm::vec3 diffuse = calculateRandomDirectionInHemisphere(normal, rng);
+    glm::vec3 reflect = glm::reflect(glm::normalize(pathSegment.ray.direction),
+      glm::normalize(normal));
+
+    if (m.hasReflective > 0.0)
+    {
+      // reflective
+      pathSegment.ray.direction = diffuse;
+
+      thrust::uniform_real_distribution<float> u01(0, 1);
+      float result = u01(rng);
+
+      pathSegment.ray.direction = (result > 0.5f) ? diffuse : reflect;
+      divideColorInHalf = true;
+    }
+    else
+    {
+      // diffuse
+      pathSegment.ray.direction =
+        calculateRandomDirectionInHemisphere(normal, rng); // TODO: improve basic implementation
+    }
+
+    pathSegment.color *= divideColorInHalf ? (m.color/2.f) : m.color;
+    pathSegment.remainingBounces--;
+    if (pathSegment.remainingBounces == 0)
+      pathSegment.color = glm::vec3(0.0f); // if didn't reach light, terminate
+  }
 }
