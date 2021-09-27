@@ -615,6 +615,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 #if ENABLE_COMPACTION
         // Stream compaction
+        // TODO: Use stable_partition instead.
         thrust::device_ptr<PathSegment> thrust_dev_paths_end = thrust::remove_if(thrust_dev_paths, thrust_dev_paths + num_paths, streamCompactionPredicate);
         dev_path_end = thrust_dev_paths_end.get();
         num_paths = dev_path_end - dev_paths;
