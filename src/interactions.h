@@ -41,6 +41,12 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+inline  bool near_zero(glm::vec3 vec) {
+    // Return true if the vector is close to zero in all dimensions.
+    const auto s = 1e-8;
+    return (fabs(vec[0]) < s) && (fabs(vec[1]) < s) && (fabs(vec[2]) < s);
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -76,4 +82,20 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    glm::vec3 scatter_direction;
+
+    if (m.hasReflective > 0)
+    {
+        scatter_direction =  glm::reflect(pathSegment.ray.direction, normal);
+    }
+    else
+    {
+        scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
+    }
+    //if (near_zero(scatter_direction))
+    //    scatter_direction = normal;
+
+    pathSegment.ray.origin = intersect;
+    pathSegment.ray.direction = scatter_direction;
+
 }
