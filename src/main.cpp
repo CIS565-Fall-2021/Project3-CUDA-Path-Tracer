@@ -2,6 +2,8 @@
 #include "preview.h"
 #include <cstring>
 
+// this is a global variable with internal linkage
+// thus can only be seen and used in this file
 static std::string startTimeString;
 
 // For camera controls
@@ -31,7 +33,7 @@ int height;
 //-------------------------------
 
 int main(int argc, char** argv) {
-    // Used for creating a distinguishable name for image files
+    // Used for naming image files
     startTimeString = currentTimeString();
 
     if (argc < 2) {
@@ -76,7 +78,7 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-// Save an image in Project3-CUDA-Path-Tracer/build/ in a distinguishable format
+// Save an image in Project3-CUDA-Path-Tracer/build/ 
 void saveImage() {
     float samples = iteration;
     // output image file
