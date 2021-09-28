@@ -7,6 +7,8 @@
 #include "scenestruct/geometry.h"
 #include "utilities.h"
 
+#define FLIP_NORMAL_IF_INSIDE 0
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -29,11 +31,12 @@ __host__ __device__ inline glm::vec3 getPointOnRay(Ray r, float t) {
     return r.origin + (t - .0001f) * glm::normalize(r.direction);
 }
 
-/**
- * Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
- */
-__host__ __device__ inline glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
-    return glm::vec3(m * v);
+__host__ __device__ inline glm::vec3 getPointOnRayPenetrate(Ray r, float t) {
+    return r.origin + (t + .0001f) * glm::normalize(r.direction);
+}
+
+__host__ __device__ inline void updateOriginWithBias(Ray& r) {
+    r.origin += r.direction * .0001f;
 }
 
 // CHECKITOUT
@@ -81,7 +84,11 @@ __host__ __device__ inline float boxIntersectionTest(Geom box, Ray r,
         outside = true;
         if (tmin <= 0) {
             tmin = tmax;
+#if FLIP_NORMAL_IF_INSIDE
             tmin_n = tmax_n;
+#else // FLIP_NORMAL_IF_INSIDE
+            tmin_n = -tmax_n;
+#endif // FLIP_NORMAL_IF_INSIDE
             outside = false;
         }
         intersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
@@ -139,9 +146,11 @@ __host__ __device__ inline float sphereIntersectionTest(Geom sphere, Ray r,
 
     intersectionPoint = multiplyMV(sphere.transform, glm::vec4(objspaceIntersection, 1.f));
     normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f)));
+#if FLIP_NORMAL_IF_INSIDE
     if (!outside) {
         normal = -normal;
     }
+#endif // FLIP_NORMAL_IF_INSIDE
 
     return glm::length(r.origin - intersectionPoint);
 }

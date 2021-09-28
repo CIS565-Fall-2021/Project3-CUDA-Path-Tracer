@@ -7,21 +7,23 @@
 
 enum class MaterialType : ui8 {
     PHONG,
-    COOK_TOLERANCE,
+    COOK_TORRANCE,
 };
 
-struct MonteCarloPair {
-    GLM_FUNC_QUALIFIER MonteCarloPair(glm::vec3 out = glm::vec3(), glm::vec3 bsdfTimesCosSlashPDF = glm::vec3())
+struct MonteCarloReturn {
+    GLM_FUNC_QUALIFIER MonteCarloReturn(glm::vec3 out = glm::vec3(), glm::vec3 bsdfTimesCosSlashPDF = glm::vec3(), ui8 penetrate = 0)
         : out(out)
-        , bsdfTimesCosSlashPDF(bsdfTimesCosSlashPDF) {}
-        //, bsdfTimesCosSlashPDF(glm::clamp(bsdfTimesCosSlashPDF, glm::vec3(0.f), glm::vec3(1.f))) {}
+        , bsdfTimesCosSlashPDF(bsdfTimesCosSlashPDF)
+        //, bsdfTimesCosSlashPDF(glm::clamp(bsdfTimesCosSlashPDF, glm::vec3(0.f), glm::vec3(1.f)))
+        , penetrate(penetrate) {}
 
     glm::vec3 out;
     glm::vec3 bsdfTimesCosSlashPDF;
+    ui8 penetrate;
 };
 
 struct Material {
-    GLM_FUNC_QUALIFIER MonteCarloPair sampleScatter(glm::vec3 in, glm::vec3 normal, glm::vec2 uv, thrust::default_random_engine& rng) const;
+    GLM_FUNC_QUALIFIER MonteCarloReturn sampleScatter(glm::vec3 in, glm::vec3 normal, glm::vec2 uv, thrust::default_random_engine& rng) const;
 
     GLM_FUNC_QUALIFIER glm::vec4 sampleOutWithPDF(glm::vec3 in, glm::vec3 normal, thrust::default_random_engine& rng) const;
     GLM_FUNC_QUALIFIER glm::vec3 evalBSDF(glm::vec3 in, glm::vec3 normal, glm::vec3 out, glm::vec2 uv, float prob = 0.f) const;
@@ -36,10 +38,12 @@ struct Material {
         float exponent = 0.f;
         glm::vec3 color;
     } specular;
-    ui8 hasReflective = 0;
-    ui8 hasRefractive = 0;
+    union {
+        float hasReflective = 0.f;
+        float roughness;
+    };
+    float hasRefractive = 0.f;
     float indexOfRefraction = 0.f;
-    float roughness = 0.f;
     float emittance = 0.f;
 
     Texture2D<glm::vec3> diffuseTexture;
@@ -49,19 +53,19 @@ struct Material {
     MaterialType materialType = MaterialType::PHONG;
 
 protected:
-    GLM_FUNC_QUALIFIER float fresnel(const glm::vec3& in, const glm::vec3& normal, float ior);
+    GLM_FUNC_QUALIFIER float fresnel(const glm::vec3& in, const glm::vec3& normal, float ior, float* normalSgn = nullptr) const;
 
-    GLM_FUNC_QUALIFIER MonteCarloPair Phong_sampleScatter_Uniform(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
-    GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_Uniform(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
+    //GLM_FUNC_QUALIFIER MonteCarloReturn Phong_sampleScatter_Uniform(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
+    //GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_Uniform(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
 
-    GLM_FUNC_QUALIFIER MonteCarloPair Phong_sampleScatter_CosWeighted_Phong(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
+    GLM_FUNC_QUALIFIER MonteCarloReturn Phong_sampleScatter_CosWeighted_Phong(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
     GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_CosWeighted(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
-    GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_Phong(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
+    GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_PhongSpecular(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
 
     GLM_FUNC_QUALIFIER glm::vec3 Phong_evalBSDF(const glm::vec3& in, const glm::vec3& normal, const glm::vec3& out, const glm::vec2& uv, float prob = 0.f) const;
 };
 
-GLM_FUNC_QUALIFIER MonteCarloPair Material::sampleScatter(glm::vec3 in, glm::vec3 normal, glm::vec2 uv, thrust::default_random_engine& rng) const
+GLM_FUNC_QUALIFIER MonteCarloReturn Material::sampleScatter(glm::vec3 in, glm::vec3 normal, glm::vec2 uv, thrust::default_random_engine& rng) const
 {
     switch (materialType) {
     case MaterialType::PHONG:
@@ -69,17 +73,17 @@ GLM_FUNC_QUALIFIER MonteCarloPair Material::sampleScatter(glm::vec3 in, glm::vec
         return Phong_sampleScatter_CosWeighted_Phong(in, normal, uv, rng);
         //return sampleScatter_Uniform(in, normal, uv, rng);
     }
-    case MaterialType::COOK_TOLERANCE:
-        return MonteCarloPair();
+    case MaterialType::COOK_TORRANCE:
+        return MonteCarloReturn();
     }
-    return MonteCarloPair();
+    return MonteCarloReturn();
 }
 
 GLM_FUNC_QUALIFIER glm::vec4 Material::sampleOutWithPDF(glm::vec3 in, glm::vec3 normal, thrust::default_random_engine& rng) const {
     switch (materialType) {
     case MaterialType::PHONG:
-        return Phong_sampleOutWithPDF_Uniform(in, normal, rng);
-    case MaterialType::COOK_TOLERANCE:
+        return Phong_sampleOutWithPDF_CosWeighted(in, normal, rng);
+    case MaterialType::COOK_TORRANCE:
         return glm::vec4();//TODO
     }
     return glm::vec4();
@@ -89,7 +93,7 @@ GLM_FUNC_QUALIFIER glm::vec3 Material::evalBSDF(glm::vec3 in, glm::vec3 normal, 
     switch (materialType) {
     case MaterialType::PHONG:
         return Phong_evalBSDF(in, normal, out, uv, prob);
-    case MaterialType::COOK_TOLERANCE:
+    case MaterialType::COOK_TORRANCE:
         return glm::vec3();//TODO
     }
     return glm::vec3();

@@ -124,7 +124,12 @@ GLM_FUNC_QUALIFIER glm::vec4 getBarycentric(const glm::vec3& p, const glm::vec3&
     return glm::vec4(alpha, beta, gamma, 1.f);
 }
 
-__host__ __device__ inline glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v);
+/**
+* Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
+*/
+__host__ __device__ inline glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
+    return glm::vec3(m * v);
+}
 
 GLM_FUNC_QUALIFIER float TriMesh::worldIntersectionTest(glm::mat4 transform, Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
 #if BUILD_BVH_FOR_TRIMESH

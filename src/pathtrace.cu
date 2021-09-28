@@ -353,7 +353,7 @@ __global__ void shadeFakeMaterial (
 __host__ __device__
 void scatterRayGeneric(
     PathSegment & pathSegment, 
-    glm::vec3 intersect,
+    float t,
     glm::vec3 normal,
     glm::vec2 uv, 
     const Material &m,
@@ -368,32 +368,19 @@ void scatterRayGeneric(
     glm::vec3 in = glm::normalize(pathSegment.ray.direction);
     glm::vec3 multColor(1.0f);
 
-    MonteCarloPair mcpair = m.sampleScatter(in, normal, uv, rng);
-    glm::vec3 scatterDir = mcpair.out;
-    multColor *= mcpair.bsdfTimesCosSlashPDF;
+    MonteCarloReturn mcret = m.sampleScatter(in, normal, uv, rng);
+    glm::vec3 scatterDir = mcret.out;
+    multColor *= mcret.bsdfTimesCosSlashPDF;
     
-//#if SWITCH_IN_OUT_RAY
-//    float cosNI = glm::dot(normal, -in);
-//    cosNI = max(cosNI, 0.f);
-//    multColor *= cosNI;
-//#else // SWITCH_IN_OUT_RAY
-//    float cosNO = glm::dot(normal, scatterDir);
-//
-//    //if (cosNO < 0.5f) {
-//    //    printf("cosNO = %f\n", cosNO);
-//    //}
-//
-//    cosNO = max(cosNO, 0.f);
-//    multColor *= cosNO;
-//#endif // SWITCH_IN_OUT_RAY
+    glm::vec3 intersect = pathSegment.ray.origin + pathSegment.ray.direction * t;
+        //mcret.penetrate ? getPointOnRayPenetrate(pathSegment.ray, t) : getPointOnRay(pathSegment.ray, t);
 
-    //if (multColor.r > 1.0f || multColor.g > 1.0f || multColor.b > 1.0f) {
-    //    printf("multColor = %f, %f, %f\n", multColor.r, multColor.g, multColor.b);
-    //}
-
+    Ray newRay;
     pathSegment.color *= multColor;
-    pathSegment.ray.origin = intersect;// +scatterDir * EPSILON;
-    pathSegment.ray.direction = scatterDir;
+    newRay.origin = intersect;
+    newRay.direction = scatterDir;
+    updateOriginWithBias(newRay);
+    pathSegment.ray = newRay;
     --pathSegment.remainingBounces;
 }
 
@@ -441,10 +428,9 @@ __global__ void shadeAndScatter (
                 pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
             }
             else {
-                glm::vec3 intersect = getPointOnRay(pathSegments[idx].ray, intersection.t);
                 scatterRayGeneric(
                     pathSegments[idx],
-                    intersect,
+                    intersection.t,
                     intersection.surfaceNormal,
                     intersection.uv,
                     material,
