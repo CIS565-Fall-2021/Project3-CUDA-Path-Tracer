@@ -13,6 +13,8 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+#include "../stream_compaction/efficient.h"
+//#include "strea"
 
 #define ERRORCHECK 1
 
