@@ -66,6 +66,8 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
+
+
 __host__ __device__
 void scatterRay(
         PathSegment & pathSegment,
@@ -76,4 +78,19 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    thrust::uniform_int_distribution<int> u01(0, 1);
+    if (m.hasReflective && u01(rng)) {
+        pathSegment.ray.origin = intersect;
+        // Thanks stack exchange: https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
+        // reflectedVector = ray - 2 * normal * dot(ray, normal)
+        pathSegment.ray.direction = pathSegment.ray.direction - 
+            (2.0f * normal * glm::dot(pathSegment.ray.direction, normal));
+    }
+    else {
+        pathSegment.ray.origin = intersect;
+        pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+    }
+    if (m.hasReflective) {
+        pathSegment.color /= 0.5f;
+    }
 }
