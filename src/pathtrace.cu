@@ -394,7 +394,6 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
-	int num_remainingPaths = num_paths;
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
@@ -441,11 +440,10 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 		CompactionStencil << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,
 			dev_paths, dev_materials, dev_intersections, dev_Stencil);
-		cudaDeviceSynchronize();
 
-		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_remainingPaths, dev_Stencil, hasTerminated());
+		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
 		int n = itr - dev_paths;
-		num_remainingPaths = n;
+		num_paths = n;
 		if (num_paths == 0)
 		{
 			iterationComplete = true; // TODO: should be based off stream compaction results.
@@ -455,7 +453,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
+	finalGather << <numBlocksPixels, blockSize1d >> > (pixelcount, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
 

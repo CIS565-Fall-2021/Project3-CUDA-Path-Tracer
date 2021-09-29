@@ -44,7 +44,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 inline  bool near_zero(glm::vec3 vec) {
     // Return true if the vector is close to zero in all dimensions.
     const auto s = 1e-8;
-    return (fabs(vec[0]) < s) && (fabs(vec[1]) < s) && (fabs(vec[2]) < s);
+    return (fabs(vec[0]) < EPSILON) && (fabs(vec[1]) < EPSILON) && (fabs(vec[2]) < EPSILON);
 }
 
 /**
@@ -84,17 +84,18 @@ void scatterRay(
     // calculateRandomDirectionInHemisphere defined above.
     glm::vec3 scatter_direction;
 
-    if (m.hasReflective > 0)
+  /*  if (m.hasReflective > 0)
     {
         scatter_direction =  glm::reflect(pathSegment.ray.direction, normal);
     }
     else
     {
         scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
-    }
-    //if (near_zero(scatter_direction))
-    //    scatter_direction = normal;
+    }*/
 
+    scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
+    if (near_zero(scatter_direction))
+        scatter_direction = normal;
     pathSegment.ray.origin = intersect;
     pathSegment.ray.direction = scatter_direction;
 
