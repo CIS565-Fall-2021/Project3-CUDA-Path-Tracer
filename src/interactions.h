@@ -73,10 +73,18 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
-    glm::vec3 newDir = calculateRandomDirectionInHemisphere(normal, rng);
+
+    glm::vec3 newDir;
+    // QUESTION: should we worry about this now? cornell.txt doesn't have two materials, right?
+    // specular surface
+    if (m.hasReflective) {
+        newDir = glm::reflect(pathSegment.ray.direction, normal);
+    }
+    // diffuse surface
+    else {
+        newDir = calculateRandomDirectionInHemisphere(normal, rng);    
+    }
+
     pathSegment.ray.origin = intersect;
-    pathSegment.ray.direction = newDir;
+    pathSegment.ray.direction = newDir;  
 }

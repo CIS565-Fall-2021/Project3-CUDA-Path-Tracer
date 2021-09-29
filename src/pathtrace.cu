@@ -20,6 +20,10 @@
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
+
+#define SORT_MATERIALS false
+#define CACHE_FIRST_BOUNCE true
+
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
 #if ERRORCHECK
     cudaDeviceSynchronize();
@@ -77,6 +81,7 @@ static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
 static thrust::device_ptr<PathSegment*> dev_thrust_alive_paths = NULL;
 static PathSegment** dev_alive_paths = NULL;
+static PathSegment* dev_first_paths = NULL;
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -90,6 +95,8 @@ void pathtraceInit(Scene* scene) {
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
+    cudaMalloc(&dev_first_paths, pixelcount * sizeof(PathSegment));
+
     cudaMalloc(&dev_alive_paths, pixelcount * sizeof(PathSegment*));
     dev_thrust_alive_paths = thrust::device_ptr<PathSegment*>(dev_alive_paths);
 
@@ -313,14 +320,21 @@ struct terminateRay {
     }
 };
 
+struct compMaterialID : public binary_function<ShadeableIntersection, ShadeableIntersection, bool> {
+    __host__ __device__ bool operator()(const ShadeableIntersection &isect1, const ShadeableIntersection &isect2) {
+        return isect1.materialId < isect2.materialId;
+    }
+};
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
 void pathtrace(uchar4* pbo, int frame, int iter) {
-    const int traceDepth = /*hst_scene->state.traceDepth*/8;
+    const int traceDepth = hst_scene->state.traceDepth;
     const Camera& cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
+    bool isFirstIter = iter == 0;
 
     // 2D block for generating ray from camera
     const dim3 blockSize2d(8, 8);
@@ -375,6 +389,12 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
     bool iterationComplete = false;
     thrust::device_ptr<PathSegment*> endPtr(dev_alive_paths + pixelcount);
+
+    // if not the first iteration, assume the paths have been cached, harvest
+    if (CACHE_FIRST_BOUNCE && !isFirstIter) {
+        cudaMemcpy(dev_paths, dev_first_paths, init_num_paths, cudaMemcpyDeviceToDevice);
+    }
+
     while (!iterationComplete) {
 
         // clean shading chunks
@@ -404,6 +424,15 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
       // TODO: compare between directly shading the path segments and shading
       // path segments that have been reshuffled to be contiguous in memory.
 
+        // sort rays by material
+        // QUESTION: should we see any improvements at this point? Performing worse, I think
+        // QUESTION: by toggle, do you just mean a global var?
+        if (SORT_MATERIALS) {
+            thrust::device_ptr<PathSegment*> sorted_paths(dev_alive_paths);
+            thrust::device_ptr<ShadeableIntersection> sorted_isects(dev_intersections);
+            thrust::sort_by_key(sorted_isects, sorted_isects + num_paths, sorted_paths, compMaterialID());
+        }
+
         shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
@@ -411,6 +440,11 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             dev_alive_paths,
             dev_materials
             );
+
+        // if first iteration, cache first bounce
+        if (CACHE_FIRST_BOUNCE && isFirstIter) {
+            cudaMemcpy(dev_first_paths, dev_paths, init_num_paths, cudaMemcpyDeviceToDevice);;
+        }
 
         // perform stream compaction
         thrust::device_ptr<PathSegment*> newPathsEnd = thrust::partition(dev_thrust_alive_paths, endPtr, terminateRay());
