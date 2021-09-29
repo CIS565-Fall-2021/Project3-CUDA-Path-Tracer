@@ -2,6 +2,7 @@
 #include <cuda.h>
 #include <cmath>
 #include <thrust/execution_policy.h>
+#include <thrust/device_vector.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
@@ -277,8 +278,7 @@ __global__ void shadeAllMaterial (
 }
 
 // Add the current iteration's output to the overall image
-__global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths, float iterations)
-{
+__global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths, float iterations){
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
     if (index < nPaths)
@@ -288,10 +288,63 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
     }
 }
 
+
+__global__ void kernScatterPaths(int n, PathSegment *odata,
+		const PathSegment *idata, const int *bools, const int *indices) {
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+	if (index >= n) {
+		return;
+	}
+
+	if (bools[index]) {
+		odata[indices[index]] = idata[index];
+	}
+}
+
+__global__ void kernStillHasBounces(int n, int* shouldKeep, const PathSegment* paths) {
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index >= n) {
+        return;
+    }
+
+    shouldKeep[index] = (int)paths[index].remainingBounces != 0;
+}
+
+int cullPaths(int num_paths, PathSegment* dev_paths, int blockSize1d) {
+	int* dev_hasBounces;
+    int* dev_indices;
+	cudaMalloc((void**)&dev_hasBounces, num_paths * sizeof(int));
+	cudaMalloc((void**)&dev_indices, num_paths * sizeof(int));
+
+    int numBlocks = ceil((float)num_paths / blockSize1d);
+
+	kernStillHasBounces<<<numBlocks, blockSize1d>>>(num_paths,
+																	  dev_hasBounces,
+																	  dev_paths);
+	
+	thrust::device_vector<int> thrust_hasBounces(dev_hasBounces, dev_hasBounces + num_paths);
+	thrust::device_vector<int> thrust_indices(num_paths);
+	thrust::exclusive_scan(thrust_hasBounces.begin(), thrust_hasBounces.end(), thrust_indices.begin());
+
+
+	thrust::copy(thrust_indices.begin(), thrust_indices.end(), dev_indices);
+
+    kernScatterPaths <<<numBlocks, blockSize1d >>>(num_paths,
+											   dev_paths,
+											   dev_paths,
+											   dev_hasBounces,
+											   dev_indices);
+
+	int maxIndex;
+	cudaMemcpy(&maxIndex, dev_indices + num_paths - 1, sizeof(int), cudaMemcpyDeviceToHost);
+
+    return maxIndex;
+}
+
 /**
- * Wrapper for the __global__ call that sets up the kernel calls and does a ton
- * of memory management
- */
+* Wrapper for the __global__ call that sets up the kernel calls and does a ton
+* of memory management
+*/
 void pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
@@ -343,6 +396,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
     int num_paths = dev_path_end - dev_paths;
+    //int preCulledNumPaths = num_paths;
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
@@ -351,48 +405,48 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     while (!iterationComplete) {
 
-    // clean shading chunks
-    cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+		// clean shading chunks
+		cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    // tracing
-    dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-    computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
-        depth
-        , num_paths
-        , dev_paths
-        , dev_geoms
-        , hst_scene->geoms.size()
-        , dev_intersections
-        );
-    checkCUDAError("trace one bounce");
-    cudaDeviceSynchronize();
-    depth++;
+		// tracing
+		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (depth,
+																			num_paths,
+																			dev_paths,
+																			dev_geoms,
+																			hst_scene->geoms.size(),
+																			dev_intersections);
+		checkCUDAError("trace one bounce");
+		cudaDeviceSynchronize();
+		depth++;
 
 
-    // TODO:
-    // --- Shading Stage ---
-    // Shade path segments based on intersections and generate new rays by
-	// evaluating the BSDF.
-	// Start off with just a big kernel that handles all the different
-	// materials you have in the scenefile.
-	// TODO: compare between directly shading the path segments and shading
-	// path segments that have been reshuffled to be contiguous in memory.
+		// TODO:
+		// --- Shading Stage ---
+		// Shade path segments based on intersections and generate new rays by
+		// evaluating the BSDF.
+		// Start off with just a big kernel that handles all the different
+		// materials you have in the scenefile.
+		// TODO: compare between directly shading the path segments and shading
+		// path segments that have been reshuffled to be contiguous in memory.
 
-	shadeAllMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (
-	iter,
-	num_paths,
-	dev_intersections,
-	dev_paths,
-	dev_materials);
+		shadeAllMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter,
+																		num_paths,
+																		dev_intersections,
+																		dev_paths,
+																		dev_materials);
 
-    //sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
-    if (depth >= traceDepth) {
-        iterationComplete = true; // TODO: should also be based off stream compaction results.
+		// --- cull dead-end paths ---
+        num_paths = cullPaths(num_paths, dev_paths, blockSize1d);
+
+
+		if (depth >= traceDepth || num_paths == 0) {
+			iterationComplete = true; // TODO: should also be based off stream compaction results.
+		}
     }
-    }
-
-  // Assemble this iteration and apply it to the image
-  dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
+    
+    // Assemble this iteration and apply it to the image
+    dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
     finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths, iter);
 
     ///////////////////////////////////////////////////////////////////////////
