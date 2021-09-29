@@ -84,18 +84,17 @@ void scatterRay(
     // calculateRandomDirectionInHemisphere defined above.
     glm::vec3 scatter_direction;
 
-  /*  if (m.hasReflective > 0)
+    if (m.hasReflective > 0)
     {
         scatter_direction =  glm::reflect(pathSegment.ray.direction, normal);
     }
     else
     {
         scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
-    }*/
+    }
 
-    scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
-    if (near_zero(scatter_direction))
-        scatter_direction = normal;
+    /*if (near_zero(scatter_direction))
+        scatter_direction = normal;*/
     pathSegment.ray.origin = intersect;
     pathSegment.ray.direction = scatter_direction;
 

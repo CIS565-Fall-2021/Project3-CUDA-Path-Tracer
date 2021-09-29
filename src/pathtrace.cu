@@ -77,6 +77,7 @@ static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
 static int* dev_Stencil;
+static int* dev_SortMaterialID;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -101,6 +102,7 @@ void pathtraceInit(Scene* scene) {
 
 	// TODO: initialize any extra device memeory you need
 	cudaMalloc(&dev_Stencil, pixelcount * sizeof(int));
+	cudaMalloc(&dev_SortMaterialID, pixelcount * sizeof(int));
 
 	checkCUDAError("pathtraceInit");
 }
@@ -112,6 +114,7 @@ void pathtraceFree() {
 	cudaFree(dev_materials);
 	cudaFree(dev_intersections);
 	cudaFree(dev_Stencil);
+	cudaFree(dev_SortMaterialID);
 	// TODO: clean up any extra device memory you created
 
 	checkCUDAError("pathtraceFree");
@@ -328,6 +331,19 @@ __global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, Mater
 	}
 }
 
+
+__global__ void createMaterialIDforSort(int nPaths, int* abc, PathSegment* iterationPaths, ShadeableIntersection* intersections)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	if (index < nPaths)
+	{
+		PathSegment iterationPath = iterationPaths[index];
+		image[iterationPath.pixelIndex] += iterationPath.color;
+	}
+}
+
+
 __global__ void BounceRay(int nPaths, PathSegment* iterationPaths)
 {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -394,6 +410,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	int depth = 0;
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
+	int numremainingPath = num_paths;
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
@@ -417,6 +434,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		depth++;
 
+		//thrust::sort_by_key()
 
 		// TODO:
 		// --- Shading Stage ---
@@ -443,8 +461,8 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
 		int n = itr - dev_paths;
-		num_paths = n;
-		if (num_paths == 0)
+		numremainingPath = n;
+		if (numremainingPath == 0)
 		{
 			iterationComplete = true; // TODO: should be based off stream compaction results.
 		}
@@ -453,7 +471,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather << <numBlocksPixels, blockSize1d >> > (pixelcount, dev_image, dev_paths);
+	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
 
