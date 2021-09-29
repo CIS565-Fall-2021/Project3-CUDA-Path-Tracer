@@ -1,6 +1,6 @@
+#pragma once
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "common.h"
 #include "efficient.h"
 
 namespace StreamCompaction {
@@ -18,7 +18,7 @@ namespace StreamCompaction {
 		int* dev_bufB;
 		int* dev_bufS;
 		int* dev_bufAnswers;
-
+		
 		PathSegment* dev_PTbuf;
 		PathSegment* dev_PTbufAnswers;
 

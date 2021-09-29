@@ -13,8 +13,9 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
-#include "../stream_compaction/efficient.h"
-//#include "strea"
+//#include "../stream_compaction/efficient.h"
+#include <thrust/partition.h>
+#include <thrust/execution_policy.h>
 
 #define ERRORCHECK 1
 
@@ -75,6 +76,7 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static int *dev_Stencil;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -98,6 +100,7 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+    cudaMalloc(&dev_Stencil, pixelcount * sizeof(int));
 
     checkCUDAError("pathtraceInit");
 }
@@ -108,6 +111,7 @@ void pathtraceFree() {
     cudaFree(dev_geoms);
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
+    cudaFree(dev_Stencil);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -283,6 +287,41 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
     }
 }
 
+struct hasTerminated
+{
+    __host__ __device__
+        bool operator()(const int& x)
+    {
+        return x == 1;
+    }
+};
+
+__global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, Material *mat, int *dev_Stencil)
+{
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if (index < nPaths)
+    {
+
+        if (iterationPaths[index].remainingBounces == 0)
+        {
+            dev_Stencil[index] =0;
+            return;
+        } 
+        if (mat[index].emittance > 0.0f)
+        {
+            dev_Stencil[index] =0;
+            return;
+        }
+        else
+        {
+
+            dev_Stencil[index] = 1;
+        }
+    }
+}
+
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -379,7 +418,17 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_paths,
     dev_materials
   );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+  CompactionStencil << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,
+      dev_paths, dev_materials, dev_Stencil);
+  cudaDeviceSynchronize();
+
+  PathSegment *itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
+  int n = itr - dev_paths;
+  num_paths = n;
+  if (num_paths < 10)
+  {
+      iterationComplete = true; // TODO: should be based off stream compaction results.
+  }
     }
 
   // Assemble this iteration and apply it to the image
