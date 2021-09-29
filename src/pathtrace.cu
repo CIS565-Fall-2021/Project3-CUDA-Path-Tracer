@@ -258,12 +258,14 @@ __global__ void shadeFakeMaterial(
 			// If the material indicates that the object was a light, "light" the ray
 			if (material.emittance > 0.0f) {
 				pathSegments[idx].color *= (materialColor * material.emittance);
+				pathSegments[idx].remainingBounces = 0;
 			}
 			// Otherwise, do some pseudo-lighting computation. This is actually more
 			// like what you would expect from shading in a rasterizer like OpenGL.
 			// TODO: replace this! you should be able to start with basically a one-liner
 
 			else {
+				pathSegments[idx].remainingBounces -= 1;
 				glm::vec3 intersectPt = getPointOnRay(pathSegments[idx].ray, intersection.t);
 				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
 
@@ -278,6 +280,7 @@ __global__ void shadeFakeMaterial(
 		}
 		else {
 			pathSegments[idx].color = glm::vec3(0.0f);
+			pathSegments[idx].remainingBounces = 0;
 		}
 	}
 }
@@ -303,26 +306,13 @@ struct hasTerminated
 	}
 };
 
-__global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, Material* mat, ShadeableIntersection* intersections, int* dev_Stencil)
+__global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, int* dev_Stencil)
 {
 	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
 	if (index < nPaths)
 	{
-		ShadeableIntersection intersection = intersections[index];
-
-
-		if (intersection.t <= 0.0f)
-		{
-			dev_Stencil[index] = 0;
-			return;
-		}
 		if (iterationPaths[index].remainingBounces == 0)
-		{
-			dev_Stencil[index] = 0;
-			return;
-		}
-		if (mat[intersection.materialId].emittance > 0.0f)
 		{
 			dev_Stencil[index] = 0;
 			return;
@@ -332,27 +322,16 @@ __global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, Mater
 }
 
 
-__global__ void createMaterialIDforSort(int nPaths, int* abc, PathSegment* iterationPaths, ShadeableIntersection* intersections)
-{
-	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-	if (index < nPaths)
-	{
-		PathSegment iterationPath = iterationPaths[index];
-		image[iterationPath.pixelIndex] += iterationPath.color;
-	}
-}
-
-
-__global__ void BounceRay(int nPaths, PathSegment* iterationPaths)
-{
-	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-	if (index < nPaths)
-	{
-		iterationPaths[index].remainingBounces -= 1;
-	}
-}
+//__global__ void createMaterialIDforSort(int nPaths, int* abc, PathSegment* iterationPaths, ShadeableIntersection* intersections)
+//{
+//	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+//
+//	if (index < nPaths)
+//	{
+//		PathSegment iterationPath = iterationPaths[index];
+//		image[iterationPath.pixelIndex] += iterationPath.color;
+//	}
+//}
 
 
 /**
@@ -453,11 +432,9 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			dev_materials
 			);
 
-		BounceRay << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,
-			dev_paths);
 
 		CompactionStencil << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,
-			dev_paths, dev_materials, dev_intersections, dev_Stencil);
+			dev_paths, dev_Stencil);
 
 		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
 		int n = itr - dev_paths;
