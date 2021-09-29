@@ -36,7 +36,7 @@ __global__ void shadeDebugCollision(
     , Material* materials
     , int traceDepth
     , int recordDepth
-    , glm::vec3 backgroundColor
+    , Background background
 );
 #endif // DEBUG_COLLISION
 
@@ -279,7 +279,7 @@ __global__ void shadeFakeMaterial (
     , Material * materials
     , int traceDepth
     , int recordDepth
-    , glm::vec3 backgroundColor
+    , Background background
     ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths && pathSegments[idx].remainingBounces >= 0) {
@@ -292,7 +292,7 @@ __global__ void shadeFakeMaterial (
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
-            glm::vec3 materialColor = material.color;
+            glm::vec3 materialColor = material.getDiffuse(intersection.uv);
             intersection.surfaceNormal = glm::normalize(intersection.surfaceNormal);
 
             // If the material indicates that the object was a light, "light" the ray
@@ -333,6 +333,7 @@ __global__ void shadeFakeMaterial (
             // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
             // used for opacity, in which case they can indicate "no opacity".
             // This can be useful for post-processing and image compositing.
+            glm::vec3 backgroundColor = background.getBackgroundColor(pathSegments[idx].ray.direction);
             if (backgroundColor == glm::vec3(0.0f)) {
                 pathSegments[idx].color *= backgroundColor;
                 pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;
@@ -393,7 +394,7 @@ __global__ void shadeAndScatter (
     , Material * materials
     , int traceDepth
     , int recordDepth
-    , glm::vec3 backgroundColor
+    , Background background
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths && pathSegments[idx].remainingBounces >= 0) {
@@ -406,7 +407,9 @@ __global__ void shadeAndScatter (
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
-            glm::vec3 materialColor = material.color;
+            //printf("emitColor[%f,%f]=...\n", intersection.uv.x, intersection.uv.y);
+            glm::vec3 materialColor = material.getDiffuse(intersection.uv);
+            //printf("emitColor[%f,%f]=<%f,%f,%f>\n", intersection.uv.x, intersection.uv.y, materialColor.x, materialColor.y, materialColor.z);///TEST
             intersection.surfaceNormal = glm::normalize(intersection.surfaceNormal);
             // TODO: Normal map?
 
@@ -438,6 +441,7 @@ __global__ void shadeAndScatter (
             }
         } 
         else {
+            glm::vec3 backgroundColor = background.getBackgroundColor(pathSegments[idx].ray.direction);
             if (backgroundColor == glm::vec3(0.0f)) {
                 pathSegments[idx].color *= backgroundColor;
                 pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;
@@ -596,7 +600,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             dev_materials,
             traceDepth,
             recordDepth,
-            hst_scene->backgroundColor);
+            hst_scene->background);
         checkCUDAError("shade one bounce");
 
 #if ENABLE_COMPACTION
@@ -639,7 +643,7 @@ __global__ void shadeDebugCollision (
     , Material * materials
     , int traceDepth
     , int recordDepth
-    , glm::vec3 backgroundColor
+    , Background background
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths && pathSegments[idx].remainingBounces >= 0) {
@@ -652,7 +656,7 @@ __global__ void shadeDebugCollision (
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
-            glm::vec3 materialColor = material.color;
+            glm::vec3 materialColor = material.getDiffuse(intersection.uv);
             intersection.surfaceNormal = glm::normalize(intersection.surfaceNormal);
             // TODO: Normal map?
 
@@ -680,6 +684,7 @@ __global__ void shadeDebugCollision (
             }
         } 
         else {
+            glm::vec3 backgroundColor = background.getBackgroundColor(pathSegments[idx].ray.direction);
             if (backgroundColor == glm::vec3(0.0f)) {
                 pathSegments[idx].color *= backgroundColor;
                 pathSegments[idx].remainingBounces = RayRemainingBounce::OUT_OF_SCENE;

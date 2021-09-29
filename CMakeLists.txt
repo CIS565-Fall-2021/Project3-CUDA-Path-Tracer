@@ -79,6 +79,10 @@ set(headers
     src/scenestruct/geometry.h
     
     src/scenestruct/material.inl
+    src/scenestruct/materialPhong.inl
+    src/scenestruct/materialPerfectDielectric.inl
+    src/scenestruct/materialMicrofacetGGX.inl
+
     src/scenestruct/geometry.inl
     
     src/thirdparty/tiny_obj_loader.h

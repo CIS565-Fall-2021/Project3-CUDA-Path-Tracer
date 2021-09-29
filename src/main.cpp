@@ -43,8 +43,10 @@ int main(int argc, char** argv) {
         //printf("Usage: %s SCENEFILE.txt\n", argv[0]);
         //return 1;
         //sceneFile = "../scenes/cornell_klee.txt";
-        sceneFile = "../scenes/cornell.txt";
+        //sceneFile = "../scenes/cornell.txt";
+        sceneFile = "../scenes/cornellMF.txt";
         //sceneFile = "../scenes/cornell2.txt";
+        //sceneFile = "../scenes/sphere.txt";
     }
     else {
         sceneFile = argv[1];

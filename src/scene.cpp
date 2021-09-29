@@ -62,7 +62,7 @@ int Scene::loadMaterial(std::string materialid) {
                 newMaterial.emittance = atof(tokens[1].c_str());
             } 
             else if (strcmp(tokens[0].c_str(), "ROUGHNESS") == 0) {
-                newMaterial.roughness = atof(tokens[1].c_str());
+                newMaterial.metallic = glm::clamp(1.f - static_cast<float>(atof(tokens[1].c_str())), 0.f, 1.f);
             } 
             else if (strcmp(tokens[0].c_str(), "MATERIAL_TYPE") == 0) {
                 if (strcmp(tokens[1].c_str(), "PHONG") == 0) {
@@ -70,9 +70,14 @@ int Scene::loadMaterial(std::string materialid) {
                     newMaterial.materialType = MaterialType::PHONG;
                     customMaterialType = true;
                 } 
-                else if (strcmp(line.c_str(), "COOK_TORRANCE") == 0) {
-                    std::cout << "Creating new Cook-Tolerance material..." << std::endl;
-                    newMaterial.materialType = MaterialType::COOK_TORRANCE;
+                else if (strcmp(tokens[1].c_str(), "DIELECTRIC") == 0) { // Dieletric is not correct...
+                    std::cout << "Creating new Dielectric material..." << std::endl;
+                    newMaterial.materialType = MaterialType::DIELECTRIC;
+                    customMaterialType = true;
+                }
+                else if (strcmp(tokens[1].c_str(), "MICROFACET_GGX") == 0) {
+                    std::cout << "Creating new Microfacet-GGX material..." << std::endl;
+                    newMaterial.materialType = MaterialType::MICROFACET_GGX;
                     customMaterialType = true;
                 }
             }
@@ -284,7 +289,7 @@ int Scene::loadCamera() {
     //set up render camera stuff
     int arraylen = camera.resolution.x * camera.resolution.y;
     state.image.resize(arraylen);
-    std::fill(state.image.begin(), state.image.end(), backgroundColor);
+    std::fill(state.image.begin(), state.image.end(), background.backgroundColor);
 
     std::cout << "Loaded camera!" << std::endl;
     return 1;
@@ -303,12 +308,15 @@ int Scene::loadBackground() {
         std::cout << std::endl;
 #endif // DEBUG_TOKENS
         if (strcmp(tokens[0].c_str(), "RGB") == 0) {
-            backgroundColor = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+            background.backgroundColor = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+        else if (strcmp(tokens[0].c_str(), "SPHERE_MAP") == 0) {
+            addTextureToLoad(Background::BACKGROUND_MATERIAL_INDEX, utilityCore::getAddrOffsetInStruct(&background, &background.sphereMap), basePath + tokens[1]);
         }
 
         utilityCore::safeGetline(fp_in, line);
     }
-    std::fill(state.image.begin(), state.image.end(), backgroundColor);
+    std::fill(state.image.begin(), state.image.end(), background.backgroundColor);
 
     std::cout << "Loaded background!" << std::endl;
     return 1;

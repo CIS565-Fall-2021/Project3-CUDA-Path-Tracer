@@ -11,7 +11,6 @@ LOOKAT      0.0 5 0
 //LOOKAT      -4.75 0.25 0
 UP          0 1 0
 
-
 // Emissive material (light)
 MATERIAL 0
 RGB         1 1 1
@@ -64,17 +63,17 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Reflective white
+// Specular white
 MATERIAL 5
-RGB         .0 .0 .0
-//RGB         .98 .98 .98
-SPECEX      0
+RGB         0.35 0.35 0.85
+MATERIAL_TYPE DIELECTRIC
+//RGB         .55 .55 .95
+//MATERIAL_TYPE MICROFACET_GGX
 //SPECEX      0
-SPECRGB     .0 .0 .0
-//SPECRGB     .98 .98 .98
-REFL        1
+SPECRGB     .98 .98 .98
+ROUGHNESS        1.
 REFR        1
-REFRIOR     1
+REFRIOR     1.2
 EMITTANCE   0
 
 
@@ -144,6 +143,6 @@ SCALE       3 3 3
 OBJECT 7
 sphere
 material 5
-TRANS       3 2 2
+TRANS       3 6 -2
 ROTAT       0 0 0
 SCALE       3 3 3

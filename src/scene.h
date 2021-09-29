@@ -17,6 +17,17 @@
 
 extern void checkCUDAErrorFn(const char* msg, const char* file, int line);
 
+struct Background {
+    GLM_FUNC_QUALIFIER glm::vec3 getBackgroundColor(glm::vec3 dir) const {
+        return sphereMap.isReadable() ? sphereMap.getPixelFromSphereMap(dir) : backgroundColor;
+    }
+
+    Texture2D<glm::vec3> sphereMap;
+    glm::vec3 backgroundColor;
+
+    static const size_t BACKGROUND_MATERIAL_INDEX;
+};
+
 class Scene {
 private:
     int loadMaterial(std::string materialid);
@@ -66,5 +77,5 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
-    glm::vec3 backgroundColor;
+    Background background;
 };

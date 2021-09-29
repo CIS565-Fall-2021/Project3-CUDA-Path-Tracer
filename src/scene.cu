@@ -13,17 +13,30 @@
 #include "scene.h"
 
 const dim3 IMAGE_PROCESS_BLOCK_SIZE(16, 16, 1);
+const size_t Background::BACKGROUND_MATERIAL_INDEX = std::numeric_limits<size_t>::max();
 
-__global__ void kernInvGammaCorrect(glm::vec3* dst, stbi_uc* src, int x, int y, int channel) {
+#define LOAD_UINT8_TEXTURE 1
+#if LOAD_UINT8_TEXTURE
+using STBPixelType = stbi_uc;
+#define STBI_LOAD stbi_load
+#else // LOAD_UINT8_TEXTURE
+using STBPixelType = float;
+#define STBI_LOAD stbi_loadf
+#endif // LOAD_UINT8_TEXTURE
+
+__global__ void kernInvGammaCorrect(glm::vec3* dst, STBPixelType* src, int x, int y, int channel) {
     int idxX = blockIdx.x * blockDim.x + threadIdx.x;
     int idxY = blockIdx.y * blockDim.y + threadIdx.y;
     if (idxX < x && idxY < y) {
-        int index = Texture2D<glm::vec3>::index2Dto1D(glm::vec2(x, y), idxX, idxY);
+        int index = Texture2D<glm::vec3>::index2Dto1D(glm::ivec2(x, y), idxY, idxX);
         glm::vec3 color;
 #pragma unroll
         for (int c = 0; c < channel && c < 3; ++c) {
-            stbi_uc byte = src[index * channel + c];
-            float comp = byte / 255.f;
+#if LOAD_UINT8_TEXTURE
+            float comp = glm::clamp(src[index * channel + c] / 255.f, 0.f, 1.f);
+#else // LOAD_UINT8_TEXTURE
+            float comp = glm::clamp(src[index * channel + c], 0.f, 1.f);
+#endif // LOAD_UINT8_TEXTURE
             comp = powf(comp, 2.2);
             color[c] = glm::clamp(comp, 0.f, 1.f);
         }
@@ -62,22 +75,39 @@ Texture2D<glm::vec3> Scene::loadTexture(const std::string& filename) {
     //Texture2D<glm::vec3>& tex = textureBuffers[i];
     int x, y, channel; 
     stbi_set_flip_vertically_on_load(1);
-    stbi_uc* imageCPU = stbi_load(filename.c_str(), &x, &y, &channel, 0);
-    stbi_uc* imageGPU;
+
+    std::string extension = utilityCore::getFileExtension(filename);
+    if (stricmp(extension.c_str(), "hdr") == 0) {
+        float* imageCPU = stbi_loadf(filename.c_str(), &x, &y, &channel, 0);
+        if (!imageCPU) {
+            std::cout << "Texture " << filename << ": failed to load.\n" << std::endl;
+        }
+        cudaMalloc(&res.buffer, sizeof(glm::vec3) * x * y);
+        cudaMemcpy(res.buffer, imageCPU, sizeof(float) * x * y * channel, cudaMemcpyHostToDevice);
+        cudaDeviceSynchronize();
+        stbi_image_free(imageCPU);
+    }
+    else {
+        STBPixelType* imageCPU = STBI_LOAD(filename.c_str(), &x, &y, &channel, 0);
+        if (!imageCPU) {
+            std::cout << "Texture " << filename << ": failed to load.\n" << std::endl;
+        }
+        cudaMalloc(&res.buffer, sizeof(glm::vec3) * x * y);
+
+        STBPixelType* imageGPU;
+        cudaMalloc(&imageGPU, sizeof(STBPixelType) * x * y * channel);
+        cudaMemcpy(imageGPU, imageCPU, sizeof(STBPixelType) * x * y * channel, cudaMemcpyHostToDevice);
+        dim3 blockCount((x + IMAGE_PROCESS_BLOCK_SIZE.x - 1) / IMAGE_PROCESS_BLOCK_SIZE.x, (y + IMAGE_PROCESS_BLOCK_SIZE.y - 1) / IMAGE_PROCESS_BLOCK_SIZE.y, 1);
+        kernInvGammaCorrect<<<blockCount, IMAGE_PROCESS_BLOCK_SIZE>>>(res.buffer, imageGPU, x, y, channel);
+        checkCUDAError("kernInvGammaCorrect");
+        cudaFree(imageGPU);
+        cudaDeviceSynchronize();
+        stbi_image_free(imageCPU);
+    }
+
     res.size.x = x;
     res.size.y = y;
 
-    cudaMalloc(&imageGPU, sizeof(stbi_uc) * x * y * channel);
-    cudaMalloc(&res.buffer, sizeof(glm::vec3) * x * y);
-
-    cudaMemcpy(imageGPU, imageCPU, sizeof(stbi_uc) * x * y * channel, cudaMemcpyHostToDevice);
-    dim3 blockCount((x + IMAGE_PROCESS_BLOCK_SIZE.x - 1) / IMAGE_PROCESS_BLOCK_SIZE.x, (y + IMAGE_PROCESS_BLOCK_SIZE.y - 1) / IMAGE_PROCESS_BLOCK_SIZE.y, 1);
-    kernInvGammaCorrect<<<blockCount, IMAGE_PROCESS_BLOCK_SIZE>>>(res.buffer, imageGPU, x, y, channel);
-    checkCUDAError("kernInvGammaCorrect");
-
-    cudaFree(imageGPU);
-    cudaDeviceSynchronize();
-    stbi_image_free(imageCPU);
     checkCUDAError("cudaFree imageGPU");
     std::cout << "Texture " << filename << '<' << x << ',' << y << ',' << channel << "> created.\n" << std::endl;
 
@@ -87,11 +117,20 @@ Texture2D<glm::vec3> Scene::loadTexture(const std::string& filename) {
 void Scene::initTextures() {
     for(auto& materialToTexturePair : texturePackage.dstToAddrMap) {
         size_t materialId = materialToTexturePair.first;
-        Material& material = materials[materialId];
-        for (auto& textureFilePair : materialToTexturePair.second) {
-            const std::string& filename = textureFilePair.second;
-            Texture2D<glm::vec3>* texture_ptr = utilityCore::getPtrInStruct<Texture2D<glm::vec3>>(&material, textureFilePair.first);
-            *texture_ptr = loadTexture(filename);
+        if (materialId != Background::BACKGROUND_MATERIAL_INDEX) {
+            Material& material = materials[materialId];
+            for (auto& textureFilePair : materialToTexturePair.second) {
+                const std::string& filename = textureFilePair.second;
+                Texture2D<glm::vec3>* texture_ptr = utilityCore::getPtrInStruct<Texture2D<glm::vec3>>(&material, textureFilePair.first);
+                *texture_ptr = loadTexture(filename);
+            }
+        }
+        else { // Background texture
+            for (auto& textureFilePair : materialToTexturePair.second) {
+                const std::string& filename = textureFilePair.second;
+                Texture2D<glm::vec3>* texture_ptr = utilityCore::getPtrInStruct<Texture2D<glm::vec3>>(&background, textureFilePair.first);
+                *texture_ptr = loadTexture(filename);
+            }
         }
     }
 }
@@ -187,7 +226,7 @@ void Scene::initModels() {
         for (auto& modelFilePair : geomToModelPair.second) {
             const std::string& filename = modelFilePair.second;
             TriMesh* model_ptr = utilityCore::getPtrInStruct<TriMesh>(&geom, modelFilePair.first);
-            std::string extension = utilityCore::getModelExtension(filename);
+            std::string extension = utilityCore::getFileExtension(filename);
             if (stricmp("obj", extension.c_str()) == 0) {
                 *model_ptr = loadModelObj(filename);
             }

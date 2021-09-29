@@ -123,7 +123,7 @@ i64 utilityCore::getAddrOffsetInStruct(const void* struct_ptr, const void* var_p
     return reinterpret_cast<i64>(var_ptr) - reinterpret_cast<i64>(struct_ptr);
 }
 
-std::string utilityCore::getModelExtension(const std::string& filename) {
+std::string utilityCore::getFileExtension(const std::string& filename) {
     long long index = filename.size() - 1;
     while (index >= 0 && filename[index] != '.') {
         --index;

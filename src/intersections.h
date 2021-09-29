@@ -36,7 +36,9 @@ __host__ __device__ inline glm::vec3 getPointOnRayPenetrate(Ray r, float t) {
 }
 
 __host__ __device__ inline void updateOriginWithBias(Ray& r) {
-    r.origin += r.direction * .0001f;
+    r.origin += r.direction 
+        //* EPSILON;
+        * .0001f;
 }
 
 // CHECKITOUT

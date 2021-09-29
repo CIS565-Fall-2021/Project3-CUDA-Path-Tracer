@@ -7,7 +7,8 @@
 
 enum class MaterialType : ui8 {
     PHONG,
-    COOK_TORRANCE,
+    DIELECTRIC,
+    MICROFACET_GGX,
 };
 
 struct MonteCarloReturn {
@@ -25,9 +26,6 @@ struct MonteCarloReturn {
 struct Material {
     GLM_FUNC_QUALIFIER MonteCarloReturn sampleScatter(glm::vec3 in, glm::vec3 normal, glm::vec2 uv, thrust::default_random_engine& rng) const;
 
-    GLM_FUNC_QUALIFIER glm::vec4 sampleOutWithPDF(glm::vec3 in, glm::vec3 normal, thrust::default_random_engine& rng) const;
-    GLM_FUNC_QUALIFIER glm::vec3 evalBSDF(glm::vec3 in, glm::vec3 normal, glm::vec3 out, glm::vec2 uv, float prob = 0.f) const;
-
     // Albedo
     GLM_FUNC_QUALIFIER glm::vec3 getDiffuse(glm::vec2 uv) const;
     GLM_FUNC_QUALIFIER glm::vec3 getSpecular(glm::vec2 uv) const;
@@ -40,7 +38,7 @@ struct Material {
     } specular;
     union {
         float hasReflective = 0.f;
-        float roughness;
+        float metallic;
     };
     float hasRefractive = 0.f;
     float indexOfRefraction = 0.f;
@@ -53,62 +51,48 @@ struct Material {
     MaterialType materialType = MaterialType::PHONG;
 
 protected:
-    GLM_FUNC_QUALIFIER float fresnel(const glm::vec3& in, const glm::vec3& normal, float ior, float* normalSgn = nullptr) const;
+    GLM_FUNC_QUALIFIER static float fresnel(const glm::vec3& in, const glm::vec3& normal, float ior, float* normalSgn = nullptr);
 
     //GLM_FUNC_QUALIFIER MonteCarloReturn Phong_sampleScatter_Uniform(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
     //GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_Uniform(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
 
+    // Start Phong
     GLM_FUNC_QUALIFIER MonteCarloReturn Phong_sampleScatter_CosWeighted_Phong(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
     GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_CosWeighted(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
     GLM_FUNC_QUALIFIER glm::vec4 Phong_sampleOutWithPDF_PhongSpecular(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
 
     GLM_FUNC_QUALIFIER glm::vec3 Phong_evalBSDF(const glm::vec3& in, const glm::vec3& normal, const glm::vec3& out, const glm::vec2& uv, float prob = 0.f) const;
+
+    // End Phong
+
+    // Start Dielectric
+    GLM_FUNC_QUALIFIER MonteCarloReturn Dielectric_sampleScatter(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
+    GLM_FUNC_QUALIFIER glm::vec4 Dielectric_sampleOutWithPDF(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
+
+    GLM_FUNC_QUALIFIER glm::vec3 Dielectric_evalBSDF(const glm::vec3& in, const glm::vec3& normal, const glm::vec3& out, const glm::vec2& uv, float prob = 0.f) const;
+    // End Dielectric
+
+    // Start Cook-Torrence
+    GLM_FUNC_QUALIFIER float getRoughness() const { return 1.f - metallic; }
+    
+    GLM_FUNC_QUALIFIER static float MicrofacetGGX_NormalDistribution(float cosH, float roughness, float tanH);
+    GLM_FUNC_QUALIFIER static float MicrofacetGGX_GeometrySchlick(const glm::vec3& v, const glm::vec3& n, float k);
+    GLM_FUNC_QUALIFIER static float MicrofacetGGX_GeometrySmithApproximation(const glm::vec3& in, const glm::vec3& mfNormal, const glm::vec3& out, float roughness);
+    GLM_FUNC_QUALIFIER static float MicrofacetGGX_Geometry(const glm::vec3& in, const glm::vec3& mfNormal, const glm::vec3& out, float roughness);
+    GLM_FUNC_QUALIFIER static glm::vec3 MicrofacetGGX_FresnelSchlick(const glm::vec3& F0, float cosIM);
+
+    GLM_FUNC_QUALIFIER static glm::vec3 calculateGGXRandomDirectionInHemisphere(
+        glm::vec3 normal, float roughness, thrust::default_random_engine& rng, float* pdf = nullptr);
+    
+    GLM_FUNC_QUALIFIER MonteCarloReturn MicrofacetGGX_sampleScatter(const glm::vec3& in, const glm::vec3& normal, const glm::vec2& uv, thrust::default_random_engine& rng) const;
+    GLM_FUNC_QUALIFIER glm::vec4 MicrofacetGGX_sampleMicrofacetNormalWithPDF(const glm::vec3& in, const glm::vec3& normal, thrust::default_random_engine& rng) const;
+
+    //GLM_FUNC_QUALIFIER glm::vec3 MicrofacetGGX_evalBSDF(const glm::vec3& in, const glm::vec3& normal, const glm::vec3& out, const glm::vec2& uv, float prob = 0.f) const;
+
+    // End Cook-Torrence
 };
-
-GLM_FUNC_QUALIFIER MonteCarloReturn Material::sampleScatter(glm::vec3 in, glm::vec3 normal, glm::vec2 uv, thrust::default_random_engine& rng) const
-{
-    switch (materialType) {
-    case MaterialType::PHONG:
-    {
-        return Phong_sampleScatter_CosWeighted_Phong(in, normal, uv, rng);
-        //return sampleScatter_Uniform(in, normal, uv, rng);
-    }
-    case MaterialType::COOK_TORRANCE:
-        return MonteCarloReturn();
-    }
-    return MonteCarloReturn();
-}
-
-GLM_FUNC_QUALIFIER glm::vec4 Material::sampleOutWithPDF(glm::vec3 in, glm::vec3 normal, thrust::default_random_engine& rng) const {
-    switch (materialType) {
-    case MaterialType::PHONG:
-        return Phong_sampleOutWithPDF_CosWeighted(in, normal, rng);
-    case MaterialType::COOK_TORRANCE:
-        return glm::vec4();//TODO
-    }
-    return glm::vec4();
-}
-
-GLM_FUNC_QUALIFIER glm::vec3 Material::evalBSDF(glm::vec3 in, glm::vec3 normal, glm::vec3 out, glm::vec2 uv, float prob) const {
-    switch (materialType) {
-    case MaterialType::PHONG:
-        return Phong_evalBSDF(in, normal, out, uv, prob);
-    case MaterialType::COOK_TORRANCE:
-        return glm::vec3();//TODO
-    }
-    return glm::vec3();
-}
-
-GLM_FUNC_QUALIFIER glm::vec3 Material::getDiffuse(glm::vec2 uv) const {
-    return diffuseTexture.isReadable() ? diffuseTexture.getPixelByUVBilinear(uv.x, uv.y) : color;
-}
-
-GLM_FUNC_QUALIFIER glm::vec3 Material::getSpecular(glm::vec2 uv) const {
-    return specularTexture.isReadable() ? specularTexture.getPixelByUVBilinear(uv.x, uv.y) : specular.color;
-}
-
-GLM_FUNC_QUALIFIER glm::vec3 Material::getNormal(glm::vec2 uv) const {
-    return normalTexture.isReadable() ? glm::normalize(normalTexture.getPixelByUVBilinear(uv.x, uv.y)) : glm::vec3(0.f, 0.f, 1.f);
-}
-
+#include "geometry.h"
 #include "material.inl"
+#include "materialPhong.inl"
+#include "materialPerfectDielectric.inl"
+#include "materialMicrofacetGGX.inl"
