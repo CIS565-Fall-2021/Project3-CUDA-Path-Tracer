@@ -265,6 +265,50 @@ __global__ void shadeFakeMaterial (
   }
 }
 
+__global__ void shadeBSDF(int iter,
+                          int num_paths,
+                          ShadeableIntersection* shadeableIntersections,
+                          PathSegment* pathSegments,
+                          Material* materials) 
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_paths) return;
+
+    PathSegment& pathSeg = pathSegments[idx];
+    ShadeableIntersection& intersection = shadeableIntersections[idx];
+
+    if (intersection.t > 0.f) 
+    {
+        Material mat = materials[intersection.materialId];
+        if (mat.emittance > 0.f) 
+        {
+            pathSeg.remainingBounces = 0;
+            pathSeg.color *= mat.color * mat.emittance;
+        }
+        else 
+        {
+            int bounces = --pathSeg.remainingBounces;
+            if (bounces > 0) 
+            {
+                scatterRay(pathSeg, 
+                           pathSeg.ray.origin + intersection.t * pathSeg.ray.direction, 
+                           intersection.surfaceNormal, 
+                           mat, 
+                           makeSeededRandomEngine(iter, idx, 0));
+            }
+            else 
+            {
+                pathSeg.color = glm::vec3(0.f);
+            }
+        }
+    }
+    else 
+    {
+        pathSeg.remainingBounces = 0;
+        pathSeg.color = glm::vec3(0.f);
+    }
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths)
 {
