@@ -81,6 +81,10 @@ static ShadeableIntersection * dev_first_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
+// Mesh Data for the GPU
+static MeshData dev_mesh_data;
+
+
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
     const Camera &cam = hst_scene->state.camera;
@@ -103,6 +107,19 @@ void pathtraceInit(Scene *scene) {
 
     // TODO: initialize any extra device memeory you need
 
+    // Mesh GPU data malloc
+    cudaMalloc(&dev_mesh_data.meshes, scene->meshes.size() * sizeof(Mesh));
+    cudaMemcpy(dev_mesh_data.meshes, scene->meshes.data(), scene->meshes.size() * sizeof(Mesh), cudaMemcpyHostToDevice);
+    
+    cudaMalloc(&dev_mesh_data.indices, scene->mesh_indices.size() * sizeof(uint16_t));
+    cudaMemcpy(dev_mesh_data.indices, scene->mesh_indices.data(), scene->mesh_indices.size() * sizeof(uint16_t), cudaMemcpyHostToDevice);
+    
+    cudaMalloc(&dev_mesh_data.vertices, scene->mesh_vertices.size() * sizeof(glm::vec3));
+    cudaMemcpy(dev_mesh_data.vertices, scene->mesh_vertices.data(), scene->mesh_vertices.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+    
+    cudaMalloc(&dev_mesh_data.normals, scene->mesh_normals.size() * sizeof(glm::vec3));
+    cudaMemcpy(dev_mesh_data.normals, scene->mesh_normals.data(), scene->mesh_normals.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+
     if (CACHE_FIRST_BOUNCE) {
       cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
       cudaMemset(dev_first_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
@@ -118,6 +135,9 @@ void pathtraceFree() {
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+
+    // Mesh GPU data free
+    dev_mesh_data.free();
 
     if (CACHE_FIRST_BOUNCE) {
       cudaFree(dev_first_intersections);
@@ -167,6 +187,7 @@ __global__ void computeIntersections(
     , PathSegment * pathSegments
     , Geom * geoms
     , int geoms_size
+    , MeshData mesh_data
     , ShadeableIntersection * intersections
     )
 {
@@ -199,6 +220,10 @@ __global__ void computeIntersections(
             else if (geom.type == SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            }
+            else if (geom.type == MESH)
+            {
+                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -412,6 +437,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
           , dev_paths
           , dev_geoms
           , hst_scene->geoms.size()
+          , dev_mesh_data
           , dev_intersections
           );
         checkCUDAError("trace one bounce");

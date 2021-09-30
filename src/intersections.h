@@ -142,3 +142,86 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+/**
+ * Test intersection between a ray and a box given the min and max points (bbox)
+ */
+__host__ __device__ bool hitBox(const Ray& r, const glm::vec3& v_min, const glm::vec3& v_max) {
+
+    float tmin = (v_min.x - r.origin.x) / r.direction.x;
+    float tmax = (v_max.x - r.origin.x) / r.direction.x;
+
+    if (tmin > tmax) swap(tmin, tmax);
+
+    float tymin = (v_min.y - r.origin.y) / r.direction.y;
+    float tymax = (v_max.y - r.origin.y) / r.direction.y;
+
+    if (tymin > tymax) swap(tymin, tymax);
+
+    if ((tmin > tymax) || (tymin > tmax))
+      return false;
+
+    if (tymin > tmin)
+      tmin = tymin;
+
+    if (tymax < tmax)
+      tmax = tymax;
+
+    float tzmin = (v_min.z - r.origin.z) / r.direction.z;
+    float tzmax = (v_max.z - r.origin.z) / r.direction.z;
+
+    if (tzmin > tzmax) swap(tzmin, tzmax);
+
+    if ((tmin > tzmax) || (tzmin > tmax))
+      return false;
+
+    if (tzmin > tmin)
+      tmin = tzmin;
+
+    if (tzmax < tmax)
+      tmax = tzmax;
+
+    return true;
+}
+
+/**
+ * Test intersection between a ray and a mesh
+ */
+__host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+  
+    const Mesh& m = md.meshes[geom.meshid];
+
+    // Try intersecting with the bbox first
+    // if (!hitBox(r, m.bbox_min, m.bbox_max))
+    //  return -1.0f;
+
+    bool hit = false;
+    float t = FLT_MAX;
+
+    // Test intersection on all triangles in the mesh (Optimization needed)
+    for (int i = 0; i < m.count; i+=3) {
+      
+      int f0 = md.indices[m.i_offset + i + 0];
+      int f1 = md.indices[m.i_offset + i + 1];
+      int f2 = md.indices[m.i_offset + i + 2];
+      
+      glm::vec3 v0, v1, v2;
+      v0 = md.vertices[m.v_offset + f0];
+      v1 = md.vertices[m.v_offset + f1];
+      v2 = md.vertices[m.v_offset + f2];
+
+      if (glm::intersectRayTriangle(r.origin, r.direction, v0, v1, v2, intersectionPoint)) {
+        hit = true;
+        float tmp = glm::length(r.origin - intersectionPoint);
+        if (tmp < t) {
+          // Type 1: Face Normal
+          normal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+          // TODO Interpolated Normal
+          t = tmp;
+        }
+      }
+    }
+
+    return hit ? t : -1.0f;
+}
