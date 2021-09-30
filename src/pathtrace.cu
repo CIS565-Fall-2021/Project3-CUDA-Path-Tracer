@@ -283,9 +283,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   // 1D block for path tracing
   const int blockSize1d = 128;
 
-  // whether to enable radix sort
-  const bool enable_radixSort = false;
-
   ///////////////////////////////////////////////////////////////////////////
   // Recap:
   // * Initialize array of path rays (using rays that come out of the camera)
@@ -349,7 +346,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // path segments that have been reshuffled to be contiguous in memory.
     //
     // a) sort intersections & paths with ray material ID
-    if (enable_radixSort) {
+    if (static_config::enable_radixSort) {
       cudaMemcpy(dev_materialIDBuffers, dev_materialIDs,
                  num_active_paths * sizeof(int), cudaMemcpyDeviceToDevice);
       thrust::sort_by_key(thrust::device, dev_materialIDs,

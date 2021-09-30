@@ -3,6 +3,7 @@
 #include <thrust/random.h>
 
 #include "intersections.h"
+#include "static_config.h"
 
 // CHECKITOUT
 /**

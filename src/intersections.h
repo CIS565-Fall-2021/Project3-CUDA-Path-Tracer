@@ -4,6 +4,7 @@
 #include <glm/gtx/intersect.hpp>
 
 #include "sceneStructs.h"
+#include "static_config.h"
 #include "utilities.h"
 
 /**
@@ -25,7 +26,7 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
  * Falls slightly short so that it doesn't intersect the object it's hitting.
  */
 __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
-  return r.origin + (t - .0005f) * glm::normalize(r.direction);
+  return r.origin + (t - EPS) * glm::normalize(r.direction);
 }
 
 /**
