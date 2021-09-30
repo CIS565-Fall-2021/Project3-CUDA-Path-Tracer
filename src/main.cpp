@@ -1,6 +1,14 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include <iostream>
+#include <iomanip>
+#include <chrono>
+
+#define TIMING_ANALYSIS
+
+#define FIXED_FLOAT(x) std::fixed <<std::setprecision(2)<<(x) 
+
 
 static std::string startTimeString;
 
@@ -99,6 +107,9 @@ void saveImage() {
 }
 
 void runCuda() {
+#ifdef TIMING_ANALYSIS
+  static std::chrono::time_point<std::chrono::system_clock> start;
+#endif
     if (camchanged) {
         iteration = 0;
         Camera &cam = renderState->camera;
@@ -125,20 +136,31 @@ void runCuda() {
     if (iteration == 0) {
         pathtraceFree();
         pathtraceInit(scene);
+#ifdef TIMING_ANALYSIS
+        start = std::chrono::system_clock::now();
+#endif
     }
 
     if (iteration < renderState->iterations) {
-        uchar4 *pbo_dptr = NULL;
-        iteration++;
-        cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
+      uchar4* pbo_dptr = NULL;
+      cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
-        // execute the kernel
-        int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+      // execute the kernel
+      int frame = 0;
+      pathtrace(pbo_dptr, frame, iteration);
 
-        // unmap buffer object
-        cudaGLUnmapBufferObject(pbo);
-    } else {
+      // unmap buffer object
+      cudaGLUnmapBufferObject(pbo);
+      iteration++;
+    }
+    else {
+#ifdef TIMING_ANALYSIS
+      std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
+      float milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+      std::cout << "Average time per iteration: " << FIXED_FLOAT(milliseconds / renderState->iterations) << "(ms)" << std::endl;
+      std::cout << "Elapsed time: " << FIXED_FLOAT(milliseconds / 1000.f) << " (s)" << std::endl << std::endl;
+#endif
         saveImage();
         pathtraceFree();
         cudaDeviceReset();

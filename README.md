@@ -1,7 +1,11 @@
 CUDA Path Tracer
 ================
 
+<img src="C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\basic-cornell.png" style="zoom:40%;" />
+
 Implementation of a CUDA-based path tracer capable of rendering globally-illuminated images.
+
+
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3 - Path Tracer**
 
@@ -56,10 +60,22 @@ The following features were given to us before starting this assignment:
   - Solution: We have three buffers of interest, our rays, intersections, and materials. The intersections are indexed the same way as our rays, and each interesection has an value to the index of the material of the object hit. We utilize thrust's sort_by_key operation, and sort the intersections and rays based on the material index. 
   - Performance: This sorting is costly, as it adds more computations and memory reallocation at every iteration. If your scene does not have that many different materials, you will most likely see a significant performance hit. However, if you have a lot of materials, this additional step may increase your performance (see the Issue section above).
 - A toggleable option to cache the first bounce intersection for re-use across all subsequent iterations
-  - See Performance analysis for results.
+  - Caching provided some performance improvements. See Performance analysis for more details.
+
+## Visual Improvements
+
+### Antialiasing
+
+It is commonly stated that, unlike rasterization, ray tracing gives us antialiasing for free. The way it does so is during the iteration process. We shoot multiple rays per pixel, and we average the color for all iterations. By picking a random point in each pixel, as opposed to the center point every time, we get an anti-aliased render.
+
+<img src="C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\no-antialiasing-annotated.png" style="zoom: 200%;" /> <img src="C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\antialiasing - annotated.png" style="zoom:191%;" />
 
 
 
 ## Performance Analysis
 
-TODO: Add analysis of caching the first bounce for different depths (from 1-20?)
+### Caching first bounce intersections
+
+Using std::chrono, the number of seconds it took to render 5000 iterations of the cornell-box with varying max ray depths were calculated. Generally speaking, caching gave some minor improvements
+
+![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\img\Screenshot 2021-09-29 235601.png)
