@@ -5,6 +5,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/partition.h>
+#include <thrust/execution_policy.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -73,7 +75,9 @@ static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
+static PathSegment * dev_paths2 = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static ShadeableIntersection * dev_intersections2 = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -86,6 +90,7 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
+    cudaMalloc(&dev_paths2, pixelcount * sizeof(PathSegment));
 
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
@@ -94,6 +99,7 @@ void pathtraceInit(Scene *scene) {
     cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
+    cudaMalloc(&dev_intersections2, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
@@ -104,9 +110,11 @@ void pathtraceInit(Scene *scene) {
 void pathtraceFree() {
     cudaFree(dev_image);  // no-op if dev_image is null
     cudaFree(dev_paths);
+    cudaFree(dev_paths2);
     cudaFree(dev_geoms);
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
+    cudaFree(dev_intersections2);
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -274,95 +282,91 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
     }
 }
 
+// predicate for culling paths
+struct hitObj{
+  __device__ bool operator()(const ShadeableIntersection &itxn){
+    return (itxn.t > -1.0f);
+  }
+};
 
-__global__ void kernScatterPathsAndIntersections(int n, 
-                                                 PathSegment *writePaths,
-												 const PathSegment *readPaths, 
-                                                 ShadeableIntersection *writeIntersections, 
-                                                 ShadeableIntersection *readIntersections, 
-                                                 const int *bools, 
+/*
+int cullPaths(int num_paths,
+			  PathSegment* dev_paths,
+			  ShadeableIntersection* intersections) {
+
+    // create RO version of intersections to prevent stomping on it when partitioning
+    ShadeableIntersection* intersections2;
+	cudaMalloc((void**)&intersections2, num_paths * sizeof(ShadeableIntersection));
+    cudaMemcpy(intersections2, intersections, num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+
+    // the addr of the last non-culled path
+    ShadeableIntersection* middle;
+
+    // effectively sort paths/intersections based on whether an object was hit
+    thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, intersections2, hitObj());
+    middle = thrust::stable_partition(thrust::device, intersections, intersections + num_paths, intersections2, hitObj());
+
+    cudaFree(intersections2);
+
+    // do some pointer math to return the number of non-culled paths
+    return middle - intersections;
+}
+*/
+
+__global__ void kernScatterPathsAndIntersections(int n,
+                                                 PathSegment *paths,
+                                                 const PathSegment *pathsRO,
+                                                 ShadeableIntersection *intersections,
+                                                 const ShadeableIntersection *intersectionsRO,
                                                  const int *indices) {
-	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-	if (index >= n) {
-		return;
-	}
+       int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+       if (index >= n) {
+               return;
+       }
 
-	if (bools[index]) {
-		writePaths[indices[index]] = readPaths[index];
-        writeIntersections[indices[index]] = readIntersections[index];
-	}
+       paths[index] = pathsRO[indices[index]];
+       intersections[index] = intersectionsRO[indices[index]];
 }
 
-__global__ void kernStillHasBounces(int n, int* shouldKeep, PathSegment* paths) {
+__global__ void kernEnumerate(int n, int* indices) {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (index >= n) {
-        return;
-    }
-
-    shouldKeep[index] = (int)paths[index].remainingBounces != -1;
-    if(!shouldKeep[index]) {
-        paths[index].color = glm::vec3(1.0f, 0.5f, 1.0f);
+    if (index < n) {
+        indices[index] = index;
     }
 }
 
-__global__ void kernHitObject(int n, int* shouldKeep, PathSegment* paths, ShadeableIntersection* intersections) {
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (index >= n) {
-        return;
-    }
+int cullPaths(int num_paths,
+			  const PathSegment* dev_pathsRO,
+			  PathSegment* dev_pathsOut,
+			  const ShadeableIntersection* intersectionsRO,
+			  ShadeableIntersection* intersectionsOut,
+              const int blockSize1d) {
 
-    shouldKeep[index] = (int)intersections[index].t > -1.0f;
-}
-
-int cullPaths(int num_paths, 
-              PathSegment* dev_paths, 
-              ShadeableIntersection* intersections,
-              int blockSize1d,
-              int iteration) {
-	int* dev_hitObj;
-    int* dev_indices;
-    PathSegment* dev_paths2;
-    ShadeableIntersection* dev_intersections2;
-	cudaMalloc((void**)&dev_hitObj, num_paths * sizeof(int));
-	cudaMalloc((void**)&dev_indices, num_paths * sizeof(int));
-	cudaMalloc((void**)&dev_paths2, num_paths * sizeof(PathSegment));
-	cudaMalloc((void**)&dev_intersections2, num_paths * sizeof(ShadeableIntersection));
-
-    cudaMemcpy(dev_paths2, dev_paths, num_paths * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
-    cudaMemcpy(dev_intersections2, dev_intersections, num_paths * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+    int newNumPaths;
+    int* indices;
+    
+	cudaMalloc((void**)&indices, num_paths * sizeof(int));
 
     int numBlocks = ceil((float)num_paths / blockSize1d);
+    kernEnumerate <<<numBlocks, blockSize1d >>> (num_paths, indices);
 
-	kernHitObject<<<numBlocks, blockSize1d>>>(num_paths,
-											  dev_hitObj,
-											  dev_paths2,
-											  intersections);
-	
-	thrust::device_vector<int> thrust_hitObj(dev_hitObj, dev_hitObj + num_paths);
-	thrust::device_vector<int> thrust_indices(num_paths);
-	thrust::exclusive_scan(thrust_hitObj.begin(), thrust_hitObj.end(), thrust_indices.begin());
+    // the addr of the last non-culled path
+    int* middle;
 
+    // effectively sort indices based on whether an object was hit
+    middle = thrust::stable_partition(thrust::device, indices, indices + num_paths, intersectionsRO, hitObj());
+    
+    // do some pointer math to return the number of non-culled paths
+    newNumPaths = middle - indices;
 
-	thrust::copy(thrust_indices.begin(), thrust_indices.end(), dev_indices);
+    // assign paths/intersections to the sorted indices. now all paths/intersections before `newNumPaths` have hit an obj
+    numBlocks = ceil((float)newNumPaths / blockSize1d);
+    kernScatterPathsAndIntersections << <numBlocks, blockSize1d >> > (newNumPaths, dev_pathsOut, dev_pathsRO, intersectionsOut, intersectionsRO, indices);
+    //checkCUDAError("scatter");
 
-    kernScatterPathsAndIntersections <<<numBlocks, blockSize1d >>>(num_paths,
-																   dev_paths,
-																   dev_paths2,
-                                                                   dev_intersections,
-                                                                   dev_intersections2,
-																   dev_hitObj,
-																   dev_indices);
+    cudaFree(indices);
 
-	int maxIndex;
-	cudaMemcpy(&maxIndex, dev_indices + num_paths - 1, sizeof(int), cudaMemcpyDeviceToHost);
-
-    cudaFree(dev_hitObj);
-    cudaFree(dev_indices);
-    cudaFree(dev_paths2);
-    cudaFree(dev_intersections2);
-
-    checkCUDAError("Error while culling bounces");
-    return maxIndex;
+    return newNumPaths;
 }
 
 /**
@@ -421,6 +425,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     PathSegment* dev_path_end = dev_paths + pixelcount;
     int num_paths = dev_path_end - dev_paths;
     int preCulledNumPaths = num_paths;
+    PathSegment* pathSwp;
+    ShadeableIntersection* intxnSwp; // for ping ponging buffers
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
@@ -446,7 +452,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 
 		// --- cull dead-end paths ---
-        num_paths = cullPaths(num_paths, dev_paths, dev_intersections, blockSize1d, iter);
+        num_paths = cullPaths(num_paths, 
+                              dev_paths, 
+                                dev_paths2, 
+                                dev_intersections, 
+                                dev_intersections2, 
+                                blockSize1d);
+        // ping-pong buffers after culling.
+        pathSwp = dev_paths;
+        dev_paths = dev_paths2;
+        dev_paths2 = pathSwp;
+        intxnSwp = dev_intersections;
+        dev_intersections = dev_intersections2;
+        dev_intersections2 = intxnSwp;
 
 		// TODO:
 		// --- Shading Stage ---
