@@ -26,10 +26,6 @@ int iteration;
 int width;
 int height;
 
-//-------------------------------
-//-------------MAIN--------------
-//-------------------------------
-
 int main(int argc, char** argv) {
     startTimeString = currentTimeString();
 
@@ -182,7 +178,7 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
     camchanged = true;
   }
   else if (rightMousePressed) {
-    zoom += (ypos - lastY) / height;
+    zoom += (ypos - lastY) / height * 4;
     zoom = std::fmax(0.1f, zoom);
     camchanged = true;
   }

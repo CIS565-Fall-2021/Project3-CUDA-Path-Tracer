@@ -1,0 +1,117 @@
+1. For each pixel, shoot a ray into the scene.
+    Questions:
+        - Direction computed using eye point to frustum near clip plane?
+    
+2. For each ray, check what surface it hits.
+    Questions:
+        - Compute intersection with objects (e.g. sphere/cube) or with individual triangles in the mesh?
+            A) has it intersected 
+            B) where has it intersected
+            (with sphere and cube, if you compute one, you get the other)
+            For mesh,
+                bounding cube or square
+                test, then next level of granularity
+            CLOSEST INTERSECTION
+                
+3.
+    If surface is diffuse, cast shadow feeler towards light source(s) to determine if this part of the surface is in shadow. Return color based on surface color, material properties, and lit/occluded status.
+
+    If surface is reflective/refractive, generate bounce ray with a new start position and direction and repeat from step 2 with new ray.
+
+        Questions:
+            - All light sources?
+            - Treat light source as a point? Or a square?
+
+
+
+Ray Tracing - one ray per pixel, terminal.
+Path Tracing - one ray per pixel, keep bouncing, using BSDF, go until maybe hit the light (depth or samples per pixel)
+
+time (iterations) & bounces
+8 samples per pixel (depth)
+iteration 0 -> bounces up to 8 times
+iteration 1 -> same thing
+.
+.
+.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Big confusion: Is this vanilla "Ray Tracing"? Only reflective/refractive seem to be producing additional rays. Is the addition of Bidirectional Scattering Distribution Functions (BSDFs) what enables global illumination?
+
+- Shoot multiple rays at each pixel and let bounce randomly? Or have each bounce spawn multiple new rays?
+
+- Is starter code working properly?
+- Review Questions
+- When are assignments graded
+
+
+- Installing dependencies in c++
+    - JS: npm install ...
+    - Python: pip install ...
+    - Golang: go get ...
+    - C++:
+        - Add git submodule to project
+        - Add to cmake
+
+Cuda-opengl interop
+ ->> Search for cudagl
+OpenGL higher level
+Vulcan lower level
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- Path tracing is a type of ray tracing
+
+RAY TRACING VS PATH TRACING
+Ray tracing - Each ray can spawn multiple new rays at every bounce
+Path tracing - Each ray only spawns one new ray at every bounce
+
+Parallelizing by rays vs pixels? Why is this different?
+
+At each iteration, advance each ray path by one bounce
+    - check against scene geometry
+    - remove terminated rays from ray pool with stream compaction
+
+Perform intersection testing and shading/bsdf evaluation in separate kernels
+"wavefront" of intersection testing
+
+- Use parallel radix sort to batch by material type
+
+
+
+glm::vec3* device_image -> pixelcount
+	These are the colors in the image to be rendered
+
+PathSegment* device_paths -> pixelcount
+	These are the ray origin, direction, color, pixelIndex, and remainingBounces. It makes sense to store the pixelIndex because as some PathSegments reach 0 remainingBounces, we will do stream compaction to remove them from device_paths and so the indices in this array will not line up with pixel indices. At each timestep, this array holds all in-flight rays.
+
+ShadeableIntersection* device_intersections -> pixelcount
+	For every PathSegment in device_paths, there may or may not be a corresponding ShadeableIntersection (maybe the ray shoots out of the scene). But for every ShadeableIntersection in device_intersections, there must be a corresponding PathSegment.
+
+
+Geom* device_geoms -> scene->geoms.size()
+Material* device_materials scene->materials.size()
