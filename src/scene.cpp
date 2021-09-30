@@ -11,6 +11,7 @@ Scene::Scene(string filename) {
     fp_in.open(fname);
     if (!fp_in.is_open()) {
         cout << "Error reading from file - aborting!" << endl;
+        // application will terminate with unhandled exception
         throw;
     }
     while (fp_in.good()) {
@@ -134,12 +135,12 @@ int Scene::loadCamera() {
     float xscaled = (yscaled * camera.resolution.x) / camera.resolution.y;
     float fovx = (atan(xscaled) * 180) / PI;
     camera.fov = glm::vec2(fovx, fovy);
-
+    
+    camera.view = glm::normalize(camera.lookAt - camera.position);
     camera.right = glm::normalize(glm::cross(camera.view, camera.up));
+    // pixels are assumed to be in NDC -1 to 1 
     camera.pixelLength = glm::vec2(2 * xscaled / (float)camera.resolution.x,
                                    2 * yscaled / (float)camera.resolution.y);
-
-    camera.view = glm::normalize(camera.lookAt - camera.position);
 
     //set up render camera stuff
     int arraylen = camera.resolution.x * camera.resolution.y;

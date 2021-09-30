@@ -19,8 +19,10 @@ namespace utilityCore {
     extern bool replaceString(std::string& str, const std::string& from, const std::string& to);
     extern glm::vec3 clampRGB(glm::vec3 color);
     extern bool epsilonCheck(float a, float b);
+    // Split str with any whitespace as delimiters and put them into a vector
     extern std::vector<std::string> tokenizeString(std::string str);
     extern glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
     extern std::string convertIntToString(int number);
+    // Get the next line in a file and put it into t
     extern std::istream& safeGetline(std::istream& is, std::string& t); //Thanks to http://stackoverflow.com/a/6089413
 }

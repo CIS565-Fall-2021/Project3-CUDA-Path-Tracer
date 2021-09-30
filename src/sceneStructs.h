@@ -15,6 +15,11 @@ enum GeomType {
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+    __host__ __device__
+    glm::vec3 evaluate(float t)
+    {
+        return origin + t * direction;
+    }
 };
 
 struct Geom {
@@ -29,21 +34,14 @@ struct Geom {
 };
 
 struct Material {
-    // RGB entry in scene file
     glm::vec3 color;
     struct {
-        // SPECEX
         float exponent;
-        // SPECRGB
         glm::vec3 color;
     } specular;
-    // REFL
     float hasReflective;
-    // REFR
     float hasRefractive;
-    // REFRIOR
     float indexOfRefraction;
-    // EMITTANCE
     float emittance;
 };
 
