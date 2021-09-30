@@ -78,4 +78,4 @@ It is commonly stated that, unlike rasterization, ray tracing gives us antialias
 
 Using std::chrono, the number of seconds it took to render 5000 iterations of the cornell-box with varying max ray depths were calculated. Generally speaking, caching gave some minor improvements
 
-![]("img/caching-table.png")
+![](img/caching-table.png)
