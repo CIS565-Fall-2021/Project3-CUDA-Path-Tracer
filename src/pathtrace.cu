@@ -15,6 +15,7 @@
 #include "pathtrace.h"
 #include "scene.h"
 #include "sceneStructs.h"
+#include "static_config.h"
 #include "stream_compaction.h"
 #include "utilities.h"
 
@@ -155,7 +156,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth,
 
     segment.pixelIndex       = index;
     segment.remainingBounces = traceDepth;
-    segment.bounced          = false;
   }
 }
 
@@ -240,14 +240,13 @@ __global__ void shadeMaterial(
           makeSeededRandomEngine(iter, idx, depth);
 
       const Material material = materials[intersection.materialId];
-      glm::vec3 intersect_pos =
-          path_segment.ray.origin + intersection.t * path_segment.ray.direction;
+      glm::vec3 intersect_pos = getPointOnRay(path_segment.ray, intersection.t);
       scatterRay(path_segment, intersect_pos, intersection.surfaceNormal,
                  material, rng);
     }
     // If there was no intersection, color the ray black, terminates bouncing
     else {
-      if (!path_segment.bounced) path_segment.color = glm::vec3(0.0f);
+      path_segment.color            = glm::vec3(0.0f);
       path_segment.remainingBounces = 0;
     }
     pathSegments[idx] = path_segment;
