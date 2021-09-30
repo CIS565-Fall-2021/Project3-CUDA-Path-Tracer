@@ -451,6 +451,18 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		depth++;
 
+
+
+
+
+		if (!cacheAvailable)
+		{
+			cudaMemcpy(dev_cache_paths, dev_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(dev_cache_intersections, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			SetCacheState(true);
+			cudaDeviceSynchronize();
+		}
+
 		//createMaterialIDforSort << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_SortMaterialID,dev_intersections);
 
 
@@ -477,15 +489,6 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			dev_paths,
 			dev_materials
 			);
-
-
-		if (!cacheAvailable)
-		{
-			cudaMemcpy(dev_cache_paths, dev_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
-			cudaMemcpy(dev_cache_intersections, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
-			SetCacheState(true);
-			cudaDeviceSynchronize();
-		}
 
 		CompactionStencil << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,
 			dev_paths, dev_Stencil);
