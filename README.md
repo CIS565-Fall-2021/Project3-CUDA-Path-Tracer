@@ -68,7 +68,7 @@ The following features were given to us before starting this assignment:
 
 It is commonly stated that, unlike rasterization, ray tracing gives us antialiasing for free. The way it does so is during the iteration process. We shoot multiple rays per pixel, and we average the color for all iterations. By picking a random point in each pixel, as opposed to the center point every time, we get an anti-aliased render.
 
-<img src="images\no-antialiasing-annotated.png" style="zoom: 500%;" /> <img src="images\antialiasing - annotated.png" style="zoom:480%;" />
+<img src="images\no-antialiasing-annotated.png" style="zoom: 500%;" /> <img src="images\antialiasing - annotated.png" style="zoom:470%;" />
 
 
 
@@ -78,5 +78,5 @@ It is commonly stated that, unlike rasterization, ray tracing gives us antialias
 
 Using std::chrono, the number of seconds it took to render 5000 iterations of the cornell-box with varying max ray depths were calculated. Generally speaking, caching gave some minor improvements
 
-![]("img\Screenshot 2021-09-29 235601.png")
+![](img\Screenshot 2021-09-29 235601.png)
 
