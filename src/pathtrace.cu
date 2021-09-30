@@ -78,7 +78,11 @@ static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
 static int* dev_Stencil;
-static int* dev_SortMaterialID;
+static PathSegment* dev_cache_paths = NULL;
+static ShadeableIntersection* dev_cache_intersections = NULL;
+static bool cacheAvailable = false;
+int cacheNumPaths = 0;
+
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -103,7 +107,11 @@ void pathtraceInit(Scene* scene) {
 
 	// TODO: initialize any extra device memeory you need
 	cudaMalloc(&dev_Stencil, pixelcount * sizeof(int));
-	cudaMalloc(&dev_SortMaterialID, pixelcount * sizeof(int));
+
+	cudaMalloc(&dev_cache_paths, pixelcount * sizeof(PathSegment));
+
+	cudaMalloc(&dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection));
+	cudaMemset(dev_cache_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
 	checkCUDAError("pathtraceInit");
 }
@@ -115,8 +123,10 @@ void pathtraceFree() {
 	cudaFree(dev_materials);
 	cudaFree(dev_intersections);
 	cudaFree(dev_Stencil);
-	cudaFree(dev_SortMaterialID);
 	// TODO: clean up any extra device memory you created
+	
+	cudaFree(dev_cache_paths);
+	cudaFree(dev_cache_intersections);
 
 	checkCUDAError("pathtraceFree");
 }
@@ -340,6 +350,11 @@ __global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, int* 
  * of memory management
  */
 
+void SetCacheState(bool a_state)
+{
+	cacheAvailable = a_state;
+}
+
 struct ShadeableIntersectionComparator
 {
 	__host__ __device__
@@ -395,13 +410,24 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 	// TODO: perform one iteration of path tracing
 
-	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
-	checkCUDAError("generate camera ray");
-
 	int depth = 0;
+	if (!cacheAvailable)
+	{
+		generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+		checkCUDAError("generate camera ray");
+	}
+	else
+	{
+		cudaMemcpy(dev_paths, dev_cache_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
+		cudaMemcpy(dev_intersections, dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+		cudaDeviceSynchronize();
+		depth = 1;
+	}
+	cudaDeviceSynchronize();
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
-	int numremainingPath = num_paths;
+	
+
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
@@ -428,10 +454,10 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 		//createMaterialIDforSort << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_SortMaterialID,dev_intersections);
 
 
-		thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections = thrust::device_ptr<ShadeableIntersection>(dev_intersections);
-		thrust::device_ptr<PathSegment> dev_thrust_PathSegment = thrust::device_ptr<PathSegment>(dev_paths);
+		//thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections = thrust::device_ptr<ShadeableIntersection>(dev_intersections);
+		//thrust::device_ptr<PathSegment> dev_thrust_PathSegment = thrust::device_ptr<PathSegment>(dev_paths);
 
-		thrust::sort_by_key(thrust::device, dev_thrust_intersections, dev_thrust_intersections + num_paths, dev_thrust_PathSegment, ShadeableIntersectionComparator());
+		//thrust::sort_by_key(thrust::device, dev_thrust_intersections, dev_thrust_intersections + num_paths, dev_thrust_PathSegment, ShadeableIntersectionComparator());
 
 		//thrust::sort_by_key()
 
@@ -453,12 +479,21 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			);
 
 
+		if (!cacheAvailable)
+		{
+			cudaMemcpy(dev_cache_paths, dev_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(dev_cache_intersections, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			SetCacheState(true);
+			cudaDeviceSynchronize();
+		}
+
 		CompactionStencil << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,
 			dev_paths, dev_Stencil);
 
 		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
 		int n = itr - dev_paths;
 		num_paths = n;
+	
 		if (num_paths == 0)
 		{
 			iterationComplete = true; // TODO: should be based off stream compaction results.
