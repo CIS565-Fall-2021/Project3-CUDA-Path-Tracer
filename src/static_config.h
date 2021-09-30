@@ -4,6 +4,7 @@
 #include <cuda.h>
 #include <device_launch_parameters.h>
 
+#define CACHE_INTERSECTIONS
 #define EPS 0.0001f
 
 namespace static_config {
