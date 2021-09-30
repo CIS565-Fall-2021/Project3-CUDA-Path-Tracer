@@ -5,6 +5,8 @@
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
+using namespace std;
+
 Scene::Scene(string filename) {
   cout << "Reading scene from " << filename << " ..." << endl;
   cout << " " << endl;

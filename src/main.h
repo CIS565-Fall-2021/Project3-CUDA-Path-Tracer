@@ -20,8 +20,6 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
-using namespace std;
-
 //-------------------------------
 //----------PATH TRACER----------
 //-------------------------------

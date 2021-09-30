@@ -4,6 +4,7 @@
 #include <glm/gtx/intersect.hpp>
 
 #include "sceneStructs.h"
+#include "static_config.h"
 #include "utilities.h"
 
 /**
@@ -25,13 +26,13 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
  * Falls slightly short so that it doesn't intersect the object it's hitting.
  */
 __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
-  return r.origin + (t - .0001f) * glm::normalize(r.direction);
+  return r.origin + (t - EPS) * glm::normalize(r.direction);
 }
 
 /**
  * Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
  */
-__host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
+__host__ __device__ glm::vec3 multiplyMV(const glm::mat4 m, const glm::vec4 v) {
   return glm::vec3(m * v);
 }
 
@@ -45,7 +46,7 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
-__host__ __device__ float boxIntersectionTest(Geom box, Ray r,
+__host__ __device__ float boxIntersectionTest(const Geom &box, const Ray r,
                                               glm::vec3 &intersectionPoint,
                                               glm::vec3 &normal,
                                               bool &outside) {
@@ -104,7 +105,8 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
-__host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
+__host__ __device__ float sphereIntersectionTest(const Geom &sphere,
+                                                 const Ray r,
                                                  glm::vec3 &intersectionPoint,
                                                  glm::vec3 &normal,
                                                  bool &outside) {

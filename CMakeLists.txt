@@ -76,6 +76,8 @@ set(headers
     src/sceneStructs.h
     src/preview.h
     src/utilities.h
+    src/stream_compaction.h
+    src/static_config.h
     )
 
 set(sources
@@ -86,6 +88,8 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
+    src/stream_compaction.cu
+    src/static_config.cpp
     )
 
 list(SORT headers)
