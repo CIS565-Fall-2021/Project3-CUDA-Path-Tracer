@@ -1,7 +1,7 @@
 CUDA Path Tracer
 ================
 
-<img src="C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\basic-cornell.png" style="zoom:40%;" />
+<img src="images\basic-cornell.png" style="zoom:40%;" />
 
 Implementation of a CUDA-based path tracer capable of rendering globally-illuminated images.
 
@@ -68,7 +68,7 @@ The following features were given to us before starting this assignment:
 
 It is commonly stated that, unlike rasterization, ray tracing gives us antialiasing for free. The way it does so is during the iteration process. We shoot multiple rays per pixel, and we average the color for all iterations. By picking a random point in each pixel, as opposed to the center point every time, we get an anti-aliased render.
 
-<img src="C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\no-antialiasing-annotated.png" style="zoom: 200%;" /> <img src="C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\antialiasing - annotated.png" style="zoom:191%;" />
+<img src="images\no-antialiasing-annotated.png" style="zoom: 200%;" /> <img src="C:\Users\Anthonimages\antialiasing - annotated.png" style="zoom:191%;" />
 
 
 
