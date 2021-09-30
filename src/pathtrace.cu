@@ -4,6 +4,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/device_vector.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -321,23 +322,34 @@ __global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, int* 
 }
 
 
-__global__ void createMaterialIDforSort(int nPaths, int* dev_matArray, ShadeableIntersection* intersections)
-{
-	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-	if (index < nPaths)
-	{
-		ShadeableIntersection intersection = intersections[index];
-		int matID = intersection.materialId;
-		dev_matArray[index] = matID;
-	}
-}
+//__global__ void createMaterialIDforSort(int nPaths, int* dev_matArray, ShadeableIntersection* intersections)
+//{
+//	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+//
+//	if (index < nPaths)
+//	{
+//		ShadeableIntersection intersection = intersections[index];
+//		int matID = intersection.materialId;
+//		dev_matArray[index] = matID;
+//	}
+//}
 
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
+
+struct ShadeableIntersectionComparator
+{
+	__host__ __device__
+		inline bool operator() (const ShadeableIntersection &a, const ShadeableIntersection &b)
+	{
+		return a.materialId < b.materialId;
+
+	}
+};
+
 void pathtrace(uchar4* pbo, int frame, int iter) {
 	const int traceDepth = hst_scene->state.traceDepth;
 	const Camera& cam = hst_scene->state.camera;
@@ -413,9 +425,13 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 		cudaDeviceSynchronize();
 		depth++;
 
-		createMaterialIDforSort << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_SortMaterialID,dev_intersections);
+		//createMaterialIDforSort << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_SortMaterialID,dev_intersections);
 
-		thrust::sort_by_key(thrust::device, dev_SortMaterialID, dev_SortMaterialID + num_paths, dev_paths);
+
+		thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections = thrust::device_ptr<ShadeableIntersection>(dev_intersections);
+		thrust::device_ptr<PathSegment> dev_thrust_PathSegment = thrust::device_ptr<PathSegment>(dev_paths);
+
+		thrust::sort_by_key(thrust::device, dev_thrust_intersections, dev_thrust_intersections + num_paths, dev_thrust_PathSegment, ShadeableIntersectionComparator());
 
 		//thrust::sort_by_key()
 
