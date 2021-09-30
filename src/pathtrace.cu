@@ -269,9 +269,10 @@ __global__ void shadeFakeMaterial(
 				glm::vec3 intersectPt = getPointOnRay(pathSegments[idx].ray, intersection.t);
 				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
 
-				float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-				pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-				pathSegments[idx].color *= u01(rng); // apply some noise because why not
+				pathSegments[idx].color *= materialColor;
+				//float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+				//pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
+				//pathSegments[idx].color *= u01(rng); // apply some noise because why not
 			}
 			// If there was no intersection, color the ray black.
 			// Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -438,8 +439,8 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
 		int n = itr - dev_paths;
-		numremainingPath = n;
-		if (numremainingPath == 0)
+		num_paths = n;
+		if (num_paths == 0)
 		{
 			iterationComplete = true; // TODO: should be based off stream compaction results.
 		}
@@ -448,7 +449,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
+	finalGather << <numBlocksPixels, blockSize1d >> > (pixelcount, dev_image, dev_paths);
 
 	///////////////////////////////////////////////////////////////////////////
 
