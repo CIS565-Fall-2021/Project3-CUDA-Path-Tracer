@@ -41,6 +41,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__
+glm::vec3 calculate_reflect_direction(glm::vec3 normal, glm::vec3 incident) {
+    return glm::reflect(incident, normal);
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -76,4 +81,26 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+    if (pathSegment.remainingBounces > 0) {
+        glm::vec3 bounce_ray;
+
+        // Perfect specular
+        if (m.hasReflective) {
+            // Shoot new ray
+            bounce_ray = calculate_reflect_direction(normal, pathSegment.ray.direction);
+        }
+        // Ideal diffuse
+        else {
+            // Shade rays
+            pathSegment.color *= m.color;
+            // Shoot new ray
+            bounce_ray = calculateRandomDirectionInHemisphere(normal, rng);
+        }
+        
+        pathSegment.ray.origin = intersect;
+        pathSegment.ray.direction = bounce_ray;
+
+        pathSegment.remainingBounces--;
+    }
 }
