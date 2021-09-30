@@ -51,27 +51,42 @@ __device__ float reflectance(double cosine, double ref_idx) {
     return r0 + (1 - r0) * pow((1 - cosine), 5);
 }
 
+__device__ double length_squared(glm::vec3 vec) {
+    return vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2];
+}
+
+__device__ glm::vec3 refract(const glm::vec3& uv, const glm::vec3& n, float etai_over_etat) {
+    float cos_theta = fmin(glm::dot(-uv, n), 1.0f);
+    glm::vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
+    glm::vec3 r_out_parallel = (float)-sqrt(fabs(1.0 - length_squared(r_out_perp))) * n;
+    return r_out_perp + r_out_parallel;
+}
+
+
+
 __device__
 glm::vec3 DielectricScatter(
     PathSegment& pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material& m, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
-    bool  front_face = glm::dot(pathSegment.ray.direction, normal);
-    double refraction_ratio = front_face ? (1.0 / m.hasRefractive) : m.hasRefractive;
+    normal = glm::normalize(normal);
+    bool  front_face = glm::dot(pathSegment.ray.direction, normal) <0.0f;
+    normal = front_face ? normal : -normal;
+    double refraction_ratio = front_face ? (1.0f / m.hasRefractive) : m.hasRefractive;
+    
+   glm::vec3 unit_direction = glm::normalize(pathSegment.ray.direction);
+   // double cos_theta = fmin(glm::dot(-unit_direction, normal), 1.0f);
+  /*  double sin_theta = sqrt(1.0f - cos_theta * cos_theta);
 
-    glm::vec3 unit_direction = glm::normalize(pathSegment.ray.direction);
-    double cos_theta = fmin(glm::dot(-unit_direction, normal), 1.0f);
-    double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
-
-    bool cannot_refract = refraction_ratio * sin_theta > 1.0;
+    bool cannot_refract = refraction_ratio * sin_theta > 1.0f;
     glm::vec3 direction;
 
-    /*if (cannot_refract || reflectance(cos_theta, refraction_ratio) > u01(rng))
+    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > u01(rng))
         direction = glm::reflect(unit_direction, normal);
     else
-        direction = glm::refract(unit_direction, normal, u01(rng));*/
+        direction = refract(unit_direction, normal, u01(rng));*/
 
-    direction = glm::refract(unit_direction, normal, u01(rng));
-    return direction;
+    glm::vec3 direction = refract(unit_direction, normal, refraction_ratio);
+    return glm::normalize(direction);
 }
 
 inline  bool near_zero(glm::vec3 vec) {
