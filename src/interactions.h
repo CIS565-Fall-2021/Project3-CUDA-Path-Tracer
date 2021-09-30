@@ -7,9 +7,9 @@
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
-__host__ __device__
+__device__
 glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+    glm::vec3 normal, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -24,9 +24,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     glm::vec3 directionNotNormal;
     if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(1, 0, 0);
-    } else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
+    }
+    else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(0, 1, 0);
-    } else {
+    }
+    else {
         directionNotNormal = glm::vec3(0, 0, 1);
     }
 
@@ -39,6 +41,36 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     return up * normal
         + cos(around) * over * perpendicularDirection1
         + sin(around) * over * perpendicularDirection2;
+}
+
+
+__device__ float reflectance(double cosine, double ref_idx) {
+    // Use Schlick's approximation for reflectance.
+    auto r0 = (1 - ref_idx) / (1 + ref_idx);
+    r0 = r0 * r0;
+    return r0 + (1 - r0) * pow((1 - cosine), 5);
+}
+
+__device__
+glm::vec3 DielectricScatter(
+    PathSegment& pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material& m, thrust::default_random_engine& rng) {
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    bool  front_face = glm::dot(pathSegment.ray.direction, normal);
+    double refraction_ratio = front_face ? (1.0 / m.hasRefractive) : m.hasRefractive;
+
+    glm::vec3 unit_direction = glm::normalize(pathSegment.ray.direction);
+    double cos_theta = fmin(glm::dot(-unit_direction, normal), 1.0);
+    double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+
+    bool cannot_refract = refraction_ratio * sin_theta > 1.0;
+    glm::vec3 direction;
+
+    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > u01(rng))
+        direction = glm::reflect(unit_direction, normal);
+    else
+        direction = glm::refract(unit_direction, normal, u01(rng));
+
+    return direction;
 }
 
 inline  bool near_zero(glm::vec3 vec) {
@@ -72,13 +104,13 @@ inline  bool near_zero(glm::vec3 vec) {
  *
  * You may need to change the parameter list for your purposes!
  */
-__host__ __device__
+__device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+    PathSegment& pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material& m,
+    thrust::default_random_engine& rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
@@ -86,11 +118,16 @@ void scatterRay(
 
     if (m.hasReflective > 0)
     {
-        scatter_direction =  glm::reflect(pathSegment.ray.direction, normal);
+        scatter_direction = glm::reflect(pathSegment.ray.direction, normal);
+    }
+    else if (m.hasRefractive > 0)
+    {
+        scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
     }
     else
     {
-        scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
+        scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
+        //scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
     }
 
     /*if (near_zero(scatter_direction))
