@@ -59,17 +59,18 @@ glm::vec3 DielectricScatter(
     double refraction_ratio = front_face ? (1.0 / m.hasRefractive) : m.hasRefractive;
 
     glm::vec3 unit_direction = glm::normalize(pathSegment.ray.direction);
-    double cos_theta = fmin(glm::dot(-unit_direction, normal), 1.0);
+    double cos_theta = fmin(glm::dot(-unit_direction, normal), 1.0f);
     double sin_theta = sqrt(1.0 - cos_theta * cos_theta);
 
     bool cannot_refract = refraction_ratio * sin_theta > 1.0;
     glm::vec3 direction;
 
-    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > u01(rng))
+    /*if (cannot_refract || reflectance(cos_theta, refraction_ratio) > u01(rng))
         direction = glm::reflect(unit_direction, normal);
     else
-        direction = glm::refract(unit_direction, normal, u01(rng));
+        direction = glm::refract(unit_direction, normal, u01(rng));*/
 
+    direction = glm::refract(unit_direction, normal, u01(rng));
     return direction;
 }
 
@@ -126,8 +127,8 @@ void scatterRay(
     }
     else
     {
-        scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
-        //scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
+        //scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
+        scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
     }
 
     /*if (near_zero(scatter_direction))

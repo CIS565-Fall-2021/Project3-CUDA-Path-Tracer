@@ -52,11 +52,11 @@ EMITTANCE   0
 
 // Refractive white
 MATERIAL 5
-RGB         .98 .98 .98
+RGB         .7 .6 .4
 SPECEX      0
-SPECRGB     0 0 0
+SPECRGB     0.5 0.5 0.5
 REFL        0
-REFR        1
+REFR        0.6
 REFRIOR     0
 EMITTANCE   0
 
