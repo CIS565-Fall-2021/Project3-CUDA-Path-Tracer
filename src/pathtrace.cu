@@ -218,8 +218,6 @@ __global__ void computeIntersections(
 			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
 			intersections[path_index].surfaceNormal = normal;
 
-			//Added this as there was no deduction of bounces
-			pathSegments[path_index].remainingBounces -= 1;
 		}
 	}
 }
@@ -323,16 +321,17 @@ __global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, int* 
 }
 
 
-//__global__ void createMaterialIDforSort(int nPaths, int* abc, PathSegment* iterationPaths, ShadeableIntersection* intersections)
-//{
-//	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-//
-//	if (index < nPaths)
-//	{
-//		PathSegment iterationPath = iterationPaths[index];
-//		image[iterationPath.pixelIndex] += iterationPath.color;
-//	}
-//}
+__global__ void createMaterialIDforSort(int nPaths, int* dev_matArray, ShadeableIntersection* intersections)
+{
+	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+	if (index < nPaths)
+	{
+		ShadeableIntersection intersection = intersections[index];
+		int matID = intersection.materialId;
+		dev_matArray[index] = matID;
+	}
+}
 
 
 /**
@@ -413,6 +412,10 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
 		depth++;
+
+		createMaterialIDforSort << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths, dev_SortMaterialID,dev_intersections);
+
+		thrust::sort_by_key(thrust::device, dev_SortMaterialID, dev_SortMaterialID + num_paths, dev_paths);
 
 		//thrust::sort_by_key()
 
