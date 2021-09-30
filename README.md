@@ -68,7 +68,7 @@ The following features were given to us before starting this assignment:
 
 It is commonly stated that, unlike rasterization, ray tracing gives us antialiasing for free. The way it does so is during the iteration process. We shoot multiple rays per pixel, and we average the color for all iterations. By picking a random point in each pixel, as opposed to the center point every time, we get an anti-aliased render.
 
-<img src="images\no-antialiasing-annotated.png" style="zoom: 500%;" /> <img src="images\antialiasing - annotated.png" style="zoom:470%;" />
+<img src="images\no-antialiasing-annotated.png" style="zoom: 100%;" /> <img src="images\antialiasing - annotated.png" style="zoom:95%;" />
 
 
 
