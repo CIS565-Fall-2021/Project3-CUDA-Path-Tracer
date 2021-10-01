@@ -7,6 +7,24 @@
 #include "utilities.h"
 
 /**
+ * Swap the given two vectors
+ */
+__host__ __device__ inline void swapVal(float& v1, float& v2) {
+  float tmp = v1;
+  v1 = v2;
+  v2 = tmp;
+}
+
+/**
+ * Interpolate a vector given three vectors and a barycentric coordinate (uv)
+ */
+template<class T>
+__host__ __device__ inline void lerp(T& p, const T& a, 
+  const T& b, const T& c, const float u, const float v) {
+  p = (1.0f - u - v) * a + u * b + v * c;
+}
+
+/**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
 __host__ __device__ inline unsigned int utilhash(unsigned int a) {
@@ -148,15 +166,19 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
  */
 __host__ __device__ bool hitBox(const Ray& r, const glm::vec3& v_min, const glm::vec3& v_max) {
 
-    float tmin = (v_min.x - r.origin.x) / r.direction.x;
-    float tmax = (v_max.x - r.origin.x) / r.direction.x;
+    glm::vec3 inv_dir = 1.0f / r.direction;
 
-    if (tmin > tmax) swap(tmin, tmax);
+    float tmin = (v_min.x - r.origin.x) * inv_dir.x;
+    float tmax = (v_max.x - r.origin.x) * inv_dir.x;
 
-    float tymin = (v_min.y - r.origin.y) / r.direction.y;
-    float tymax = (v_max.y - r.origin.y) / r.direction.y;
+    if (tmin > tmax) 
+      swapVal(tmin, tmax);
 
-    if (tymin > tymax) swap(tymin, tymax);
+    float tymin = (v_min.y - r.origin.y) * inv_dir.y;
+    float tymax = (v_max.y - r.origin.y) * inv_dir.y;
+
+    if (tymin > tymax) 
+      swapVal(tymin, tymax);
 
     if ((tmin > tymax) || (tymin > tmax))
       return false;
@@ -167,10 +189,11 @@ __host__ __device__ bool hitBox(const Ray& r, const glm::vec3& v_min, const glm:
     if (tymax < tmax)
       tmax = tymax;
 
-    float tzmin = (v_min.z - r.origin.z) / r.direction.z;
-    float tzmax = (v_max.z - r.origin.z) / r.direction.z;
+    float tzmin = (v_min.z - r.origin.z) * inv_dir.z;
+    float tzmax = (v_max.z - r.origin.z) * inv_dir.z;
 
-    if (tzmin > tzmax) swap(tzmin, tzmax);
+    if (tzmin > tzmax) 
+      swapVal(tzmin, tzmax);
 
     if ((tmin > tzmax) || (tzmin > tmax))
       return false;
@@ -188,13 +211,13 @@ __host__ __device__ bool hitBox(const Ray& r, const glm::vec3& v_min, const glm:
  * Test intersection between a ray and a mesh
  */
 __host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
-    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+    glm::vec3& intersectionPoint, glm::vec3& normal, glm::vec2& uv, int& materialid) {
   
     const Mesh& m = md.meshes[geom.meshid];
 
     // Try intersecting with the bbox first
-    // if (!hitBox(r, m.bbox_min, m.bbox_max))
-    //  return -1.0f;
+    if (!hitBox(r, m.bbox_min, m.bbox_max))
+      return -1.0f;
 
     bool hit = false;
     float t = FLT_MAX;
@@ -211,14 +234,28 @@ __host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
       v1 = md.vertices[m.v_offset + f1];
       v2 = md.vertices[m.v_offset + f2];
 
-      if (glm::intersectRayTriangle(r.origin, r.direction, v0, v1, v2, intersectionPoint)) {
+      glm::vec3 bary;
+      if (glm::intersectRayTriangle(r.origin, r.direction, v0, v1, v2, bary)) {
         hit = true;
-        float tmp = glm::length(r.origin - intersectionPoint);
-        if (tmp < t) {
-          // Type 1: Face Normal
-          normal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
-          // TODO Interpolated Normal
-          t = tmp;
+        if (bary.z < t) {
+          // Face Normal
+          // normal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+          
+          // Interpolate Normal
+          glm::vec3 n0, n1, n2;
+          n0 = md.normals[m.n_offset + f0];
+          n1 = md.normals[m.n_offset + f1];
+          n2 = md.normals[m.n_offset + f2];
+          lerp<glm::vec3>(normal, n0, n1, n2, bary.x, bary.y);
+          
+          // Interpolate UV
+          glm::vec2 uv0, uv1, uv2;
+          uv0 = md.uvs[m.uv_offset + f0];
+          uv1 = md.uvs[m.uv_offset + f1];
+          uv2 = md.uvs[m.uv_offset + f2];
+          lerp<glm::vec2>(uv, uv0, uv1, uv2, bary.x, bary.y);
+
+          t = bary.z;
         }
       }
     }

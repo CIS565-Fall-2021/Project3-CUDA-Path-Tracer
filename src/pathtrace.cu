@@ -85,6 +85,12 @@ static ShadeableIntersection * dev_first_intersections = NULL;
 static MeshData dev_mesh_data;
 
 
+template <class T>
+void mallocAndCopy(T* &d, std::vector<T> &h) {
+  cudaMalloc(&d, h.size() * sizeof(T));
+  cudaMemcpy(d, h.data(), h.size() * sizeof(T), cudaMemcpyHostToDevice);
+}
+
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
     const Camera &cam = hst_scene->state.camera;
@@ -96,29 +102,18 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
     dev_final_paths = dev_paths;
 
-    cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
-    cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
-
-    cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
-    cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
-
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    // TODO: initialize any extra device memeory you need
+    mallocAndCopy<Geom>(dev_geoms, scene->geoms);
+    mallocAndCopy<Material>(dev_materials, scene->materials);
 
     // Mesh GPU data malloc
-    cudaMalloc(&dev_mesh_data.meshes, scene->meshes.size() * sizeof(Mesh));
-    cudaMemcpy(dev_mesh_data.meshes, scene->meshes.data(), scene->meshes.size() * sizeof(Mesh), cudaMemcpyHostToDevice);
-    
-    cudaMalloc(&dev_mesh_data.indices, scene->mesh_indices.size() * sizeof(uint16_t));
-    cudaMemcpy(dev_mesh_data.indices, scene->mesh_indices.data(), scene->mesh_indices.size() * sizeof(uint16_t), cudaMemcpyHostToDevice);
-    
-    cudaMalloc(&dev_mesh_data.vertices, scene->mesh_vertices.size() * sizeof(glm::vec3));
-    cudaMemcpy(dev_mesh_data.vertices, scene->mesh_vertices.data(), scene->mesh_vertices.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
-    
-    cudaMalloc(&dev_mesh_data.normals, scene->mesh_normals.size() * sizeof(glm::vec3));
-    cudaMemcpy(dev_mesh_data.normals, scene->mesh_normals.data(), scene->mesh_normals.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+    mallocAndCopy<Mesh>(dev_mesh_data.meshes, scene->meshes);
+    mallocAndCopy<uint16_t>(dev_mesh_data.indices, scene->mesh_indices);
+    mallocAndCopy<glm::vec3>(dev_mesh_data.vertices, scene->mesh_vertices);
+    mallocAndCopy<glm::vec3>(dev_mesh_data.normals, scene->mesh_normals);
+    mallocAndCopy<glm::vec2>(dev_mesh_data.uvs, scene->mesh_uvs);
 
     if (CACHE_FIRST_BOUNCE) {
       cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
@@ -200,12 +195,15 @@ __global__ void computeIntersections(
         float t;
         glm::vec3 intersect_point;
         glm::vec3 normal;
+        glm::vec2 uv;
+        int materialId = -1;
         float t_min = FLT_MAX;
         int hit_geom_index = -1;
         bool outside = true;
 
         glm::vec3 tmp_intersect;
         glm::vec3 tmp_normal;
+        glm::vec2 tmp_uv;
 
         // naive parse through global geoms
 
@@ -223,7 +221,7 @@ __global__ void computeIntersections(
             }
             else if (geom.type == MESH)
             {
-                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, materialId);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -235,6 +233,7 @@ __global__ void computeIntersections(
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
+                uv = tmp_uv;
             }
         }
 
@@ -246,8 +245,9 @@ __global__ void computeIntersections(
         {
             //The ray hits something
             intersections[path_index].t = t_min;
-            intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+            intersections[path_index].materialId = materialId < 0 ? geoms[hit_geom_index].materialid : materialId;
             intersections[path_index].surfaceNormal = normal;
+            intersections[path_index].uv = uv;
             
             // TODO:
             // store intersect point?

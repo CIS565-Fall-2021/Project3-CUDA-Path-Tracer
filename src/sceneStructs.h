@@ -20,38 +20,30 @@ struct Ray {
 };
 
 struct Mesh {
-  //string name;
-
-  int count;
-  int i_offset;
-  int v_offset;
-  int n_offset;
-
-  glm::vec3 bbox_max;
-  glm::vec3 bbox_min;
-
-  //glm::vec3* vertices;
-  //glm::vec3* normals;
-  //vec2s uvs;
-  //vec3s colors;
-  //int* faces;  // points to a vertex idx. 3 vertex ids = 1 face
-  //std::vector<int> materialids;
-
-  glm::mat4 pivot_xform;
+    int count;
+    int i_offset;
+    int v_offset;
+    int n_offset;
+    int uv_offset;
+    glm::vec3 bbox_max;
+    glm::vec3 bbox_min;
+    glm::mat4 pivot_xform;
 };
 
 struct MeshData {
-  Mesh* meshes;
-  glm::vec3* vertices;
-  glm::vec3* normals;
-  uint16_t* indices;
+    Mesh* meshes;
+    glm::vec3* vertices;
+    glm::vec3* normals;
+    uint16_t* indices;
+    glm::vec2* uvs;
 
-  void free() {
-    cudaFree(meshes);
-    cudaFree(vertices);
-    cudaFree(normals);
-    cudaFree(indices);
-  }
+    void free() {
+      cudaFree(meshes);
+      cudaFree(vertices);
+      cudaFree(normals);
+      cudaFree(indices);
+      cudaFree(uvs);
+    }
 };
 
 struct Geom {
@@ -116,6 +108,7 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec2 uv;
 };
 
 // Predicate for checking if a path is complete or not

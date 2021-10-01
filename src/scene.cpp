@@ -4,6 +4,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <memory>  // c++11
+#include "utilities.h"
 
 #define TINYGLTF_IMPLEMENTATION
 //#define STB_IMAGE_IMPLEMENTATION
@@ -264,6 +265,8 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
     geoms.push_back(newGeom);
   }
 
+  glm::mat4 xform = utilityCore::buildTransformationMatrix(glm::vec3(0, 1, 0), glm::vec3(0), glm::vec3(scale, scale, scale));
+
   // Get all meshes
   for (const tinygltf::Mesh& gltfMesh : model.meshes) {
     std::cout << "Current mesh has " << gltfMesh.primitives.size()
@@ -318,9 +321,8 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               loadedMesh.bbox_max.z = attribAccessor.maxValues[2];
 
               // TODO: Allow custom xform
-
-              loadedMesh.bbox_max *= scale;
-              loadedMesh.bbox_min *= scale;
+              utilityCore::xformVec3(loadedMesh.bbox_max, xform);
+              utilityCore::xformVec3(loadedMesh.bbox_min, xform);
 
               // Store mesh vertices
               loadedMesh.v_offset = mesh_vertices.size();
@@ -329,7 +331,9 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 v.x = data[i * 3 + 0];
                 v.y = data[i * 3 + 1];
                 v.z = data[i * 3 + 2];
-                mesh_vertices.push_back(v*scale + glm::vec3(0,1,0));
+
+                utilityCore::xformVec3(v, xform);
+                mesh_vertices.push_back(v);
               }
             }
             else if (attribute.first == "NORMAL") {
@@ -363,6 +367,36 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 mesh_normals.push_back(n0);
                 mesh_normals.push_back(n1);
                 mesh_normals.push_back(n2);
+              }
+            }
+            else if (attribute.first == "TEXCOORD_0") {
+              std::cout << "found texture attribute\n";
+
+              loadedMesh.uv_offset = mesh_uvs.size();
+
+              // IMPORTANT: We need to reorder normals (and texture
+              // coordinates into "facevarying" order) for each face
+              // 
+              // For each triangle :
+              for (int i = 0; i < loadedMesh.count; i += 3) {
+                // get the i'th triange's indexes
+                int f0 = indices[i + 0];
+                int f1 = indices[i + 1];
+                int f2 = indices[i + 2];
+
+                // get the 3 texture coordinates for each triangle
+                glm::vec2 t0, t1, t2;
+                t0.x = data[2 * f0 + 0];
+                t0.y = data[2 * f0 + 1];
+                t1.x = data[2 * f1 + 0];
+                t1.y = data[2 * f1 + 1];
+                t2.x = data[2 * f2 + 0];
+                t2.y = data[2 * f2 + 1];
+
+                // Put them in the array in the correct order
+                mesh_uvs.push_back(t0);
+                mesh_uvs.push_back(t1);
+                mesh_uvs.push_back(t2);
               }
             }
           }

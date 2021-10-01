@@ -21,6 +21,7 @@ namespace utilityCore {
     extern bool epsilonCheck(float a, float b);
     extern std::vector<std::string> tokenizeString(std::string str);
     extern glm::mat4 buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale);
+    extern void xformVec3(glm::vec3& v, glm::mat4 m);
     extern std::string convertIntToString(int number);
     extern std::istream& safeGetline(std::istream& is, std::string& t); //Thanks to http://stackoverflow.com/a/6089413
 }

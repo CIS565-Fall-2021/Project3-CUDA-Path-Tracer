@@ -62,6 +62,14 @@ bool utilityCore::epsilonCheck(float a, float b) {
     }
 }
 
+void utilityCore::xformVec3(glm::vec3& v, glm::mat4 m) {
+    glm::vec4 v_tmp(v.x, v.y, v.z, 1);
+    v_tmp = m * v_tmp;
+    v.x = v_tmp.x;
+    v.y = v_tmp.y;
+    v.z = v_tmp.z;
+}
+
 glm::mat4 utilityCore::buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale) {
     glm::mat4 translationMat = glm::translate(glm::mat4(), translation);
     glm::mat4 rotationMat =   glm::rotate(glm::mat4(), rotation.x * (float) PI / 180, glm::vec3(1, 0, 0));
