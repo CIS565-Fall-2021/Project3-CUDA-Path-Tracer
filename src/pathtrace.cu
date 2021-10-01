@@ -86,6 +86,8 @@ int cacheNumPaths = 0;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
+bool usingCache = true;
+
 void pathtraceInit(Scene* scene) {
 	hst_scene = scene;
 	const Camera& cam = hst_scene->state.camera;
@@ -139,7 +141,7 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, bool usingCache)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -151,11 +153,24 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.ray.origin = cam.position;
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-		// TODO: implement antialiasing by jittering the ray
-		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-		);
+		if (!usingCache)
+		{
+			thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+			thrust::uniform_real_distribution<float> u01(0, 1);
+			// TODO: implement antialiasing by jittering the ray
+			segment.ray.direction = glm::normalize(cam.view
+				- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f + u01(rng))
+				- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + +u01(rng))
+			);
+		}
+		else
+		{
+			// TODO: implement antialiasing by jittering the ray
+			segment.ray.direction = glm::normalize(cam.view
+				- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+				- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+			);
+		}
 
 		segment.pixelIndex = index;
 		segment.remainingBounces = traceDepth;
@@ -420,17 +435,25 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	// TODO: perform one iteration of path tracing
 
 	int depth = 0;
-	if (!cacheAvailable)
+	if (usingCache)
 	{
-		generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
-		checkCUDAError("generate camera ray");
+		if (!cacheAvailable)
+		{
+			generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache);
+			checkCUDAError("generate camera ray");
+		}
+		else
+		{
+			cudaMemcpy(dev_paths, dev_cache_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
+			cudaMemcpy(dev_intersections, dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+			cudaDeviceSynchronize();
+			depth = 1;
+		}
 	}
 	else
 	{
-		cudaMemcpy(dev_paths, dev_cache_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
-		cudaMemcpy(dev_intersections, dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
-		cudaDeviceSynchronize();
-		depth = 1;
+		generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache);
+		checkCUDAError("generate camera ray");
 	}
 	cudaDeviceSynchronize();
 	PathSegment* dev_path_end = dev_paths + pixelcount;
@@ -464,7 +487,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
 
 
-		if (!cacheAvailable)
+		if (!cacheAvailable && usingCache)
 		{
 			cudaMemcpy(dev_cache_paths, dev_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
 			cudaMemcpy(dev_cache_intersections, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
