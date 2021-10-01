@@ -745,52 +745,55 @@ std::string LoadObj(std::vector<shape_t> &shapes,
       continue;
     }
 
+
+
+    //Uncomment Afterwards
     // use mtl
-    if ((0 == strncmp(token, "usemtl", 6)) && isSpace((token[6]))) {
-
-      char namebuf[4096];
-      token += 7;
-#ifdef _MSC_VER
-      sscanf_s(token, "%s", namebuf);
-#else
-      sscanf(token, "%s", namebuf);
-#endif
-
-      // Create face group per material.
-      bool ret = exportFaceGroupToShape(shape, vertexCache, v, vn, vt,
-                                        faceGroup, material, name, true);
-      if (ret) {
-        faceGroup.clear();
-      }
-
-      if (material_map.find(namebuf) != material_map.end()) {
-        material = material_map[namebuf];
-      } else {
-        // { error!! material not found }
-        material = -1;
-      }
-
-      continue;
-    }
+//    if ((0 == strncmp(token, "usemtl", 6)) && isSpace((token[6]))) {
+//
+//      char namebuf[4096];
+//      token += 7;
+//#ifdef _MSC_VER
+//      sscanf_s(token, "%s", namebuf);
+//#else
+//      sscanf(token, "%s", namebuf);
+//#endif
+//
+//      // Create face group per material.
+//      bool ret = exportFaceGroupToShape(shape, vertexCache, v, vn, vt,
+//                                        faceGroup, material, name, true);
+//      if (ret) {
+//        faceGroup.clear();
+//      }
+//
+//      if (material_map.find(namebuf) != material_map.end()) {
+//        material = material_map[namebuf];
+//      } else {
+//        // { error!! material not found }
+//        material = -1;
+//      }
+//
+//      continue;
+//    }
 
     // load mtl
-    if ((0 == strncmp(token, "mtllib", 6)) && isSpace((token[6]))) {
-      char namebuf[4096];
-      token += 7;
-#ifdef _MSC_VER
-      sscanf_s(token, "%s", namebuf);
-#else
-      sscanf(token, "%s", namebuf);
-#endif
-
-      std::string err_mtl = readMatFn(namebuf, materials, material_map);
-      if (!err_mtl.empty()) {
-        faceGroup.clear(); // for safety
-        return err_mtl;
-      }
-
-      continue;
-    }
+//    if ((0 == strncmp(token, "mtllib", 6)) && isSpace((token[6]))) {
+//      char namebuf[4096];
+//      token += 7;
+//#ifdef _MSC_VER
+//      sscanf_s(token, "%s", namebuf);
+//#else
+//      sscanf(token, "%s", namebuf);
+//#endif
+//
+//      std::string err_mtl = readMatFn(namebuf, materials, material_map);
+//      if (!err_mtl.empty()) {
+//        faceGroup.clear(); // for safety
+//        return err_mtl;
+//      }
+//
+//      continue;
+//    }
 
     // group name
     if (token[0] == 'g' && isSpace((token[1]))) {
