@@ -43,14 +43,14 @@ UP          0 1 0
 
 // TEST
 OBJECT 0
-sphere
-//trimesh
+//sphere
+trimesh
+material 1
 //material 1
-material 2
-//MODEL    Test/square.obj
+MODEL    Test/square.obj
 TRANS       0 3 -6
 ROTAT       0 0 0
-SCALE       6 6 6
+SCALE       4 4 4
 
 // Sphere
 //OBJECT 1

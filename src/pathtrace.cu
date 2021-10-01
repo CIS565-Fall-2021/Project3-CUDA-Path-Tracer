@@ -3,7 +3,7 @@
 #include <cmath>
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
-#include <thrust/remove.h>
+#include <thrust/partition.h>
 #include <thrust/sort.h>
 #include <thrust/device_ptr.h>
 
@@ -80,9 +80,15 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
         glm::vec3 pix = image[index];
 
         glm::ivec3 color;
-        color.x = glm::clamp((int) (pix.x / iter * 255.0), 0, 255);
-        color.y = glm::clamp((int) (pix.y / iter * 255.0), 0, 255);
-        color.z = glm::clamp((int) (pix.z / iter * 255.0), 0, 255);
+#if false//!PREGATHER_FINAL_IMAGE
+        color.x = glm::clamp((int) (pix.x / iter * 255.0f + 0.5f), 0, 255);
+        color.y = glm::clamp((int) (pix.y / iter * 255.0f + 0.5f), 0, 255);
+        color.z = glm::clamp((int) (pix.z / iter * 255.0f + 0.5f), 0, 255);
+#else // PREGATHER_FINAL_IMAGE
+        color.x = glm::clamp((int) (pix.x * 255.0f + 0.5f), 0, 255);
+        color.y = glm::clamp((int) (pix.y * 255.0f + 0.5f), 0, 255);
+        color.z = glm::clamp((int) (pix.z * 255.0f + 0.5f), 0, 255);
+#endif // PREGATHER_FINAL_IMAGE
 
         // Each thread writes one pixel location in the texture (textel)
         pbo[index].w = 0;
@@ -238,8 +244,10 @@ __global__ void computeIntersections(
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
-                barycentric = tmp_barycentric;
-                triangleId = tmp_triangleId;
+                if (geom.type == GeomType::TRI_MESH) {
+                    barycentric = tmp_barycentric;
+                    triangleId = tmp_triangleId;
+                }
             }
         }
 
@@ -250,11 +258,14 @@ __global__ void computeIntersections(
         else
         {
             //The ray hits something
+            Geom hitGeom = geoms[hit_geom_index];
             intersections[path_index].t = t_min;
-            intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+            intersections[path_index].geometryId = hit_geom_index;
+            intersections[path_index].materialId = hitGeom.materialid;
+            intersections[path_index].stencilId = hitGeom.stencilid;
             intersections[path_index].surfaceNormal = normal;
-            if (geoms[hit_geom_index].type == GeomType::TRI_MESH) {
-                Triangle triangle = geoms[hit_geom_index].trimeshRes.triangles[triangleId];
+            if (hitGeom.type == GeomType::TRI_MESH && triangleId >= 0 && triangleId < hitGeom.trimeshRes.triangleNum) {
+                Triangle triangle = hitGeom.trimeshRes.triangles[triangleId];
                 intersections[path_index].uv = barycentricInterpolation(barycentric, triangle.uv00, triangle.uv01, triangle.uv02);
             }
         }
@@ -439,6 +450,20 @@ __global__ void shadeAndScatter (
                     material,
                     rng);
             }
+
+            // GBuffer hit
+            if (depth == 1) {
+                GBufferData gBufferData;
+                gBufferData.geometryId = intersection.geometryId;
+                gBufferData.materialId = intersection.materialId;
+                gBufferData.normal = intersection.surfaceNormal;
+                gBufferData.baseColor = material.getDiffuse(intersection.uv);
+                gBufferData.stencilId = intersection.stencilId;
+                //printf("geom%d, pixel%d stencil = %d\n", intersection.geometryId, pathSegments[idx].pixelIndex, intersection.stencilId);//TEST
+
+                pathSegments[idx].gBufferData = gBufferData;
+            }
+
         } 
         else {
             glm::vec3 backgroundColor = background.getBackgroundColor(pathSegments[idx].ray.direction);
@@ -452,6 +477,13 @@ __global__ void shadeAndScatter (
                 pathSegments[idx].color *= backgroundColor;
                 pathSegments[idx].remainingBounces = RayRemainingBounce::FIND_EMIT_SOURCE;
                 shadeableIntersections[idx].materialId = INT_MAX;
+            }
+            // GBuffer background
+            if (depth == 1) {
+                GBufferData gBufferData;
+                gBufferData.baseColor = backgroundColor;
+
+                pathSegments[idx].gBufferData = gBufferData;
             }
         }
     }
@@ -467,24 +499,38 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
         PathSegment iterationPath = iterationPaths[index];
         //image[iterationPath.pixelIndex] += iterationPath.color;
         glm::vec3 color = iterationPath.remainingBounces != RayRemainingBounce::FIND_EMIT_SOURCE ? glm::vec3(0.f) : iterationPath.color;
-        color = glm::pow(color, glm::vec3(1.f / 2.2f));
-
+#if !PREGATHER_FINAL_IMAGE
         image[iterationPath.pixelIndex] += color;
-        //float alpha = 1.f / iter;
-        //image[iterationPath.pixelIndex] = alpha * color + (1.f - alpha) * image[iterationPath.pixelIndex];
+#else // PREGATHER_FINAL_IMAGE
+        float alpha = 1.f / iter;
+        image[iterationPath.pixelIndex] = alpha * color + (1.f - alpha) * image[iterationPath.pixelIndex];
+#endif // PREGATHER_FINAL_IMAGE
     }
 }
 
-struct StreamCompactionPredicate {
+// Add the current iteration's output to the GBuffer
+__global__ void writeToGBuffer(int nPaths, GBufferData* image, PathSegment * iterationPaths, int iter)
+{
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+    if (index < nPaths)
+    {
+        PathSegment iterationPath = iterationPaths[index];
+        //image[iterationPath.pixelIndex] += iterationPath.color;
+        image[iterationPath.pixelIndex] = iterationPath.gBufferData;
+    }
+}
+
+struct PartitionPredicate {
     __host__ __device__ bool operator()(const PathSegment& p1) const {
     //inline bool operator()(const PathSegment& p1) const {
-        return //p1.remainingBounces < 0 || 
-            p1.remainingBounces == RayRemainingBounce::OUT_OF_SCENE ||
-            (p1.color.r < FLT_EPSILON &&
-                p1.color.g < FLT_EPSILON &&
-                p1.color.b < FLT_EPSILON);
+        return !(p1.remainingBounces < 0 || 
+            //(p1.remainingBounces == RayRemainingBounce::OUT_OF_SCENE ||
+            (p1.color.r < EPSILON &&
+                p1.color.g < EPSILON &&
+                p1.color.b < EPSILON));
     }
-} streamCompactionPredicate;
+} partitionPredicate;
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -542,7 +588,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
-    long long num_paths = dev_path_end - dev_paths;
+    volatile long long num_paths = dev_path_end - dev_paths;
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
@@ -566,19 +612,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , dev_intersections
             );
         checkCUDAError("trace one bounce");
-        cudaDeviceSynchronize();
+        //cudaDeviceSynchronize();
         depth++;
 
 #if ENABLE_SORTING
         // Sort
-        thrust::device_ptr<PathSegment> thrust_dev_paths(dev_paths);
-#if !ADVANCED_PIPELINE
+#if !ENABLE_ADVANCED_PIPELINE
         thrust::device_ptr<ShadeableIntersection> thrust_dev_intersection(dev_intersections);
         thrust::sort_by_key(thrust_dev_intersection, thrust_dev_intersection + num_paths, thrust_dev_paths);
-#else // ADVANCED_PIPELINE
-#endif // ADVANCED_PIPELINE
+#else // ENABLE_ADVANCED_PIPELINE
+        thrust::device_ptr<ShadeableIntersection> thrust_dev_intersection(dev_intersections);
+        thrust::sort_by_key(thrust_dev_intersection, thrust_dev_intersection + num_paths, thrust_dev_paths);
+#endif // ENABLE_ADVANCED_PIPELINE
         checkCUDAError("sort");
-
+#elif ENABLE_PARTITION
+        thrust::device_ptr<PathSegment> thrust_dev_paths(dev_paths);
 #endif // ENABLE_SORTING
 
         // DONE:
@@ -603,14 +651,15 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             hst_scene->background);
         checkCUDAError("shade one bounce");
 
-#if ENABLE_COMPACTION
+#if ENABLE_PARTITION
         // Stream compaction
         // TODO: Use stable_partition instead.
-        thrust::device_ptr<PathSegment> thrust_dev_paths_end = thrust::remove_if(thrust_dev_paths, thrust_dev_paths + num_paths, streamCompactionPredicate);
+        thrust::device_ptr<PathSegment> thrust_dev_paths_end = thrust::partition(thrust_dev_paths, thrust_dev_paths + num_paths, partitionPredicate);
+        //thrust::device_ptr<PathSegment> thrust_dev_paths_end = thrust::remove_if(thrust_dev_paths, thrust_dev_paths + num_paths, partitionPredicate);
         dev_path_end = thrust_dev_paths_end.get();
         num_paths = dev_path_end - dev_paths;
         checkCUDAError("compaction");
-#endif // ENABLE_COMPACTION
+#endif // ENABLE_PARTITION
 
         iterationComplete = depth >= traceDepth || num_paths == 0;
         //iterationComplete = true; // TODO: should be based off stream compaction results.
@@ -618,15 +667,22 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths, iter);
+    finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths, iter);
 
+    ///////////////////////////////////////////////////////////////////////////
+//#if PREGATHER_FINAL_IMAGE
+    writeToGBuffer<<<numBlocksPixels, blockSize1d>>>(pixelcount, hst_scene->dev_GBuffer.buffer, dev_paths, iter);
+    checkCUDAError("writeToGBuffer");
+
+//#endif // PREGATHER_FINAL_IMAGE
+    glm::vec3* framebuffer = hst_scene->postProcessGPU(dev_image, dev_paths, blocksPerGrid2d, blockSize2d, iter);
     ///////////////////////////////////////////////////////////////////////////
 
     // Send results to OpenGL buffer for rendering
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, framebuffer);
 
     // Retrieve image from GPU
-    cudaMemcpy(hst_scene->state.image.data(), dev_image,
+    cudaMemcpy(hst_scene->state.image.data(), framebuffer,
             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");

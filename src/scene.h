@@ -15,6 +15,12 @@
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
+enum class PostProcessType {
+    NONE,
+    COLOR_RAMP,
+    OUTLINE_BY_STENCIL,
+};
+
 extern void checkCUDAErrorFn(const char* msg, const char* file, int line);
 
 struct Background {
@@ -26,6 +32,7 @@ struct Background {
     glm::vec3 backgroundColor;
 
     static const size_t BACKGROUND_MATERIAL_INDEX;
+    static const size_t COLOR_RAMP_MATERIAL_INDEX;
 };
 
 class Scene {
@@ -69,13 +76,25 @@ protected:
 
     std::string basePath;
     std::queue<std::function<void(void)>> initCallbacks;
+
+    void initGBuffer();
+    void freeGBuffer();
+
+    Texture2D<glm::vec3> rampMap;
+    std::unordered_map<int, int> ppToStencilMap;
+    std::unordered_map<int, std::pair<glm::vec3, int>> stencilOutlineColorWidths;
 public:
     Scene(std::string filename);
     virtual ~Scene();
     void execInitCallbacks();
+    glm::vec3* postProcessGPU(glm::vec3* dev_image, PathSegment* dev_paths, const dim3 blocksPerGrid2d, const dim3 blockSize2d, int iter) const;
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
     Background background;
+
+    Texture2D<glm::vec3> dev_frameBuffer;
+    Texture2D<GBufferData> dev_GBuffer;
+    std::vector<std::pair<PostProcessType, bool>> postprocesses;
 };

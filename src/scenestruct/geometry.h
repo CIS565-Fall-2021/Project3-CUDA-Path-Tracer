@@ -24,19 +24,66 @@ enum class GeomType : ui8 {
 };
 
 struct BBox {
-    glm::vec3 min, max;
-    int isValid = 0;
+    glm::vec3 minP, maxP;
+    ui8 isValid = 0;
 
     template<typename TGeom>
-    GLM_FUNC_QUALIFIER static BBox getLocalBoundingBox(const TGeom& geom) {
+    GLM_FUNC_QUALIFIER static BBox getLocalBoundingBox(const TGeom& geom, float expand = 0.f) {
         return BBox();
     }
+
+    GLM_FUNC_QUALIFIER BBox operator +(const BBox& b) {
+        BBox b1(*this);
+        b1 += b;
+        return b1;
+    }
+
+    GLM_FUNC_QUALIFIER BBox& operator +=(const BBox& b) {
+        if (!isValid) {
+            minP = b.minP;
+            maxP = b.maxP;
+            isValid = b.isValid;
+        }
+        else if (b.isValid) {
+            minP = glm::min(minP, b.minP);
+            maxP = glm::max(maxP, b.maxP);
+        }
+        return *this;
+    }
+
+    GLM_FUNC_QUALIFIER i32 getMaxDistAxis() const {
+        i32 result = 0;
+        float dist = maxP[0] - minP[0];
+        float dist1 = maxP[1] - minP[1];
+        if (dist1 > dist) {
+            result = 1;
+            dist = dist1;
+        }
+        dist1 = maxP[2] - minP[2];
+        if (dist1 > dist) {
+            result = 2;
+            dist = dist1;
+        }
+        return result;
+    }
+
+    GLM_FUNC_QUALIFIER glm::vec3 getCenter() const {
+        return (minP + maxP) * 0.5f;
+    }
+
+    GLM_FUNC_QUALIFIER BBox toWorld(const glm::mat4 transform) const;
+
+    GLM_FUNC_QUALIFIER float intersectionTest(Ray q, bool& outside) const;
 };
 
 struct Triangle {
     GLM_FUNC_QUALIFIER Triangle() {}
     GLM_FUNC_QUALIFIER Triangle(const Triangle& tri) {
         memcpy(this, &tri, sizeof(tri));
+    }
+    GLM_FUNC_QUALIFIER Triangle& operator=(const Triangle& tri) {
+        memcpy(this, &tri, sizeof(tri));
+        return *this;
     }
 
     union {
@@ -54,6 +101,7 @@ struct Triangle {
     int triangleid = 0;
     ui8 twoSided = 0;
 
+    GLM_FUNC_QUALIFIER Triangle toWorld(const glm::mat4& transform, const glm::mat4& invTranspose) const;
 
     GLM_FUNC_QUALIFIER float triangleLocalIntersectionTest(Ray q, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal);
 };
@@ -61,30 +109,71 @@ struct Triangle {
 #if BUILD_BVH_FOR_TRIMESH
 template<typename TGeom>
 struct BoundingVolumeHierarchy {
-    GLM_FUNC_QUALIFIER void buildBVH(TGeom* dev_geom) {}
+    struct BVHNode {
+        BBox box;
+        i32 leftSubtreeIdx = -1, rightSubtreeIdx = -1;
+        i32 geomIdx = -1;
+    };
 
-    int nodeSize = 0;
+    GLM_FUNC_QUALIFIER i32 leftChildIdx(i32 root) const { 
+        return nodesArray[root].leftSubtreeIdx;
+        //return (root << 1) + 1; 
+    }
+    GLM_FUNC_QUALIFIER i32 rightChildIdx(i32 root) const { 
+        return nodesArray[root].rightSubtreeIdx;
+        //return (root << 1) + 2; 
+    }
+    //GLM_FUNC_QUALIFIER i32 nextNodeIdx(i32 curr) const {
+    //    i32 level = 0;
+
+    //    for (i32 i = 2; i - 2 < curr; i <<= 1) { // 0(2)| 1(3), 2(4)| 3(5), 4(6), 5(7), 6(8)| ...
+    //        ++level;
+    //    }
+
+    //    i32 base = 1 << level;
+
+    //    do {
+    //        if (curr & 1 == 0) {
+    //            // Left node
+
+    //        }
+    //    } while(curr < nodeNum && nodesArray[curr].geomIdx == -1);
+    //    return curr;
+    //}
+
+    __host__ void buildBVH_CPU(TGeom* geoms, i32 geomNum, float expand = EPSILON) {}
+
+    GLM_FUNC_QUALIFIER float worldIntersectionTest(
+        const glm::mat4& transform, const glm::mat4& invTransform, const glm::mat4& invTranspose, 
+        Ray r, TGeom* geoms, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, i32& geomId) const { return -1; }
+
+    i32 nodeNum = 0, treeHeight = 0;
+    BVHNode* nodesArray = nullptr;
 };
 #endif // BUILD_BVH_FOR_TRIMESH
 
 struct TriMesh {
     Triangle* triangles;
-    int triangleNum = 0;
+    i32 triangleNum = 0;
 
 #if BUILD_BVH_FOR_TRIMESH
-    BoundingVolumeHierarchy<TriMesh> localBVH;
+    BoundingVolumeHierarchy<Triangle> localBVH;
 #endif // BUILD_BVH_FOR_TRIMESH
 
     GLM_FUNC_QUALIFIER bool isReadable() const {
         return triangles != nullptr;
     }
-    GLM_FUNC_QUALIFIER float worldIntersectionTest(glm::mat4 transform, Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId);
-    GLM_FUNC_QUALIFIER float localIntersectionTest(Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId);
+    GLM_FUNC_QUALIFIER float worldIntersectionTest(
+        const glm::mat4& transform, const glm::mat4& invTransform, const glm::mat4& invTranspose, 
+        Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId);
+    //GLM_FUNC_QUALIFIER float localIntersectionTest(Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId);
 };
 
 struct Geom {
     enum GeomType type = GeomType::NONE;
-    int materialid;
+    int geometryid = -1;
+    int materialid = -1;
+    int stencilid = 0;
     TriMesh trimeshRes;
     glm::vec3 translation;
     glm::vec3 rotation;

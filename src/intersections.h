@@ -168,7 +168,7 @@ __host__ __device__ inline float trimeshIntersectionTest(Geom trimeshgeom, Ray r
 #if TRIANGLE_INTERSECTION_IN_WORLD_SPACE
     ///////////////////////////////
 
-    float t = trimeshgeom.trimeshRes.worldIntersectionTest(trimeshgeom.transform, r, intersectionPoint, intersectionBarycentric, normal, triangleId);
+    float t = trimeshgeom.trimeshRes.worldIntersectionTest(trimeshgeom.transform, trimeshgeom.inverseTransform, trimeshgeom.invTranspose, r, intersectionPoint, intersectionBarycentric, normal, triangleId);
 
     return t;
 

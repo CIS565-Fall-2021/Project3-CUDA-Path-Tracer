@@ -1,5 +1,74 @@
 #include "geometry.h"
 
+/**
+* Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
+*/
+__host__ __device__ inline glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
+    return glm::vec3(m * v);
+}
+
+GLM_FUNC_QUALIFIER BBox BBox::toWorld(const glm::mat4 transform) const {
+    if (!isValid) {
+        return *this;
+    }
+
+    glm::vec3 vertices[]{
+        glm::vec3(multiplyMV(transform, glm::vec4(minP.x, minP.y, minP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(minP.x, minP.y, maxP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(minP.x, maxP.y, minP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(minP.x, maxP.y, maxP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(maxP.x, minP.y, minP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(maxP.x, minP.y, maxP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(maxP.x, maxP.y, minP.z, 1.f))),
+        glm::vec3(multiplyMV(transform, glm::vec4(maxP.x, maxP.y, maxP.z, 1.f))),
+    };
+    glm::vec3 worldMinP = vertices[0], worldMaxP = vertices[0];
+#pragma unroll
+    for (size_t i = 1; i < 8; ++i) {
+        worldMinP = glm::min(worldMinP, vertices[i]);
+        worldMaxP = glm::max(worldMaxP, vertices[i]);
+    }
+    return {
+        worldMinP,
+        worldMaxP,
+        1
+    };
+}
+
+GLM_FUNC_QUALIFIER float BBox::intersectionTest(Ray q, bool& outside) const {
+    if (!isValid) {
+        return -1.f;
+    }
+    float tmin = -1e38f;
+    float tmax = 1e38f;
+    for (int component = 0; component < 3; ++component) {
+        float qdxyz = q.direction[component];
+        /*if (glm::abs(qdxyz) > 0.00001f)*/ {
+            float t1 = (minP[component] - q.origin[component]) / qdxyz;
+            float t2 = (maxP[component] - q.origin[component]) / qdxyz;
+            float ta = glm::min(t1, t2);
+            float tb = glm::max(t1, t2);
+            if (ta > 0 && ta > tmin) {
+                tmin = ta;
+            }
+            if (tb < tmax) {
+                tmax = tb;
+            }
+        }
+    }
+
+    //if (tmax >= tmin && tmax > 0) {
+    if (tmax >= tmin && tmax > 0.f) {
+        outside = true;
+        if (tmin <= 0) {
+            tmin = tmax;
+            outside = false;
+        }
+        return tmin;
+    }
+    return -1.f;
+}
+
 __host__ __device__ inline
 glm::vec3 tangentSpaceToWorldSpace(const glm::vec3& dir, const glm::vec3& normal) {
     // Find a direction that is not the normal based off of whether or not the
@@ -73,19 +142,83 @@ glm::vec3 calculateCosWeightedRandomDirectionInPhongSpecularRegion(
     return tangentSpaceToWorldSpace(dir, normal);
 }
 
-
 #if BUILD_BVH_FOR_TRIMESH
-template<>
-GLM_FUNC_QUALIFIER void BoundingVolumeHierarchy<TriMesh>::buildBVH(TriMesh* dev_trimesh) {
+//template<>
+//GLM_FUNC_QUALIFIER void BoundingVolumeHierarchy<Triangle>::buildBVH_CPU(Triangle* geoms, int geomNum, float expand) {
+//    nodeNum = (geomNum << 1) - 1;
+//    treeHeight = 0;
+//    for (i32 i = 2; i - 2 < nodeNum; i <<= 1) { // 0(2)| 1(3), 2(4)| 3(5), 4(6), 5(7), 6(8)| ...
+//        ++treeHeight;
+//    }
+//    BVHNode* nodesCPU;
+//    printf("Initialize BVH with %d nodes, %d leaves, with height %d.\n", nodeNum, geomNum, treeHeight);
+//    //BVHNode* 
+//    cudaMemcpy
+//    //cudaMemcpy(nodesArray, nodesCPU, sizeof(BVHNode) * nodeNum, cudaMemcpyHostToDevice);
+//}
 
+template<>
+GLM_FUNC_QUALIFIER float BoundingVolumeHierarchy<Triangle>::worldIntersectionTest(
+        const glm::mat4& transform, const glm::mat4& invTransform, const glm::mat4& invTranspose, 
+        Ray r, Triangle* geoms, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, i32& geomId) const {
+    constexpr size_t STACK_SIZE = 32;
+    i32 stackForQuery[STACK_SIZE];
+    i32 stackTopIdx = 0; // TOO MUCH ERROR FOR LOCAL INTERSECTION
+
+    bool outside;
+
+    i32 curIdx;
+    glm::vec3 tmp_point, tmp_bary, tmp_nrm;
+
+    float tmin = FLT_MAX;
+
+    Ray q;
+    q.origin    =                multiplyMV(invTransform, glm::vec4(r.origin   , 1.0f));
+    q.direction = glm::normalize(multiplyMV(invTransform, glm::vec4(r.direction, 0.0f)));
+
+    stackForQuery[stackTopIdx++] = 0;
+    while (stackTopIdx > 0) {
+        curIdx = stackForQuery[stackTopIdx - 1];
+        --stackTopIdx;
+        BVHNode curNode = nodesArray[curIdx];
+        if (curNode.box.intersectionTest(q, outside) > 0.f) {
+        //if (curNode.box.toWorld(transform).intersectionTest(r, outside) > 0.f) {
+            if (curNode.geomIdx < 0) {
+                i32 rightIdx = rightChildIdx(curIdx);
+                i32 leftIdx = leftChildIdx(curIdx);
+                if (rightIdx > 0 && rightIdx < nodeNum) {
+                    stackForQuery[stackTopIdx++] = rightIdx;
+                }
+                if (leftIdx > 0 && leftIdx < nodeNum) {
+                    stackForQuery[stackTopIdx++] = leftIdx;
+                }
+            }
+            else {
+                Triangle geom = geoms[curNode.geomIdx].toWorld(transform, invTranspose);
+
+                float tmp_t = geom.triangleLocalIntersectionTest(r, tmp_point, tmp_bary, tmp_nrm);
+                if (tmp_t > 0.f && tmp_t < tmin) {
+                    tmin = tmp_t;
+                    intersectionPoint = tmp_point;
+                    intersectionBarycentric = tmp_bary;
+                    normal = tmp_nrm;
+                    geomId = curNode.geomIdx;
+                }
+            }
+        }
+    }
+    if (geomId < 0) {
+        return -1.f;
+    }
+    return tmin;
 }
 #endif // BUILD_BVH_FOR_TRIMESH
 
 template<>
-GLM_FUNC_QUALIFIER BBox BBox::getLocalBoundingBox(const Triangle& geom) {
+GLM_FUNC_QUALIFIER BBox BBox::getLocalBoundingBox(const Triangle& geom, float expand) {
     return BBox{
-        glm::min(geom.pos0, glm::min(geom.pos1, geom.pos2)),
-        glm::max(geom.pos0, glm::max(geom.pos1, geom.pos2)),
+        glm::min(geom.pos0, glm::min(geom.pos1, geom.pos2)) - expand,
+        glm::max(geom.pos0, glm::max(geom.pos1, geom.pos2)) + expand,
         1
     };
 }
@@ -124,33 +257,25 @@ GLM_FUNC_QUALIFIER glm::vec4 getBarycentric(const glm::vec3& p, const glm::vec3&
     return glm::vec4(alpha, beta, gamma, 1.f);
 }
 
-/**
-* Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
-*/
-__host__ __device__ inline glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
-    return glm::vec3(m * v);
-}
-
-GLM_FUNC_QUALIFIER float TriMesh::worldIntersectionTest(glm::mat4 transform, Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
+GLM_FUNC_QUALIFIER float TriMesh::worldIntersectionTest(
+        const glm::mat4& transform, const glm::mat4& invTransform, const glm::mat4& invTranspose,
+        Ray r, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
 #if BUILD_BVH_FOR_TRIMESH
-
+    return localBVH.worldIntersectionTest(transform, invTransform, invTranspose, r, triangles, intersectionPoint, intersectionBarycentric, normal, triangleId);
 #else // BUILD_BVH_FOR_TRIMESH
     float tnear = FLT_MAX;
     float tmp_t = -1.f;
     int tmp_triangleId = -1;
+    glm::vec3 tmp_p, tmp_b, tmp_n;
     for (int i = 0; i < triangleNum; ++i) {
-        Triangle tri = triangles[i];
-        tri.pos0 = multiplyMV(transform, glm::vec4(tri.pos0, 1.f));
-        tri.pos1 = multiplyMV(transform, glm::vec4(tri.pos1, 1.f));
-        tri.pos2 = multiplyMV(transform, glm::vec4(tri.pos2, 1.f));
+        Triangle tri = triangles[i].toWorld(transform, invTranspose);
 
-        tri.nrm0 = multiplyMV(transform, glm::vec4(tri.nrm0, 0.f));
-        tri.nrm1 = multiplyMV(transform, glm::vec4(tri.nrm1, 0.f));
-        tri.nrm2 = multiplyMV(transform, glm::vec4(tri.nrm2, 0.f));
-
-        tmp_t = tri.triangleLocalIntersectionTest(r, intersectionPoint, intersectionBarycentric, normal);
+        tmp_t = tri.triangleLocalIntersectionTest(r, tmp_p, tmp_b, tmp_n);
         if (tmp_t > 0.f && tmp_t < tnear) {
             tmp_triangleId = i;
+            intersectionPoint = tmp_p;
+            intersectionBarycentric = tmp_b;
+            normal = tmp_n;
             tnear = tmp_t;
         }
 }
@@ -162,29 +287,46 @@ GLM_FUNC_QUALIFIER float TriMesh::worldIntersectionTest(glm::mat4 transform, Ray
 #endif // BUILD_BVH_FOR_TRIMESH
 }
 
-GLM_FUNC_QUALIFIER float TriMesh::localIntersectionTest(Ray q, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
-#if BUILD_BVH_FOR_TRIMESH
-
-#else // BUILD_BVH_FOR_TRIMESH
-    float tnear = FLT_MAX;
-    float tmp_t = -1.f;
-    int tmp_triangleId = -1;
-    for (int i = 0; i < triangleNum; ++i) {
-        tmp_t = triangles[i].triangleLocalIntersectionTest(q, intersectionPoint, intersectionBarycentric, normal);
-        if (tmp_t > 0.f && tmp_t < tnear) {
-            tmp_triangleId = i;
-            tnear = tmp_t;
-        }
-    }
-    if (tmp_triangleId == -1) {
-        return -1.f;
-    }
-    triangleId = tmp_triangleId;
-    return tnear;
-#endif // BUILD_BVH_FOR_TRIMESH
-}
+//GLM_FUNC_QUALIFIER float TriMesh::localIntersectionTest(Ray q, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal, int& triangleId) {
+//#if BUILD_BVH_FOR_TRIMESH
+//
+//#else // BUILD_BVH_FOR_TRIMESH
+//    float tnear = FLT_MAX;
+//    float tmp_t = -1.f;
+//    int tmp_triangleId = -1;
+//    for (int i = 0; i < triangleNum; ++i) {
+//        tmp_t = triangles[i].triangleLocalIntersectionTest(q, intersectionPoint, intersectionBarycentric, normal);
+//        if (tmp_t > 0.f && tmp_t < tnear) {
+//            tmp_triangleId = i;
+//            tnear = tmp_t;
+//        }
+//    }
+//    if (tmp_triangleId == -1) {
+//        return -1.f;
+//    }
+//    triangleId = tmp_triangleId;
+//    return tnear;
+//#endif // BUILD_BVH_FOR_TRIMESH
+//}
 
 #define TRIANGLE_INTERSECTION_EPSILON 0.f //0.005f // 0.001f
+
+GLM_FUNC_QUALIFIER Triangle Triangle::toWorld(const glm::mat4& transform, const glm::mat4& invTranspose) const
+{
+    Triangle tri(*this);
+    tri.pos0 = multiplyMV(transform, glm::vec4(pos0, 1.f));
+    tri.pos1 = multiplyMV(transform, glm::vec4(pos1, 1.f));
+    tri.pos2 = multiplyMV(transform, glm::vec4(pos2, 1.f));
+
+    //tri.nrm0 = glm::normalize(multiplyMV(transform, glm::vec4(nrm0, 0.f)));
+    //tri.nrm1 = glm::normalize(multiplyMV(transform, glm::vec4(nrm1, 0.f)));
+    //tri.nrm2 = glm::normalize(multiplyMV(transform, glm::vec4(nrm2, 0.f)));
+    tri.nrm0 = glm::normalize(multiplyMV(invTranspose, glm::vec4(nrm0, 0.f)));
+    tri.nrm1 = glm::normalize(multiplyMV(invTranspose, glm::vec4(nrm1, 0.f)));
+    tri.nrm2 = glm::normalize(multiplyMV(invTranspose, glm::vec4(nrm2, 0.f)));
+
+    return tri;
+}
 
 GLM_FUNC_QUALIFIER float Triangle::triangleLocalIntersectionTest(Ray q, glm::vec3& intersectionPoint, glm::vec3& intersectionBarycentric, glm::vec3& normal) {
     glm::vec3 e1 = pos1 - pos0, e2 = pos2 - pos0;

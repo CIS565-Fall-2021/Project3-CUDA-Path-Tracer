@@ -72,7 +72,7 @@ protected:
     GLM_FUNC_QUALIFIER glm::vec3 Dielectric_evalBSDF(const glm::vec3& in, const glm::vec3& normal, const glm::vec3& out, const glm::vec2& uv, float prob = 0.f) const;
     // End Dielectric
 
-    // Start Cook-Torrence
+    // Start Microfacet-GGX
     GLM_FUNC_QUALIFIER float getRoughness() const { return 1.f - metallic; }
     
     GLM_FUNC_QUALIFIER static float MicrofacetGGX_NormalDistribution(float cosH, float roughness, float tanH);
@@ -89,7 +89,7 @@ protected:
 
     //GLM_FUNC_QUALIFIER glm::vec3 MicrofacetGGX_evalBSDF(const glm::vec3& in, const glm::vec3& normal, const glm::vec3& out, const glm::vec2& uv, float prob = 0.f) const;
 
-    // End Cook-Torrence
+    // End Microfacet-GGX
 };
 #include "geometry.h"
 #include "material.inl"

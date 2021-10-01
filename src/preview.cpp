@@ -176,15 +176,28 @@ bool init() {
     return true;
 }
 
+extern bool paused;
+
 void mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        runCuda();
+        if (!paused) {
+            runCuda();
+        }
+
+        std::string postprocessStr = "PP: ";
+        for (size_t i = 0; i < scene->postprocesses.size(); ++i) {
+            if (scene->postprocesses[i].second) {
+                postprocessStr += std::to_string(i);
+            }
+        }
 
         std::string title = "CIS565 Path Tracer | "
             + utilityCore::convertIntToString(renderState->traceDepth) + " Depths" " | "
             + (renderState->recordDepth < 0 ? " All Bounce Recorded" " | " : (utilityCore::convertIntToString(renderState->recordDepth) + " Bounce or Upper Recorded" " | "))
-            + utilityCore::convertIntToString(iteration) + " Iterations";
+            + postprocessStr + " | "
+            + utilityCore::convertIntToString(iteration) + " Iterations"
+            + (paused ? " (paused)" : "");
         glfwSetWindowTitle(window, title.c_str());
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);

@@ -20,10 +20,11 @@
 #define HALF_INV_PI       0.15915494309f
 #define EPSILON           0.00001f
 
-#define ENABLE_COMPACTION 0//1
+#define PREGATHER_FINAL_IMAGE 0//1
+#define ENABLE_PARTITION 1//1
 #define ENABLE_SORTING 0//1
 #define JITTER_ANTI_ALIASING 1//1
-#define ENABLE_BVH 0//1
+#define ENABLE_BVH 1//1
 #define ENABLE_ADVANCED_PIPELINE 1//0
 
 using ui8 = unsigned char;

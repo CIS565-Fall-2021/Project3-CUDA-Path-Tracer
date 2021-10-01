@@ -7,6 +7,7 @@ template<typename TPixelType>
 struct Texture2D {
     //GLM_FUNC_QUALIFIER operator bool() const;
     GLM_FUNC_QUALIFIER bool isReadable() const;
+    GLM_FUNC_QUALIFIER void setPixelByHW(int h, int w, TPixelType val);
     GLM_FUNC_QUALIFIER TPixelType getPixelByHW(int h, int w) const;
     GLM_FUNC_QUALIFIER TPixelType getPixelByUV(float u, float v) const;
     GLM_FUNC_QUALIFIER TPixelType getPixelByUVBilinear(float u, float v) const;
@@ -29,6 +30,12 @@ struct Texture2D {
 template<typename TPixelType>
 GLM_FUNC_QUALIFIER bool Texture2D<TPixelType>::isReadable() const {
     return buffer != nullptr;
+}
+
+template<typename TPixelType>
+GLM_FUNC_QUALIFIER void Texture2D<TPixelType>::setPixelByHW(int h, int w, TPixelType val) {
+    //printf("Write texture<%d,%d>[%d,%d]\n", size.y, size.x, h, w);
+    buffer[index2Dto1D(size, h, w)] = val;
 }
 
 template<typename TPixelType>

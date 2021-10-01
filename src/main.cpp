@@ -25,6 +25,7 @@ glm::vec3 ogLookAt; // for recentering the camera
 Scene *scene;
 RenderState *renderState;
 int iteration;
+bool paused;
 
 int width;
 int height;
@@ -33,20 +34,28 @@ int height;
 //-------------MAIN--------------
 //-------------------------------
 
+extern void unitTest();
+
 int main(int argc, char** argv) {
     startTimeString = currentTimeString();
-
 
     const char* sceneFile = nullptr;
 
     if (argc < 2) {
         //printf("Usage: %s SCENEFILE.txt\n", argv[0]);
         //return 1;
-        //sceneFile = "../scenes/cornell_klee.txt";
+        //sceneFile = "../scenes/cornell_testOutline.txt";
         //sceneFile = "../scenes/cornell.txt";
-        sceneFile = "../scenes/cornellMF.txt";
+        //sceneFile = "../scenes/cornellMF.txt";
         //sceneFile = "../scenes/cornell2.txt";
         //sceneFile = "../scenes/sphere.txt";
+        //sceneFile = "../scenes/cornell_ramp.txt";
+
+        //sceneFile = "../scenes/PA_BVH2000.txt";
+        //sceneFile = "../scenes/PA_BVH135280.txt";
+
+        sceneFile = "../scenes/cornell_garage_kit.txt";
+        //sceneFile = "../scenes/cornell_garage_kit_microfacet.txt";
     }
     else {
         sceneFile = argv[1];
@@ -81,6 +90,8 @@ int main(int argc, char** argv) {
     // Initialize CUDA and GL components
     init();
 
+    unitTest();
+
     // GLFW main loop
     mainLoop();
 
@@ -99,7 +110,11 @@ void saveImage() {
         for (int y = 0; y < height; y++) {
             int index = x + (y * width);
             glm::vec3 pix = renderState->image[index];
+#if false//!PREGATHER_FINAL_IMAGE
             img.setPixel(width - 1 - x, y, glm::vec3(pix) / samples);
+#else // PREGATHER_FINAL_IMAGE
+            img.setPixel(width - 1 - x, y, glm::vec3(pix));
+#endif // PREGATHER_FINAL_IMAGE
         }
     }
 
@@ -164,6 +179,9 @@ void runCuda() {
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
         switch (key) {
+        case GLFW_KEY_P:
+            paused = !paused;
+            break;
         case GLFW_KEY_ESCAPE:
             saveImage();
             glfwSetWindowShouldClose(window, GL_TRUE);
@@ -199,6 +217,23 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
             //renderState = &scene->state;
             //renderState->camera.lookAt = ogLookAt;
             renderState->recordDepth = std::max(-1, renderState->recordDepth - 1);
+            break;
+        case GLFW_KEY_0:
+        case GLFW_KEY_1:
+        case GLFW_KEY_2:
+        case GLFW_KEY_3:
+        case GLFW_KEY_4:
+        case GLFW_KEY_5:
+        case GLFW_KEY_6:
+        case GLFW_KEY_7:
+        case GLFW_KEY_8:
+        case GLFW_KEY_9:
+        {
+            size_t index = key - GLFW_KEY_0;
+            if (index < scene->postprocesses.size()) {
+                scene->postprocesses[index].second = !scene->postprocesses[index].second;
+            }
+        }
             break;
         }
     }
@@ -240,6 +275,18 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
   }
   lastX = xpos;
   lastY = ypos;
+}
+
+void unitTest() {
+    printf("---Start Unit Test---\n");
+    glm::vec3 a(0.f, 1.f, 0.f);
+    glm::vec3 b(1.f, -1.f, 2.f);
+    glm::vec3 c = glm::max(a, b);
+    printf("c = glm::max(<%f,%f,%f>,<%f,%f,%f>) = <%f,%f,%f>\n",
+        a.r, a.g, a.b,
+        b.r, b.g, b.b,
+        c.r, c.g, c.b);
+    printf("---End Unit Test---\n");
 }
 
 #pragma warning(pop)

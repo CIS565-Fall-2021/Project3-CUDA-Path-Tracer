@@ -54,6 +54,7 @@ GLM_FUNC_QUALIFIER MonteCarloReturn Material::Dielectric_sampleScatter(const glm
         color = (ior * ior) * color;
     }
 #endif // USE_IN_TO_EVAL
+    //return MonteCarloReturn(out, color / (sample.w * glm::max(EPSILON, kr)), refractionThisSample);
     return MonteCarloReturn(out, color / (sample.w), refractionThisSample);
 }
 

@@ -110,6 +110,7 @@ int Scene::loadGeom(std::string objectid) {
     } else {
         std::cout << "Loading Geom " << id << "..." << std::endl;
         Geom newGeom;
+        newGeom.geometryid = id;
         std::string line;
 
         ////load object type
@@ -182,6 +183,9 @@ int Scene::loadGeom(std::string objectid) {
             if (strcmp(tokens[0].c_str(), "MODEL") == 0) {
                 addModelToLoad(geoms.size(), utilityCore::getAddrOffsetInStruct(&newGeom, &newGeom.trimeshRes), basePath + tokens[1]);
             }
+            else if (strcmp(tokens[0].c_str(), "STENCIL") == 0) {
+                newGeom.stencilid = atoi(tokens[1].c_str());
+            }
 
 
             utilityCore::safeGetline(fp_in, line);
@@ -210,6 +214,7 @@ int Scene::loadCamera() {
     //    std::string line;
     //    utilityCore::safeGetline(fp_in, line);
     std::string line;
+    int ppcount = 0;
     while (fp_in.good()) {
         utilityCore::safeGetline(fp_in, line);
         if (line.empty()) {
@@ -225,6 +230,32 @@ int Scene::loadCamera() {
 #endif // DEBUG_TOKENS
         if (tokens.empty() || tokens[0].empty()) {
             break;
+        }
+
+        if (ppcount > 0) {
+            if (strcmp(tokens[0].c_str(), "COLOR_RAMP") == 0) {
+                addTextureToLoad(Background::COLOR_RAMP_MATERIAL_INDEX, utilityCore::getAddrOffsetInStruct(&rampMap, &rampMap), basePath + tokens[1]);
+                postprocesses.push_back(std::make_pair(PostProcessType::COLOR_RAMP, true));
+                --ppcount;
+                std::cout << "--Add COLOR_RAMP post process..." << std::endl;
+                continue;
+            }
+            else if (strcmp(tokens[0].c_str(), "OUTLINE_BY_STENCIL") == 0) { // e.g. OUTLINE_BY_STENCIL 1 0. 1. 0. 3
+                int stencilid = atoi(tokens[1].c_str());
+                if (stencilid > 0) {
+                    ppToStencilMap[postprocesses.size()] = stencilid;
+                    stencilOutlineColorWidths[stencilid] = std::make_pair(glm::vec3(atof(tokens[2].c_str()), atof(tokens[3].c_str()), atof(tokens[4].c_str())), glm::max(1, atoi(tokens[5].c_str())));
+                    postprocesses.push_back(std::make_pair(PostProcessType::OUTLINE_BY_STENCIL, true));
+                    --ppcount;
+                    std::cout << "--Add OUTLINE_BY_STENCIL post process..." << std::endl;
+                }
+                continue;
+            }
+        }
+        if (strcmp(tokens[0].c_str(), "POSTPROCESS") == 0) {
+            ppcount = atoi(tokens[1].c_str());
+            postprocesses.reserve(ppcount);
+            std::cout << "Set " << ppcount << " post process..." << std::endl;
         }
 
         if (strcmp(tokens[0].c_str(), "RES") == 0) {
@@ -377,6 +408,7 @@ Scene::Scene(std::string filename) {
 }
 
 Scene::~Scene() {
+    freeGBuffer();
     freeModels();
     freeTextures();
 }
@@ -384,6 +416,7 @@ Scene::~Scene() {
 void Scene::execInitCallbacks() {
     initTextures();
     initModels();
+    initGBuffer();
     //while (initCallbacks.size()) {
     //    initCallbacks.front()();
     //    initCallbacks.pop();

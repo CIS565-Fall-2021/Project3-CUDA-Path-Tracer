@@ -1,6 +1,6 @@
 #include "material.h"
 
-// Start Cook-Torrence
+// Start Microfacet-GGX
 
 GLM_FUNC_QUALIFIER float Material::MicrofacetGGX_NormalDistribution(float cosH, float roughness, float tanH) {
     float alpha = roughness * roughness;
@@ -69,6 +69,9 @@ GLM_FUNC_QUALIFIER MonteCarloReturn Material::MicrofacetGGX_sampleScatter(const 
     glm::vec4 sample = MicrofacetGGX_sampleMicrofacetNormalWithPDF(in, nrm, rng);
     glm::vec3 mfNormal(sample);
     glm::vec3 out = glm::reflect(in, mfNormal);
+    if (glm::dot(out, nrm) < 0.f && glm::dot(-in, mfNormal) < 0.f) {
+        return MonteCarloReturn(mfNormal, glm::vec3(0.f), 0);
+    }
     //while (glm::dot(out, nrm) < 0.f && glm::dot(-in, mfNormal) < 0.f) {
     //    //out = mfNormal; // Can it deal with black spots?
     //    //mfNormal = glm::normalize(out - in);
@@ -79,7 +82,7 @@ GLM_FUNC_QUALIFIER MonteCarloReturn Material::MicrofacetGGX_sampleScatter(const 
 
     float geom = //MicrofacetGGX_Geometry(in, mfNormal, out, roughness);
         MicrofacetGGX_GeometrySmithApproximation(in, mfNormal, out, roughness);
-    geom = glm::max(EPSILON, geom);
+    geom = glm::max(geom, 0.f);
 
     float cosIMRaw = glm::dot(-in, mfNormal);
     cosINRaw = glm::dot(-in, nrm);
@@ -89,15 +92,15 @@ GLM_FUNC_QUALIFIER MonteCarloReturn Material::MicrofacetGGX_sampleScatter(const 
     float cosIN = glm::max(0.f, cosINRaw);
     float cosMN = glm::max(0.f, cosMNRaw);
 
-    //if (cosIN * cosMN < 0.f) { // Otherwise there are so many white spots with roughness->1. But there are black spots...
+    //if (cosIN * cosMN < EPSILON) { // Otherwise there are so many white spots with roughness->1. But there are black spots...
     //    return MonteCarloReturn(out, glm::vec3(0.f), 0);
-    //    printf("< 0.f???: cosIM = %f, cosIN = %f, geom = %f, cosMN = %f\n", cosIM, cosIN, geom, cosMN);
+    //    //printf("< 0.f???: cosIM = %f, cosIN = %f, geom = %f, cosMN = %f\n", cosIM, cosIN, geom, cosMN);
     //}
 
     glm::vec3 colorWithFresnel = MicrofacetGGX_FresnelSchlick(color, cosIM);
-    float factor = (cosIM / glm::max(cosIN, FLT_EPSILON) * geom / glm::max(cosMN, FLT_EPSILON));
+    float factor = (cosIM / glm::max(cosIN, EPSILON) * geom / glm::max(cosMN, EPSILON));
     //float factor = (cosIM * geom / glm::max(cosIN * cosMN, EPSILON));
-    //factor = glm::clamp(factor, EPSILON, 50.f);
+    factor = glm::clamp(factor, 0.f, 1.f);
     //if (factor > 1.f / EPSILON || factor < 0.0001f) {
     //    //factor = 1.f / EPSILON;
     //    printf("factor = %f: cosIM = %f, cosIN = %f, geom = %f, cosMN = %f\n", factor, cosIMRaw, cosINRaw, geom, cosMNRaw);
@@ -116,4 +119,4 @@ GLM_FUNC_QUALIFIER glm::vec4 Material::MicrofacetGGX_sampleMicrofacetNormalWithP
 //    return GLM_FUNC_QUALIFIER glm::vec3();
 //}
 
-// End Cook-Torrence
+// End Microfacet-GGX

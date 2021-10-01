@@ -28,11 +28,21 @@ struct RenderState {
     int recordDepth = -1;
 };
 
+struct GBufferData {
+    i32 geometryId = -1;
+    i32 materialId = -1;
+    i32 stencilId = -1;
+    glm::vec3 baseColor;
+    glm::vec3 normal;
+};
+
 struct PathSegment {
     Ray ray;
     glm::vec3 color;
     int pixelIndex;
     int remainingBounces;
+
+    GBufferData gBufferData;
 };
 
 // Use with a corresponding PathSegment to do:
@@ -47,5 +57,7 @@ struct ShadeableIntersection {
     glm::vec3 surfaceNormal;
     glm::vec2 uv;
     //glm::vec3 barycentric;
-    int materialId;
+    int geometryId = -1;
+    int materialId = -1;
+    int stencilId = -1;
 };
