@@ -146,6 +146,7 @@ __host__ __device__ void scatterRay(PathSegment & pathSegment,
 
 
 // --- Shaders ---
+/*
 
 // allShader has conditionals for all BSDFs. It's inefficient, but it gets us stared 
 __global__ void shadeDiffuse(int iter,
@@ -193,3 +194,4 @@ __global__ void shadeEmitter(int iter,
         }
     }
 }
+*/
