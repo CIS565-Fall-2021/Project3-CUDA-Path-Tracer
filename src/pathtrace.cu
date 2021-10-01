@@ -229,6 +229,7 @@ __global__ void computeIntersections(
     }
 }
 
+
 // LOOK: "fake" shader demonstrating what you might do with the info in
 // a ShadeableIntersection, as well as how to use thrust's random number
 // generator. Observe that since the thrust random number generator basically
@@ -249,7 +250,6 @@ __global__ void shadeFakeMaterial(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths)
     {
-        //if (!pathSegments[idx]->terminated) {
             ShadeableIntersection intersection = shadeableIntersections[idx];
             if (intersection.t > 0.0f) { // if the intersection exists...
               // Set up the RNG
@@ -260,19 +260,10 @@ __global__ void shadeFakeMaterial(
 
                 Material material = materials[intersection.materialId];
                 glm::vec3 materialColor = material.color;
-                float x = materialColor[0];
-                float y = materialColor[1];
-                float z = materialColor[2];
-                float e = material.emittance;
-
-                float test = x + y;
-                float test2 = y + z + e;
 
                 // If the material indicates that the object was a light, "light" the ray
                 if (material.emittance > 0.0f) {
-                    //if (pathSegments[idx].remainingBounces != 0) {
                     pathSegments[idx]->color *= materialColor * material.emittance;
-                    // }
                     pathSegments[idx]->terminated = true;
                 }
 
@@ -280,12 +271,22 @@ __global__ void shadeFakeMaterial(
                 // like what you would expect from shading in a rasterizer like OpenGL.
                 // TODO: replace this! you should be able to start with basically a one-liner
                 else {
-                    //if (pathSegments[idx].remainingBounces != 0) {
-                    pathSegments[idx]->color *= materialColor; // for diffuse, just return albedo
+                    if (material.hasRefractive) {
+                        // for refractive surface, need to multiply by fresnel coefficient
+                        float R0 = ((1.f - material.indexOfRefraction) / (1.0 + material.indexOfRefraction));
+                        R0 = R0 * R0;
+                        float theta = dot(intersection.surfaceNormal, -pathSegments[idx]->ray.direction);
+                        float R = R0 + (1.f - R0) * (1 - cos(theta));
+                        pathSegments[idx]->color *= (1.f - R) * materialColor;
+                    }
+                    else {
+                        // for diffuse and specular surfaces, just need to multiply by albedo
+                        pathSegments[idx]->color *= materialColor;
+                    }
+
                     glm::vec3 intersectPt = getPointOnRay(pathSegments[idx]->ray, intersection.t);
-                    scatterRay(*pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
+                    scatterRay(*pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng); 
                     pathSegments[idx]->remainingBounces -= 1;
-                    // }  
                 }
                 // If there was no intersection, color the ray black.
                 // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -293,12 +294,9 @@ __global__ void shadeFakeMaterial(
                 // This can be useful for post-processing and image compositing.
             }
             else {
-                //if (pathSegments[idx].remainingBounces != 0) {
                 pathSegments[idx]->color = glm::vec3(0.0f);
-                //}
                 pathSegments[idx]->terminated = true;
             }
-       // }
     }
 }
 
@@ -374,10 +372,9 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     // * Finally, add this iteration's results to the image. This has been done
     //   for you.
 
-    // TODO: perform one iteration of path tracing
-
-    generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, dev_alive_paths);
-    checkCUDAError("generate camera ray");
+    // TODO later: can we not do this if we've cached first bounce ? will involve getting pointers to elements in dev_paths
+     generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, dev_alive_paths);
+     checkCUDAError("generate camera ray");
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
@@ -393,6 +390,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     // if not the first iteration, assume the paths have been cached, harvest
     if (CACHE_FIRST_BOUNCE && !isFirstIter) {
         cudaMemcpy(dev_paths, dev_first_paths, init_num_paths, cudaMemcpyDeviceToDevice);
+        depth++; // start on second bounce now
     }
 
     while (!iterationComplete) {
@@ -443,7 +441,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
         // if first iteration, cache first bounce
         if (CACHE_FIRST_BOUNCE && isFirstIter) {
-            cudaMemcpy(dev_first_paths, dev_paths, init_num_paths, cudaMemcpyDeviceToDevice);;
+            cudaMemcpy(dev_first_paths, dev_paths, init_num_paths, cudaMemcpyDeviceToDevice);
         }
 
         // perform stream compaction

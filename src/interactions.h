@@ -41,6 +41,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+/*__host__ __device__ glm::vec3 refract(const glm::vec3 wi, const glm::vec3 n, float eta) {
+    float cosThetaI = glm::dot(n, wi);
+
+}*/
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -79,6 +84,16 @@ void scatterRay(
     // specular surface
     if (m.hasReflective) {
         newDir = glm::reflect(pathSegment.ray.direction, normal);
+    }
+    else if (m.hasRefractive) {
+        const glm::vec3& wi = pathSegment.ray.direction;
+
+        bool entering = wi.z > 0;
+        float etaT = entering ? 1.f : m.indexOfRefraction;
+        float etaI = entering ? m.indexOfRefraction : 1.f;
+
+        glm::vec3 faceForwardN = glm::dot(normal, wi) < 0.f ? -normal : normal;
+        newDir = glm::refract(wi, faceForwardN, etaI / etaT);
     }
     // diffuse surface
     else {
