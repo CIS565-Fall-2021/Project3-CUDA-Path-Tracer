@@ -4,6 +4,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/device_vector.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -330,9 +332,26 @@ __global__ void finalGather(int nPaths, glm::vec3 *image, PathSegment *iteration
 // Times execution of whole pathtrace, assumes memops time << computation time
 // #define TIME_PATHTRACE
 // Groups the rays by material type for better warp coherence (stream compact)
-#define GROUP_RAYS
+// #define GROUP_RAYS
 // Removes finished rays
-#define COMPACT_RAYS
+// #define COMPACT_RAYS
+// Cache first iter
+// #define CACHE_FIRST
+
+struct orderMaterials
+{
+    __host__ __device__ bool operator()(ShadeableIntersection const &a, ShadeableIntersection const &b)
+    {
+        return a.materialId < b.materialId;
+    }
+};
+struct isDeadYet
+{
+    __host__ __device__ bool operator()(PathSegment const ps)
+    {
+        return ps.remainingBounces > 0;
+    }
+};
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -399,6 +418,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
     using TimerClass = std::chrono::high_resolution_clock::time_point;
     TimerClass start = std::chrono::high_resolution_clock::now();
 #endif
+#ifdef GROUP_RAYS
+    thrust::device_ptr<PathSegment> device_paths(dev_paths);
+    thrust::device_ptr<ShadeableIntersection> device_intersections(dev_intersections);
+#endif
 
     bool iterationComplete = false;
     while (!iterationComplete)
@@ -411,7 +434,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
             depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
-        depth++;
+
+#ifdef GROUP_RAYS
+        thrust::sort_by_key(device_intersections, device_intersections + num_paths, device_paths, orderMaterials());
+#endif
 
         // TODO:
         // --- Shading Stage ---
@@ -424,13 +450,25 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
         // shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials);
         shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth);
-        iterationComplete =
-            (depth == traceDepth)
+        depth++;
 #ifdef COMPACT_RAYS
-            || false
+        PathSegment *newEnd = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, isDeadYet());
+        num_paths = newEnd - dev_paths;
+        if (num_paths < 1)
+        {
+            depth++;
+        }
+#endif
+        iterationComplete =
+            (depth >= traceDepth)
+#ifdef COMPACT_RAYS
+            || (num_paths <= 0)
 #endif
             ; // TODO: should be based off stream compaction results.
     }
+#ifdef COMPACT_RAYS
+    num_paths = dev_path_end - dev_paths;
+#endif
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
