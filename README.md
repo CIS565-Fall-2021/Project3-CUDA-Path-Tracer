@@ -18,3 +18,6 @@ seed the rng with the depth otherwise bad banding
 
 https://sketchfab.com/3d-models/ebon-hawk-7f7cd2b43ed64a4ba628b1bb5398d838
 Ebon Hawk - sketchfab lemonaden
+
+
+tinygltf insns by https://piazza.com/class/kqefit06npb37y?cid=134
