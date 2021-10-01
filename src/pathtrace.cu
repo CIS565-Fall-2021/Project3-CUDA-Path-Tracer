@@ -14,6 +14,8 @@
 #include "intersections.h"
 #include "interactions.h"
 
+#include <chrono>
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -266,6 +268,51 @@ __global__ void shadeFakeMaterial(
     }
 }
 
+/**
+ * @brief Shader that DOES do a BSDF Evaluation
+ * 
+ * @param iter iteration number
+ * @param num_paths 
+ * @param shadeableIntersections 
+ * @param pathSegments 
+ * @param materials 
+ */
+__global__ void shadeRealMaterial(
+    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= num_paths)
+        return;
+    if (pathSegments[idx].remainingBounces <= 0)
+        return;
+
+    ShadeableIntersection intersection = shadeableIntersections[idx];
+    if (intersection.t > 0.0f && pathSegments[idx].remainingBounces > 0)
+    {
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
+        thrust::uniform_real_distribution<float> u01(0, 1);
+
+        Material material = materials[intersection.materialId];
+        glm::vec3 materialColor = material.color;
+
+        if (material.emittance > 0.0f) // case thing is light
+        {
+            pathSegments[idx].color *= (materialColor * material.emittance);
+            pathSegments[idx].remainingBounces = 0;
+        }
+        else // case thing isnt light so calculate
+        {
+            scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
+            pathSegments[idx].remainingBounces--;
+        }
+    }
+    else // intersection't => black
+    {
+        pathSegments[idx].color = glm::vec3(0.0f);
+        pathSegments[idx].remainingBounces = 0;
+    }
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3 *image, PathSegment *iterationPaths)
 {
@@ -278,12 +325,23 @@ __global__ void finalGather(int nPaths, glm::vec3 *image, PathSegment *iteration
     }
 }
 
+// Flags for different optimizations and timing
+
+// Times execution of whole pathtrace, assumes memops time << computation time
+// #define TIME_PATHTRACE
+// Groups the rays by material type for better warp coherence (stream compact)
+#define GROUP_RAYS
+// Removes finished rays
+#define COMPACT_RAYS
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
  */
 void pathtrace(uchar4 *pbo, int frame, int iter)
 {
+#ifdef TIME_PATHTRACE
+    static double timerAcc = 0.0;
+#endif
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
@@ -337,14 +395,16 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
+#ifdef TIME_PATHTRACE
+    using TimerClass = std::chrono::high_resolution_clock::time_point;
+    TimerClass start = std::chrono::high_resolution_clock::now();
+#endif
 
     bool iterationComplete = false;
     while (!iterationComplete)
     {
-
         // clean shading chunks
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
         computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
@@ -362,19 +422,31 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
 
-        shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(
-            iter,
-            num_paths,
-            dev_intersections,
-            dev_paths,
-            dev_materials);
-        iterationComplete = true; // TODO: should be based off stream compaction results.
+        // shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials);
+        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth);
+        iterationComplete =
+            (depth == traceDepth)
+#ifdef COMPACT_RAYS
+            || false
+#endif
+            ; // TODO: should be based off stream compaction results.
     }
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
     finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
 
+#ifdef TIME_PATHTRACE
+    cudaDeviceSynchronize();
+    TimerClass finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsed(finish - start);
+    double fElapsed = static_cast<decltype(fElapsed)>(elapsed.count());
+    timerAcc += fElapsed;
+#endif
+#ifdef TIME_PATHTRACE
+    if (iter >= 999)
+        std::cout << "elapsed time: " << timerAcc << "miliseconds" << std::endl;
+#endif
     ///////////////////////////////////////////////////////////////////////////
 
     // Send results to OpenGL buffer for rendering
@@ -383,6 +455,5 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
     // Retrieve image from GPU
     cudaMemcpy(hst_scene->state.image.data(), dev_image,
                pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
-
     checkCUDAError("pathtrace");
 }

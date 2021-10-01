@@ -46,6 +46,8 @@ __host__ __device__
     return up * normal + cos(around) * over * perpendicularDirection1 + sin(around) * over * perpendicularDirection2;
 }
 
+#define SMALL_OFFSET 0.001f
+#define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -81,4 +83,26 @@ __host__ __device__ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+    glm::vec3 colorAcc(0.0);
+
+    if (m.hasReflective > 0.f) // Shiny
+    {
+        pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+        pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
+        colorAcc = m.specular.color;
+    }
+    else if (m.hasRefractive > 0.f) // bendy-lite
+    {
+        // myTODO schlick it later
+    }
+    else // Else lambort
+    {
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
+        colorAcc = m.color;
+    }
+
+    // Set the color
+    pathSegment.color *= colorAcc;
 }

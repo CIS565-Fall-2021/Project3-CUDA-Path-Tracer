@@ -11,3 +11,6 @@ CUDA Path Tracer
 *DO NOT* leave the README to the last minute! It is a crucial part of the
 project, and we will not be able to grade you without a good README.
 
+
+Bug fixes:
+seed the rng with the depth otherwise bad banding
