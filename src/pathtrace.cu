@@ -41,11 +41,13 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
+/*
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
     int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
     return thrust::default_random_engine(h);
 }
+*/
 
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
@@ -210,6 +212,8 @@ __global__ void computeIntersections(
         if (hit_geom_index == -1)
         {
             intersections[path_index].t = -1.0f;
+            pathSegments[path_index].remainingBounces = 0;
+            pathSegments[path_index].color = glm::vec3(0);
         }
         else
         {
@@ -233,41 +237,31 @@ __global__ void shadeAllMaterial (
   if (idx < num_paths)
   {
     ShadeableIntersection intersection = shadeableIntersections[idx];
-    if (intersection.t > 0.0f) { // if the intersection exists...
       // Set up the RNG
-      // LOOK: this is how you use thrust's RNG! Please look at
-      // makeSeededRandomEngine as well.
       thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
       thrust::uniform_real_distribution<float> u01(0, 1);
+
+      PathSegment path = pathSegments[idx];
 
       Material material = materials[intersection.materialId];
       glm::vec3 materialColor = material.color;
 
       // If the material indicates that the object was a light, "light" the ray
-      if (material.emittance > 0.0 && pathSegments[idx].remainingBounces > 0) {
-        pathSegments[idx].color *= (materialColor * material.emittance);
-        pathSegments[idx].remainingBounces = 0;
+      if (material.emittance > 0.0){// && pathSegments[idx].remainingBounces > 0) {
+	    path.color *= (materialColor * material.emittance);
+        path.remainingBounces = 0;
       }
 
-      // Otherwise, do some pseudo-lighting computation. This is actually more
-      // like what you would expect from shading in a rasterizer like OpenGL.
-      else if (pathSegments[idx].remainingBounces > 0){
-	    pathSegments[idx].color *= materialColor;
-        scatterRay(pathSegments[idx],
-            getPointOnRay(pathSegments[idx].ray, intersection.t),
-            intersection.surfaceNormal,
-            material,
-            rng);
-        pathSegments[idx].remainingBounces--;
+      else{// if (pathSegments[idx].remainingBounces > 0){
+	    path.color *= materialColor;
+          scatterRay(path,
+              getPointOnRay(path.ray, intersection.t),
+              intersection.surfaceNormal,
+              material,
+              rng);
+        path.remainingBounces--;
       }
-    // If there was no intersection, color the ray black.
-    // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
-    // used for opacity, in which case they can indicate "no opacity".
-    // This can be useful for post-processing and image compositing.
-    } else{
-        pathSegments[idx].color = glm::vec3(0.0f);// .9f, 1.0f, 0.1f);
-      pathSegments[idx].remainingBounces = -1; // indicate the path should be culled
-    }
+      pathSegments[idx] = path;
   }
 }
 
@@ -282,10 +276,16 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
     }
 }
 
-// predicate for culling paths
+// predicate for culling paths based on hitting an object
 struct hitObj{
   __device__ bool operator()(const ShadeableIntersection &itxn){
     return (itxn.t > -1.0f);
+  }
+};
+// predicate for culling paths based on bounce depth
+struct hasBounces{
+  __device__ bool operator()(const PathSegment &path){
+    return (path.remainingBounces > 0);
   }
 };
 
@@ -335,13 +335,26 @@ __global__ void kernEnumerate(int n, int* indices) {
     }
 }
 
-int cullPaths(int num_paths,
-			  const PathSegment* dev_pathsRO,
-			  PathSegment* dev_pathsOut,
-			  const ShadeableIntersection* intersectionsRO,
-			  ShadeableIntersection* intersectionsOut,
-              const int blockSize1d) {
+__global__ void kernGetMaterialIds(int n, 
+                                    int* materialIds,
+                                    int* indices,
+                                    const ShadeableIntersection* dev_intersections) {
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (index < n) {
+        materialIds[index] = dev_intersections[indices[index]].materialId;
+    }
+}
 
+int cullPathsAndSortByMaterial(int num_paths,
+							   const PathSegment* dev_pathsRO,
+							   PathSegment* dev_pathsOut,
+							   const ShadeableIntersection* dev_intersectionsRO,
+							   ShadeableIntersection* dev_intersectionsOut,
+							   const int blockSize1d) {
+    // cull and sort in one kernel to save on global reads/writes when 
+    // rearranging paths/intersections
+
+    // --- Cull ---
     int newNumPaths;
     int* indices;
     
@@ -351,22 +364,68 @@ int cullPaths(int num_paths,
     kernEnumerate <<<numBlocks, blockSize1d >>> (num_paths, indices);
 
     // the addr of the last non-culled path
-    int* middle;
+    int noBounceIndex;
+    int noHitIndex;
+    int* partitionMiddle;
 
     // effectively sort indices based on whether an object was hit
-    middle = thrust::stable_partition(thrust::device, indices, indices + num_paths, intersectionsRO, hitObj());
+    partitionMiddle = thrust::stable_partition(thrust::device, indices, indices + num_paths, dev_pathsRO, hasBounces());
+    // do some pointer math to return the index
+    noBounceIndex = partitionMiddle - indices - 1;
     
-    // do some pointer math to return the number of non-culled paths
-    newNumPaths = middle - indices;
+    // --- Sort by Material ---
+    // now everything before noHitIndex has hit something. Sort them by their material
+    int* materialIds;
+    cudaMalloc((void**)&materialIds, noBounceIndex * sizeof(int));
+
+    // get material ids. We need to pass indices since we haven't reshuffled intersections yet
+    numBlocks = ceil((float)noBounceIndex / blockSize1d);
+    kernGetMaterialIds <<<numBlocks, blockSize1d >> > (noBounceIndex, materialIds, indices, dev_intersectionsRO);
+
+    thrust::sort_by_key(thrust::device, materialIds, materialIds + noBounceIndex, indices);
+
+    cudaFree(materialIds);
 
     // assign paths/intersections to the sorted indices. now all paths/intersections before `newNumPaths` have hit an obj
-    numBlocks = ceil((float)newNumPaths / blockSize1d);
-    kernScatterPathsAndIntersections << <numBlocks, blockSize1d >> > (newNumPaths, dev_pathsOut, dev_pathsRO, intersectionsOut, intersectionsRO, indices);
+    //numBlocks = ceil((float)newNumPaths / (blockSize1d*1));
+    numBlocks = ceil((float)num_paths / blockSize1d);
+    kernScatterPathsAndIntersections<<<numBlocks, blockSize1d>>>(num_paths, 
+																dev_pathsOut, 
+																dev_pathsRO, 
+																dev_intersectionsOut, 
+																dev_intersectionsRO, 
+																indices);
     //checkCUDAError("scatter");
+
 
     cudaFree(indices);
 
-    return newNumPaths;
+    return noBounceIndex;
+}
+
+/*
+emitter
+lambert type
+phong type
+reflective phong
+reflective/refractive phong
+*/
+
+
+void shade(int iter,
+			int num_paths,
+			ShadeableIntersection* dev_intersections,
+			PathSegment* dev_paths,
+			Material* dev_materials,
+			dim3 numblocksPathSegmentTracing,
+			int blockSize1d) {
+    shadeAllMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (iter,
+																	num_paths,
+																	dev_intersections,
+																	dev_paths,
+																	dev_materials);
+
+    checkCUDAError("shade");
 }
 
 /**
@@ -452,12 +511,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 
 		// --- cull dead-end paths ---
-        num_paths = cullPaths(num_paths, 
-                              dev_paths, 
-                                dev_paths2, 
-                                dev_intersections, 
-                                dev_intersections2, 
-                                blockSize1d);
+        num_paths = cullPathsAndSortByMaterial(preCulledNumPaths, 
+											   dev_paths, 
+											   dev_paths2, 
+										       dev_intersections, 
+											   dev_intersections2, 
+											   blockSize1d);
+		checkCUDAError("cull");
         // ping-pong buffers after culling.
         pathSwp = dev_paths;
         dev_paths = dev_paths2;
@@ -466,7 +526,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         dev_intersections = dev_intersections2;
         dev_intersections2 = intxnSwp;
 
-		// TODO:
 		// --- Shading Stage ---
 		// Shade path segments based on intersections and generate new rays by
 		// evaluating the BSDF.
@@ -475,11 +534,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// TODO: compare between directly shading the path segments and shading
 		// path segments that have been reshuffled to be contiguous in memory.
 
-		shadeAllMaterial<<<numblocksPathSegmentTracing, blockSize1d>>> (iter,
-																		num_paths,
-                                                                        dev_intersections,
-																		dev_paths,
-																		dev_materials);
+		shade(iter,
+						 num_paths,
+						 dev_intersections,
+						 dev_paths,
+						 dev_materials,
+						 numblocksPathSegmentTracing,
+						 blockSize1d);
 
 		if (depth >= traceDepth || num_paths == 0) {
 			iterationComplete = true; // TODO: should also be based off stream compaction results.
@@ -489,7 +550,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths, iter);
+    finalGather<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths, dev_image, dev_paths, iter);
 
     // reset num_paths. We've culled some but want the full number next iteration
     //num_paths = preCulledNumPaths;

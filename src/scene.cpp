@@ -21,11 +21,17 @@ Scene::Scene(string filename) {
             if (strcmp(tokens[0].c_str(), "MATERIAL") == 0) {
                 loadMaterial(tokens[1]);
                 cout << " " << endl;
-            } else if (strcmp(tokens[0].c_str(), "OBJECT") == 0) {
+            } 
+            else if (strcmp(tokens[0].c_str(), "OBJECT") == 0) {
                 loadGeom(tokens[1]);
                 cout << " " << endl;
-            } else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
+            } 
+            else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
                 loadCamera();
+                cout << " " << endl;
+            }
+            else if (strcmp(tokens[0].c_str(), "SETTINGS") == 0) {
+                loadSceneSettings();
                 cout << " " << endl;
             }
         }
@@ -185,4 +191,23 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+int Scene::loadSceneSettings() {
+    cout << "Loading Scene Settings ..." << endl;
+    RenderState &state = this->state;
+
+    //load static properties
+    for (int i = 0; i < 2; i++) {
+        string line;
+        utilityCore::safeGetline(fp_in, line);
+        vector<string> tokens = utilityCore::tokenizeString(line);
+        if (strcmp(tokens[0].c_str(), "SORT_MATERIALS") == 0) {
+            state.sortMaterials = atoi(tokens[1].c_str());
+        }
+        else if (strcmp(tokens[0].c_str(), "CACHE_BOUNCE") == 0) {
+            state.cacheFirstBounce = atoi(tokens[1].c_str());
+        }
+    }
+    return 1;
 }
