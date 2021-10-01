@@ -355,20 +355,6 @@ __global__ void CompactionStencil(int nPaths, PathSegment* iterationPaths, int* 
 	}
 }
 
-
-//__global__ void createMaterialIDforSort(int nPaths, int* dev_matArray, ShadeableIntersection* intersections)
-//{
-//	int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-//
-//	if (index < nPaths)
-//	{
-//		ShadeableIntersection intersection = intersections[index];
-//		int matID = intersection.materialId;
-//		dev_matArray[index] = matID;
-//	}
-//}
-
-
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management

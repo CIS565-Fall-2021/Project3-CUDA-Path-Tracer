@@ -19,6 +19,8 @@
 #include "pathtrace.h"
 #include "utilities.h"
 #include "scene.h"
+#include "..\src\MeshLoading\polygon.h"
+#include "..\src\MeshLoading\tiny_obj_loader.h"
 
 using namespace std;
 

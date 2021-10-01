@@ -66,14 +66,71 @@ int main(int argc, char** argv) {
     theta = glm::acos(glm::dot(glm::normalize(viewZY), glm::vec3(0, 1, 0)));
     ogLookAt = cam.lookAt;
     zoom = glm::length(cam.position - ogLookAt);
-
+    const char* filepath = "D:\GitHub\CIS565\Project3-CUDA-Path-Tracer\scenes\wahoo.obj";
+    const char* filename = "wahoo";
     // Initialize CUDA and GL components
-    init();
+    //init();
 
     // GLFW main loop
-    mainLoop();
+    //mainLoop();
 
     return 0;
+}
+
+Polygon LoadOBJ(const char* file, char* polyName)
+{
+    Polygon p(polyName);
+    const char *filepath = file;
+    std::vector<tinyobj::shape_t> shapes; std::vector<tinyobj::material_t> materials;
+    std::string errors = tinyobj::LoadObj(shapes, materials, filepath);
+    std::cout << errors << std::endl;
+    if (errors.size() == 0)
+    {
+        int min_idx = 0;
+        //Read the information from the vector of shape_ts
+        for (unsigned int i = 0; i < shapes.size(); i++)
+        {
+            std::vector<glm::vec4> pos, nor;
+            std::vector<glm::vec2> uv;
+            std::vector<float>& positions = shapes[i].mesh.positions;
+            std::vector<float>& normals = shapes[i].mesh.normals;
+            std::vector<float>& uvs = shapes[i].mesh.texcoords;
+            for (unsigned int j = 0; j < positions.size() / 3; j++)
+            {
+                pos.push_back(glm::vec4(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2], 1));
+            }
+            for (unsigned int j = 0; j < normals.size() / 3; j++)
+            {
+                nor.push_back(glm::vec4(normals[j * 3], normals[j * 3 + 1], normals[j * 3 + 2], 0));
+            }
+            for (unsigned int j = 0; j < uvs.size() / 2; j++)
+            {
+                uv.push_back(glm::vec2(uvs[j * 2], uvs[j * 2 + 1]));
+            }
+            for (unsigned int j = 0; j < pos.size(); j++)
+            {
+                p.AddVertex(Vertex(pos[j], glm::vec3(255, 255, 255), nor[j], uv[j]));
+            }
+
+            std::vector<unsigned int> indices = shapes[i].mesh.indices;
+            for (unsigned int j = 0; j < indices.size(); j += 3)
+            {
+                Triangle t;
+                t.m_indices[0] = indices[j] + min_idx;
+                t.m_indices[1] = indices[j + 1] + min_idx;
+                t.m_indices[2] = indices[j + 2] + min_idx;
+                p.AddTriangle(t);
+            }
+
+            min_idx += pos.size();
+        }
+    }
+    else
+    {
+        //An error loading the OBJ occurred!
+        std::cout << errors << std::endl;
+    }
+    return p;
 }
 
 void saveImage() {

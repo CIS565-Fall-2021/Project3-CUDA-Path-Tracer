@@ -73,6 +73,8 @@ set(headers
     src/sceneStructs.h
     src/preview.h
     src/utilities.h
+    src/MeshLoading/tiny_obj_loader.h
+    src/MeshLoading/polygon.h
     )
 
 set(sources
@@ -84,6 +86,8 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
+	src/MeshLoading/tiny_obj_loader.cc
+    src/MeshLoading/polygon.cpp
     )
 
 list(SORT headers)
