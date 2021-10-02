@@ -4,7 +4,7 @@ RES         1280 760
 FOVY        45
 ITERATIONS  10000
 DEPTH       12
-FILE        cornell_garage_kit
+FILE        cornell_garage_kit_microfacet
 EYE         0.0 5 10.5 //8.5
 LOOKAT      0 5 0
 UP          0 1 0
@@ -25,78 +25,52 @@ SPECRGB     0 0 0
 REFL        0
 REFR        0
 REFRIOR     0
-EMITTANCE   20
+EMITTANCE   25 //20
 //EMITTANCE   0.2
 
 // Diffuse white
 MATERIAL 1
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .98 .98 .98
-SPECEX      0
-SPECRGB     0 0 0
 REFL        0
-REFR        0
-REFRIOR     0
-EMITTANCE   0
 
-// Specular white0
+// Diffuse red
 MATERIAL 2
-MATERIAL_TYPE  MICROFACET_GGX
-RGB         .48 .48 .48
-SPECEX      0
-SPECRGB     .98 .98 .98
-REFL        1
-REFR        0
-REFRIOR     0
-EMITTANCE   0
+MATERIAL_TYPE MICROFACET_GGX
+RGB         .85 .35 .35
+REFL        0
 
 // Glossy blue
 MATERIAL 3
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .35 .35 .85
-SPECEX      16
-SPECRGB     .35 .35 .85
-REFL        1
-REFR        0
-REFRIOR     0
-EMITTANCE   0
+REFL        0.7
 
 // Specular white
 MATERIAL 4
-//RGB         .49 .49 .49
-RGB         .98 .98 .98
-SPECEX      0
-//SPECEX      0
-SPECRGB     .98 .98 .98
-REFL        1
-REFR        0
-REFRIOR     0
-EMITTANCE   0
+MATERIAL_TYPE MICROFACET_GGX
+RGB         .48 .48 .48
+REFL        0.95
 
 // Specular red
 MATERIAL 5
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .85 .35 .35
-SPECEX      0
-SPECRGB     .85 .85 .85
-REFL        1
-REFR        0
-REFRIOR     0
-EMITTANCE   0
+REFL        0.95
 
 // Specular green
 MATERIAL 6
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .35 .85 .35
-SPECEX      0
-SPECRGB     .85 .85 .85
-REFL        1
-REFR        0
-REFRIOR     0
-EMITTANCE   0
+REFL        0.95
 
 // Body material
 MATERIAL 7
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .45 .15 .15
 SPECEX      0
 SPECRGB     .45 .45 .45
-REFL        0
+REFL        0.05
 REFR        0
 REFRIOR     0
 EMITTANCE   0
@@ -104,10 +78,11 @@ DIFFUSE_TEXTURE Klee/body_diffuse.png
 
 // Face material
 MATERIAL 8
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .45 .15 .15
 SPECEX      0
 SPECRGB     .45 .45 .45
-REFL        0
+REFL        0.05
 REFR        0
 REFRIOR     0
 EMITTANCE   0
@@ -115,10 +90,11 @@ DIFFUSE_TEXTURE Klee/face_diffuse.png
 
 // Hair material
 MATERIAL 9
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .45 .15 .15
 SPECEX      0
 SPECRGB     .45 .45 .45
-REFL        0
+REFL        0.05
 REFR        0
 REFRIOR     0
 EMITTANCE   0
@@ -126,10 +102,11 @@ DIFFUSE_TEXTURE Klee/hair_diffuse.png
 
 // JumpBomb material
 MATERIAL 10
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .45 .15 .15
 SPECEX      0
 SPECRGB     .45 .45 .45
-REFL        0
+REFL        0.05
 REFR        0
 REFRIOR     0
 EMITTANCE   0
@@ -159,14 +136,9 @@ EMITTANCE   0
 
 // Cloth material
 MATERIAL 13
-MATERIAL_TYPE PHONG
+MATERIAL_TYPE MICROFACET_GGX
 RGB         .8 .25 .15
-SPECEX      8
-SPECRGB         .8 .2 .2
-REFL        1
-REFR        0
-REFRIOR     0
-EMITTANCE   0
+REFL        0.2
 
 // Bronze material
 MATERIAL 14
@@ -179,8 +151,9 @@ EMITTANCE   0
 
 // Marry material
 MATERIAL 15
-MATERIAL_TYPE PHONG
+MATERIAL_TYPE MICROFACET_GGX
 DIFFUSE_TEXTURE Marry/MC003_Kozakura_Mari.png
+REFL        0.05
 
 // Ceiling light
 OBJECT 0
@@ -210,7 +183,7 @@ SCALE       .01 20 10
 // Back wall
 OBJECT 3
 cube
-material 2
+material 4
 TRANS       0 5 -5
 ROTAT       0 90 0
 SCALE       .01 10 20
