@@ -22,7 +22,8 @@
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
 #define SORT_MATERIALS false
-#define CACHE_FIRST_BOUNCE true
+#define CACHE_FIRST_BOUNCE false
+#define DOF true
 
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
 #if ERRORCHECK
@@ -143,7 +144,18 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         PathSegment& segment = pathSegments[index];
         aliveSegments[index] = &segment;
 
-        segment.ray.origin = cam.position;
+        // dof
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
+        thrust::uniform_real_distribution<float> u01(0, 1);
+        float sampleX = u01(rng);
+        float sampleY = u01(rng);
+
+        // warp pt to disk
+        float r = sqrt(sampleX);
+        float theta = 2 * 3.14159 * sampleY;
+        glm::vec2 res = glm::vec2(cos(theta), sin(theta)) * r;
+
+        segment.ray.origin = cam.position + glm::vec3(res.x, res.y, 0);
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
@@ -271,18 +283,7 @@ __global__ void shadeFakeMaterial(
                 // like what you would expect from shading in a rasterizer like OpenGL.
                 // TODO: replace this! you should be able to start with basically a one-liner
                 else {
-                    if (material.hasRefractive) {
-                        // for refractive surface, need to multiply by fresnel coefficient
-                        float R0 = ((1.f - material.indexOfRefraction) / (1.0 + material.indexOfRefraction));
-                        R0 = R0 * R0;
-                        float theta = dot(intersection.surfaceNormal, -pathSegments[idx]->ray.direction);
-                        float R = R0 + (1.f - R0) * (1 - cos(theta));
-                        pathSegments[idx]->color *= (1.f - R) * materialColor;
-                    }
-                    else {
-                        // for diffuse and specular surfaces, just need to multiply by albedo
-                        pathSegments[idx]->color *= materialColor;
-                    }
+                    pathSegments[idx]->color *= materialColor;
 
                     glm::vec3 intersectPt = getPointOnRay(pathSegments[idx]->ray, intersection.t);
                     scatterRay(*pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng); 
@@ -329,7 +330,7 @@ struct compMaterialID : public binary_function<ShadeableIntersection, ShadeableI
  * of memory management
  */
 void pathtrace(uchar4* pbo, int frame, int iter) {
-    const int traceDepth = hst_scene->state.traceDepth;
+    const int traceDepth = /*hst_scene->state.traceDepth*/8;
     const Camera& cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
     bool isFirstIter = iter == 0;

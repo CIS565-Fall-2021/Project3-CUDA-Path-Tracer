@@ -41,11 +41,28 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
-/*__host__ __device__ glm::vec3 refract(const glm::vec3 wi, const glm::vec3 n, float eta) {
-    float cosThetaI = glm::dot(n, wi);
+__host__ __device__ float getFresnelCoefficient(float eta, float cosTheta, float matIOF) {
+    // handle total internal reflection
+    float sinThetaI = sqrt(max(0.f, 1.f - cosTheta * cosTheta));
+    float sinThetaT = eta * sinThetaI;
+    float fresnelCoeff = 1.f;
 
-}*/
+    cosTheta = abs(cosTheta);
+    if (sinThetaT < 1) {
+        // calc fresnel coefficient
+        float R0 = ((1.f - matIOF) / (1.f + matIOF));
+        R0 = R0 * R0;
 
+        fresnelCoeff = R0 + (1.f - R0) * (1.f - cosTheta);
+
+        /*float cosThetaT = sqrt(max(0.f, 1.f - sinThetaT * sinThetaT));
+
+        float rparl = ((m.indexOfRefraction * cosTheta) - (cosThetaT)) / ((m.indexOfRefraction * cosTheta) + (cosThetaT));
+        float rperp = ((cosTheta) - (m.indexOfRefraction * cosThetaT)) / ((cosTheta) + (m.indexOfRefraction * cosThetaT));
+        fresnelCoeff = (rparl * rparl + rperp * rperp) / 2.0;*/
+    }
+    return fresnelCoeff;
+}
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -88,12 +105,39 @@ void scatterRay(
     else if (m.hasRefractive) {
         const glm::vec3& wi = pathSegment.ray.direction;
 
-        bool entering = wi.z > 0;
-        float etaT = entering ? 1.f : m.indexOfRefraction;
-        float etaI = entering ? m.indexOfRefraction : 1.f;
+        float cosTheta = dot(normal, wi);
 
-        glm::vec3 faceForwardN = glm::dot(normal, wi) < 0.f ? -normal : normal;
-        newDir = glm::refract(wi, faceForwardN, etaI / etaT);
+        // incoming direction should be opposite normal direction if entering medium
+        bool entering = cosTheta < 0;
+        glm::vec3 faceForwardN = !entering ? -normal : normal;
+
+        // if entering, divide air iof (1.0) by the medium's iof
+        float eta = entering ? 1.f / m.indexOfRefraction : m.indexOfRefraction;
+        float fresnelCoeff = getFresnelCoefficient(eta, cosTheta, m.indexOfRefraction);
+
+        thrust::uniform_real_distribution<float> u01(0, 1);
+        if (u01(rng) < fresnelCoeff) {
+            newDir = glm::reflect(pathSegment.ray.direction, normal);
+        }
+        else {
+            // book refract function
+            /*float cosThetaI = dot(faceForwardN, wi);
+            float sin2ThetaI = max(0.f, 1.f - cosThetaI * cosThetaI);
+            float sin2ThetaT = eta * eta * sin2ThetaI;
+            float cosThetaT = sqrt(max(0.f, 1.f - sin2ThetaT));
+
+            newDir = eta * wi + (eta * cosThetaI - cosThetaT) * faceForwardN;*/
+
+            /*if (sin2ThetaT >= 1) {
+                newDir = glm::reflect(pathSegment.ray.direction, normal);
+            }*/
+            newDir = glm::refract(wi, faceForwardN, eta);
+        }
+
+        pathSegment.ray.origin = intersect + (entering ? 0.0002f : -0.0002f) * pathSegment.ray.direction;
+        pathSegment.ray.direction = newDir;
+        return;
+        
     }
     // diffuse surface
     else {
