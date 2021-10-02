@@ -559,4 +559,6 @@ xcuserdata
 *.xccheckout
 *.moved-aside
 *.xcuserstate
-.vscode/settings.json
+.vscode/*
+renders/*
+ebon_hawk/*

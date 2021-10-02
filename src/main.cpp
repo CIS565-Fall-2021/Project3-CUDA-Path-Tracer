@@ -95,7 +95,7 @@ void saveImage()
 
   std::string filename = renderState->imageName;
   std::ostringstream ss;
-  ss << "img/" << filename << "." << startTimeString << "." << samples << "samp";
+  ss << "../renders/" << filename << "." << startTimeString << "." << samples << "samp";
   // ss << filename << "." << startTimeString << "." << samples << "samp";
   filename = ss.str();
 
