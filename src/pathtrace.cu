@@ -271,6 +271,15 @@ __global__ void shadeAllMaterial (
   }
 }
 
+__device__ glm::vec3 devClampRGB(glm::vec3 col) {
+    glm::vec3 out;
+#pragma unroll
+    for (int i = 0; i < 3; i++) {
+        out[i] = min(max(0.0f,col[i]), 255.0f);
+    }
+    return out;
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths, float iterations){
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -278,7 +287,7 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
     if (index < nPaths)
     {
         PathSegment iterationPath = iterationPaths[index];
-		image[iterationPath.pixelIndex] += iterationPath.color;// ((image[iterationPath.pixelIndex] * (iterations - 1)) + iterationPath.color) / iterations;// *0.001f;
+		image[iterationPath.pixelIndex] += devClampRGB(iterationPath.color);// ((image[iterationPath.pixelIndex] * (iterations - 1)) + iterationPath.color) / iterations;// *0.001f;
     }
 }
 
