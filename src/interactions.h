@@ -73,52 +73,6 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  * You may need to change the parameter list for your purposes!
  */
 
-/*
-__host__ __device__ void EmitterBSDF(PathSegment & pathSegment,
-									glm::vec3 intersect,
-									glm::vec3 normal,
-									const Material &m,
-									thrust::default_random_engine &rng,
-                                    thrust::uniform_int_distribution<int> u01) {
-	pathSegments[idx].color *= (materialColor * material.emittance);
-	pathSegments[idx].remainingBounces = 0;
-}
-
-__host__ __device__ void DiffuseBSDF(int num_paths,
-                                    PathSegment & pathSegment,
-									glm::vec3 intersect,
-									glm::vec3 normal,
-									const Material &m,
-									thrust::default_random_engine &rng,
-                                    thrust::uniform_int_distribution<int> u01) {
-    int index = (blockIdx.x * blockDimx.x) + threadIdx.x;
-    if (index < num_paths) {
-    }
-}
-
-__host__ __device__ void ReflectBSDF(PathSegment & pathSegment,
-									glm::vec3 intersect,
-									glm::vec3 normal,
-									const Material &m,
-									thrust::default_random_engine &rng, 
-                                    thrust::uniform_int_distribution<int> u01) {
-    if (u01(rng)) {
-        pathSegment.ray.origin = intersect;
-        // Thanks stack exchange: https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
-        // reflectedVector = ray - 2 * normal * dot(ray, normal)
-        pathSegment.ray.direction = pathSegment.ray.direction - 
-            (2.0f * normal * glm::dot(pathSegment.ray.direction, normal));
-    }
-    else {
-        pathSegment.ray.origin = intersect;
-        pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
-    }
-    // divide by the probability of either path because at each step both would
-    // normally be sampled (but only one can be when pathtracing)
-	pathSegment.color /= 0.5f;
-}
-*/
-
 __host__ __device__ void scatterRay(PathSegment & pathSegment,
 									glm::vec3 intersect,
 									glm::vec3 normal,
