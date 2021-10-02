@@ -100,8 +100,11 @@ GLM_FUNC_QUALIFIER MonteCarloReturn Material::MicrofacetGGX_sampleScatter(const 
     glm::vec3 colorWithFresnel = MicrofacetGGX_FresnelSchlick(getDiffuse(uv), cosIM);
     float factor = (cosIM / glm::max(cosIN, EPSILON) * geom / glm::max(cosMN, EPSILON));
     //float factor = (cosIM * geom / glm::max(cosIN * cosMN, EPSILON));
-    float cosLight = glm::max(0.f, glm::dot(out, mfNormal));
-    factor = glm::clamp(factor * cosLight, 0.f, 1.f);
+    //float cosLight = glm::max(0.f, glm::dot(out, mfNormal));
+    //factor = glm::clamp(factor * cosLight, 0.f, 1.f);
+    
+    factor = glm::clamp(factor, 0.f, 1.f);
+    
     //if (factor > 1.f / EPSILON || factor < 0.0001f) {
     //    //factor = 1.f / EPSILON;
     //    printf("factor = %f: cosIM = %f, cosIN = %f, geom = %f, cosMN = %f\n", factor, cosIMRaw, cosINRaw, geom, cosMNRaw);
