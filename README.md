@@ -35,9 +35,15 @@ gltf (also have debug views avalible for each)
     bump
 refraction/fresnel/schlick
 skylight???
-ebon hawk
-depth of field??
 
-BVH structure
-rear face culling?
-denoising??
+4 mesh loading 
+6 hierarchical spatial data structure 
+2 refract 
+2 depth of field 
+2 antialiasing
+5/6 texture/bump mapping
+2 direct lighting
+4 subsurface scattering
+6 Wavefront pathtracing
+
+

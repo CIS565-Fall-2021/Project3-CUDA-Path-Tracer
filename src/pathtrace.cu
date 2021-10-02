@@ -339,7 +339,7 @@ __global__ void finalGather(int nPaths, glm::vec3 *image, PathSegment *iteration
 #define GROUP_RAYS
 // Removes finished rays
 #define COMPACT_RAYS
-// Cache first iter
+// Cache first iter; only if no antialiasing
 #define CACHE_FIRST
 
 struct orderMaterials

@@ -48,6 +48,27 @@ __host__ __device__
 
 #define SMALL_OFFSET 0.001f
 #define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
+
+__host__ __device__ __forceinline__ void diffuse(
+    PathSegment &pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material &m,
+    thrust::default_random_engine &rng,
+    glm::vec3 &colorAcc)
+{
+    pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+    pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
+    colorAcc = m.color;
+}
+__host__ __device__ float reflectance(float cosine, float ior)
+{
+    float r0 = (1 - ior) / (1 + ior);
+    r0 *= r0;
+    float tmp = 1 - cosine;
+    float tmp5 = tmp * tmp * tmp * tmp * tmp;
+    return r0 + (1 - r0) * tmp5;
+}
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -84,25 +105,50 @@ __host__ __device__ void scatterRay(
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
 
-    glm::vec3 colorAcc(0.0);
+    // TODO: split probability
+
+    glm::vec3 cacheDir = glm::normalize(pathSegment.ray.direction);
+    glm::vec3 colorAcc(0.f);
+    glm::vec3 origAcc(0.f);
+    glm::vec3 dirAcc(0.f);
+    thrust::uniform_real_distribution<float> u01(0, 1);
 
     if (m.hasReflective > 0.f) // Shiny
     {
-        pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
-        pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
         colorAcc = m.specular.color;
+        origAcc = intersect + OFFSET_VECTOR(normal);
+        dirAcc = glm::reflect(cacheDir, normal);
     }
     else if (m.hasRefractive > 0.f) // bendy-lite
     {
-        // myTODO schlick it later
+        // TODO: When to normalize
+
+        float dProd = glm::dot(cacheDir, normal);
+        bool leaving = dProd > 0.f;
+        float negateOnLeave = leaving ? -1.f : 1.f;
+        float eta = !leaving ? (1.f / m.indexOfRefraction) : m.indexOfRefraction;
+
+        float cosTheta = min(dProd * -1.f, 1.f);
+        float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+        bool willReflect = (eta * sinTheta > 1.f) || reflectance(cosTheta, eta) > u01(rng);
+        glm::vec3 offsetOrigin = intersect + OFFSET_VECTOR(normal * negateOnLeave * (willReflect ? 1.f : -1.f));
+        glm::vec3 refractedDir = glm::normalize(
+            willReflect
+                ? glm::reflect(cacheDir, normal * negateOnLeave)
+                : glm::refract(cacheDir, normal * negateOnLeave, eta));
+        origAcc = offsetOrigin;
+        dirAcc = refractedDir;
+        colorAcc = willReflect ? m.specular.color : glm::vec3(1.f);
     }
     else // Else lambort
     {
-        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-        pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
         colorAcc = m.color;
+        origAcc = intersect + OFFSET_VECTOR(normal);
+        dirAcc = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
     }
 
     // Set the color
     pathSegment.color *= colorAcc;
+    pathSegment.ray.origin = origAcc;
+    pathSegment.ray.direction = dirAcc;
 }
