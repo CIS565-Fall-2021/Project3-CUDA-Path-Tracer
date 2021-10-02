@@ -142,3 +142,72 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+float TriangleArea(glm::vec4 a_p1, glm::vec4 a_p2, glm::vec4 a_p3)
+{
+    float A = 0.5f * glm::length(glm::cross(glm::vec3(a_p2[0] - a_p1[0], a_p2[1] - a_p1[1], 0),
+        glm::vec3(a_p3[0] - a_p1[0], a_p3[1] - a_p1[1], 0)));
+    return A;
+}
+
+
+glm::vec4 GetBarycentricWeightedNormal(Vertex a_p1, Vertex a_p2, Vertex a_p3, glm::vec4 a_p)
+{
+
+    float A = TriangleArea(a_p1.m_pos, a_p2.m_pos, a_p3.m_pos);
+    float A1 = TriangleArea(a_p2.m_pos, a_p3.m_pos, a_p);
+    float A2 = TriangleArea(a_p1.m_pos, a_p3.m_pos, a_p);
+    float A3 = TriangleArea(a_p1.m_pos, a_p2.m_pos, a_p);
+    glm::vec4 a_surfaceNormal = a_p[2] * ((a_p1.m_normal * A1) / (A * a_p1.m_pos[2]) + (a_p2.m_normal * A2) / (A * a_p2.m_pos[2]) + (a_p3.m_normal * A3) / (A * a_p3.m_pos[2]));
+    return a_surfaceNormal;
+}
+
+
+__host__ __device__ float MeshIntersectionTest(Geom objGeom, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+    
+    bool intersection = false;
+    glm::vec3 interPoint;
+    glm::vec3 internormal;
+    int count = objGeom.triangleCount;
+
+    for (int i = 0; i < count; i++)
+    {
+        //glm::vec4 p1 = glm::vec3(multiplyMV(objGeom.transform, objGeom.meshTriangles[i].points[0]));
+        //glm::vec4 p2 = glm::vec3(multiplyMV(objGeom.transform, objGeom.meshTriangles[i].points[1]));
+        //glm::vec4 p3 = glm::vec3(multiplyMV(objGeom.transform, objGeom.meshTriangles[i].points[2]));
+
+        //glm::mat4 modelMat = objGeom.transform;
+        glm::vec4 p1 = objGeom.transform * objGeom.meshTriangles[i].points[0];
+        glm::vec4 p2 = objGeom.transform * objGeom.meshTriangles[i].points[1];
+        glm::vec4 p3  = objGeom.transform * objGeom.meshTriangles[i].points[2];
+
+
+       //  TriangleCustom abc = objGeom.meshTriangles[i];
+        //glm::vec4 p1 = objGeom.transform * glm::vec4(1, 1, 1, 1);
+        //glm::vec4 p2 = objGeom.transform * glm::vec4(1, 2, 1, 1);
+        //glm::vec4 p3  = objGeom.transform * glm::vec4(2, 1, 1, 1);
+
+        intersection = glm::intersectRayTriangle(r.origin, r.direction, glm::vec3(p1), glm::vec3(p2), glm::vec3(p3), interPoint);
+
+
+
+        if (intersection)
+        {
+
+            Vertex v1(p1, glm::vec3(0, 0, 0), objGeom.meshTriangles[i].normals[0], glm::vec2(0,0));
+            Vertex v2(p2, glm::vec3(0, 0, 0), objGeom.meshTriangles[i].normals[1], glm::vec2(0,0));
+            Vertex v3(p3, glm::vec3(0, 0, 0), objGeom.meshTriangles[i].normals[2], glm::vec2(0,0));
+            internormal = glm::vec3(GetBarycentricWeightedNormal(v1, v2, v3, glm::vec4(interPoint, 1.0f)));
+            break;
+        }
+    }
+    if (intersection)
+    {
+        intersectionPoint = interPoint;
+        normal = internormal;
+        return glm::length(r.origin - intersectionPoint);
+    }
+    return -1;
+}
+

@@ -53,6 +53,7 @@ int Scene::loadGeom(string objectid) {
                 newGeom.type = CUBE;
             }
             else if (strcmp(line.c_str(), "obj") == 0) {
+
                 cout << "Creating new obj..." << endl;
                 newGeom.type = OBJ;
             }

@@ -22,8 +22,8 @@ struct Ray {
 
 struct TriangleCustom
 {
-    glm::vec3 points[3];
-    glm::vec3 normals[3];
+    glm::vec4 points[3];
+    glm::vec4 normals[3];
 };
 
 struct Geom {
@@ -35,7 +35,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-    TriangleCustom* meshTriangles;
+    TriangleCustom *meshTriangles;
     int triangleCount;
    // glm::vec3* points;
 };

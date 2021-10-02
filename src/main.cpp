@@ -91,8 +91,8 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 			//Geom.Triangle.vertex = Polygon.vertex[triangle[i].index[j]]
 			glm::vec4 vertPos = p.m_verts[p.m_tris[i].m_indices[j]].m_pos;
 			glm::vec4 vertNormal = p.m_verts[p.m_tris[i].m_indices[j]].m_normal;
-			objGeom.meshTriangles[i].points[j] = glm::vec3(vertPos);
-			objGeom.meshTriangles[i].normals[j] = glm::vec3(vertNormal);
+			objGeom.meshTriangles[i].points[j] = vertPos;
+			objGeom.meshTriangles[i].normals[j] = vertNormal;
 		}
 	}
 	return p;
@@ -138,7 +138,8 @@ int main(int argc, char** argv) {
 	theta = glm::acos(glm::dot(glm::normalize(viewZY), glm::vec3(0, 1, 0)));
 	ogLookAt = cam.lookAt;
 	zoom = glm::length(cam.position - ogLookAt);
-	const char* filepath = "D:/GitHub/CIS565/Project3-CUDA-Path-Tracer/scenes/wahoo.obj";
+	const char* filepathWahoo = "D:/GitHub/CIS565/Project3-CUDA-Path-Tracer/scenes/wahoo.obj";
+	const char* filepathCube = "D:/GitHub/CIS565/Project3-CUDA-Path-Tracer/scenes/cube.obj";
 	Polygon p;
 	char* filename = "wahoo";
 
@@ -146,24 +147,15 @@ int main(int argc, char** argv) {
 	{
 		if ((int)scene->geoms[i].type == 2)
 		{
-			p = LoadOBJ(filepath, filename, scene->geoms[i]);
+			p = LoadOBJ(filepathCube, filename, scene->geoms[i]);
 		}
 	}
 
-
-	/*   for (int i = 0; i < scene->geoms.size(); i++)
-	   {
-		   if ((int)scene->geoms[i].type == 2)
-		   {
-			   scene->geoms[i].polygon = p;
-		   }
-	   }*/
-
 	   // Initialize CUDA and GL components
-	   //init();
+	   init();
 
 	   // GLFW main loop
-	   //mainLoop();
+	   mainLoop();
 
 	return 0;
 }

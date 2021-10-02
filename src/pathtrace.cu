@@ -86,7 +86,7 @@ int cacheNumPaths = 0;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
-bool usingCache = true;
+bool usingCache = false;
 
 void pathtraceInit(Scene* scene) {
 	hst_scene = scene;
@@ -219,6 +219,11 @@ __global__ void computeIntersections(
 			else if (geom.type == SPHERE)
 			{
 				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+			}
+
+			else if (geom.type == OBJ)
+			{
+				t = MeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
