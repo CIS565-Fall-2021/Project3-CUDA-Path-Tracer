@@ -332,11 +332,11 @@ __global__ void finalGather(int nPaths, glm::vec3 *image, PathSegment *iteration
 // Times execution of whole pathtrace, assumes memops time << computation time
 // #define TIME_PATHTRACE
 // Groups the rays by material type for better warp coherence (stream compact)
-// #define GROUP_RAYS
+#define GROUP_RAYS
 // Removes finished rays
-// #define COMPACT_RAYS
+#define COMPACT_RAYS
 // Cache first iter
-// #define CACHE_FIRST
+#define CACHE_FIRST
 
 struct orderMaterials
 {
@@ -419,8 +419,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
     TimerClass start = std::chrono::high_resolution_clock::now();
 #endif
 #ifdef GROUP_RAYS
-    thrust::device_ptr<PathSegment> device_paths(dev_paths);
-    thrust::device_ptr<ShadeableIntersection> device_intersections(dev_intersections);
+    thrust::device_ptr<PathSegment> device_t_paths(dev_paths);
+    thrust::device_ptr<ShadeableIntersection> device_t_intersections(dev_intersections);
 #endif
 
     bool iterationComplete = false;
@@ -436,7 +436,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
         cudaDeviceSynchronize();
 
 #ifdef GROUP_RAYS
-        thrust::sort_by_key(device_intersections, device_intersections + num_paths, device_paths, orderMaterials());
+        thrust::sort_by_key(device_t_intersections, device_t_intersections + num_paths, device_t_paths, orderMaterials());
 #endif
 
         // TODO:
@@ -466,9 +466,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 #endif
             ; // TODO: should be based off stream compaction results.
     }
-#ifdef COMPACT_RAYS
     num_paths = dev_path_end - dev_paths;
-#endif
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;

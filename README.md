@@ -14,6 +14,7 @@ project, and we will not be able to grade you without a good README.
 
 Bug fixes:
 seed the rng with the depth otherwise bad banding
+offset new origin by surface normal not new direction
 
 
 https://sketchfab.com/3d-models/ebon-hawk-7f7cd2b43ed64a4ba628b1bb5398d838
@@ -21,3 +22,22 @@ Ebon Hawk - sketchfab lemonaden
 
 
 tinygltf insns by https://piazza.com/class/kqefit06npb37y?cid=134
+
+diffuse vs specular
+ray compaction
+material sorting
+cache bounce
+
+
+gltf (also have debug views avalible for each)
+    texture
+    normal
+    bump
+refraction/fresnel/schlick
+skylight???
+ebon hawk
+depth of field??
+
+BVH structure
+
+
