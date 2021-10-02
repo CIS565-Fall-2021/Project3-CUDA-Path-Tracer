@@ -136,6 +136,93 @@ void pathtraceFree() {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
+
+// Based on Pharr/Humphrey's Physically Based Rendering textbook, 2nd ed
+// Sections 6.2.3 and 13.6
+__device__ void concentricSampleDisk(thrust::default_random_engine& rng,
+								  float* dx,
+								  float* dy) {
+    thrust::uniform_real_distribution<float> un11(-1.0f, 1.0f);
+    float r;
+    float theta;
+    float sy = un11(rng);
+    float sx = un11(rng);
+
+    if (sx == 0 && sy == 0) {
+        *dx = 0;
+        *dy = 0;
+        return;
+    }
+    if (abs(sx) > abs(sy)) {
+        r = sx;
+        theta = (PI * sx) / (sx * 4.0f);
+    }
+    else {
+        r = sy;
+        theta = (PI / 2.0f) - ((PI * sx) / (sy * 4.0f));
+    }
+
+    *dx = r * cos(theta);
+    *dy = r * sin(theta);
+}
+
+// Based on Pharr/Humphrey's Physically Based Rendering textbook, 2nd ed
+// Sections 6.2.3 and 13.6
+__device__ void samplePointOnLens(thrust::default_random_engine rng,
+                                  float *lensU,
+                                  float *lensV,
+                                  float lensRadius) {
+    concentricSampleDisk(rng, lensU, lensV);
+    *lensU *= lensRadius;
+    *lensV *= lensRadius;
+}
+
+__global__ void generateRayFromCameraDOF(Camera cam, 
+                                         int iter, 
+                                         int traceDepth, 
+                                         PathSegment* pathSegments){
+    // TODO, this is a repeated line. just make one
+    float LENSRADIUS = 1.0f;
+    float FOCALDIST = 1.0f;
+
+    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+      thrust::default_random_engine rng = makeSeededRandomEngine(iter, x+y, 0);
+    if (x < cam.resolution.x && y < cam.resolution.y) {
+        int index = x + (y * cam.resolution.x);
+        PathSegment & segment = pathSegments[index];
+
+        segment.ray.origin = cam.position;
+        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+
+        // TODO: implement antialiasing by jittering the ray
+        segment.ray.direction = glm::normalize(cam.view
+            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+            );
+
+        float lensU, lensV;
+
+        samplePointOnLens(rng, 
+						  &lensU, 
+						  &lensV, 
+						  LENSRADIUS);
+
+        float ft = FOCALDIST / segment.ray.direction.z;
+        // not sure about this line here
+        glm::vec3 Pfocus = glm::vec3(ft);
+
+        segment.ray.origin = cam.position + glm::vec3(lensU, lensV, 0.0f);
+        segment.ray.direction = glm::normalize(Pfocus - segment.ray.origin);
+
+        segment.pixelIndex = index;
+        segment.remainingBounces = traceDepth;
+    }
+}
+
+
+
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -287,6 +374,8 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
     if (index < nPaths)
     {
         PathSegment iterationPath = iterationPaths[index];
+        // yes we have to clamp here even though there is later clamping
+        // otherwise reflective surfaces generate fireflies
 		image[iterationPath.pixelIndex] += devClampRGB(iterationPath.color);// ((image[iterationPath.pixelIndex] * (iterations - 1)) + iterationPath.color) / iterations;// *0.001f;
     }
 }
@@ -459,6 +548,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     //     Note that this step may come before or after stream compaction,
     //     since some shaders you write may also cause a path to terminate.
     // * Finally, add this iteration's results to the image. This has been done
+
     //   for you.
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
@@ -480,7 +570,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         depth=1;
     }
     else {
-        generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+        generateRayFromCameraDOF << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
         checkCUDAError("generate camera ray");
     }
 
