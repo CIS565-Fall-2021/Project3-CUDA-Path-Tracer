@@ -39,5 +39,5 @@ ebon hawk
 depth of field??
 
 BVH structure
-
-
+rear face culling?
+denoising??
