@@ -128,6 +128,7 @@ __host__ __device__ void scatterRay(PathSegment & pathSegment,
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
     thrust::uniform_int_distribution<int> u01(0, 1);
+    thrust::uniform_real_distribution<float> uf01(0, 1);
     if (m.hasReflective && u01(rng)) {
         pathSegment.ray.origin = intersect;
         // Thanks stack exchange: https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
@@ -135,13 +136,64 @@ __host__ __device__ void scatterRay(PathSegment & pathSegment,
         pathSegment.ray.direction = pathSegment.ray.direction - 
             (2.0f * normal * glm::dot(pathSegment.ray.direction, normal));
     }
+    else if (m.hasRefractive) {
+
+        // calculate angle that the incident ray is bent by according to Snell's law
+        // sin(theta2)/sin(theta1) = ior1/ior2 where theta1 is the angle between the ray
+        // and the surface normal. solving for theta2 (and using dot(ray, normal) = cos(theta)
+        // theta2 = invsin(sqrt(1 - dot(ray, normal)^2) * ior1/ior2)
+        float sinTheta = sqrt(1 - pow(glm::dot(pathSegment.ray.direction, normal), 2)) / m.indexOfRefraction;
+        float theta = asin(sinTheta);
+        
+        // Some angles produce total internal refelction. detect/handle that here
+        //if (sinTheta > 1) {
+        //    pathSegment.color = glm::vec3(0);
+        //}
+        //else {
+
+            // update the ray direction using the calculated theta
+            // This method was found via a stack exchange post:
+            // https://stackoverflow.com/questions/5123028/change-of-direction-of-a-vector
+            glm::vec3 c = glm::cross(pathSegment.ray.direction, normal);
+            glm::vec3 f = glm::cross(pathSegment.ray.direction, c);
+
+
+            // calculate the contribution of that ray to the overall light of the point
+            // using schlick's approximation
+            float R0 = ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction));
+            R0 *= R0;
+
+            float FresnelFactor = R0 + (1 - R0) * pow((1 - cos(theta)), 3);
+
+            //pathSegment.color = glm::vec3(FresnelFactor);
+            //pathSegment.remainingBounces = 0;
+
+            if (uf01(rng) > FresnelFactor) {
+		    	// update the ray origin. 
+		    	// offset a little bit in the direction of the ray because hit detection
+		    	// stops a smidge shy of the surface (and the origin should now be beyond the surface
+		    	pathSegment.ray.origin = intersect + (pathSegment.ray.direction * 0.0002f);
+                pathSegment.ray.direction = cos(theta) * pathSegment.ray.direction + sinTheta * f;
+                //pathSegment.color /= 1.0f - FresnelFactor;
+            }
+            else {
+				pathSegment.ray.origin = intersect;
+				pathSegment.ray.direction = pathSegment.ray.direction - 
+					(2.0f * normal * glm::dot(pathSegment.ray.direction, normal));
+                //pathSegment.color /= FresnelFactor;
+            }
+
+        //}
+    }
     else {
         pathSegment.ray.origin = intersect;
         pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
     }
-    if (m.hasReflective) {
-        pathSegment.color /= 0.5f;
-    }
+
+    // ideally at each step we would sample all contributtions to color, 
+    // but we have to split it up by each type of contribute then scale 
+    // according to the frequency of that contribution
+    //pathSegment.color *= 1.0f + (int)m.hasReflective + (int)m.hasRefractive;
 }
 
 
