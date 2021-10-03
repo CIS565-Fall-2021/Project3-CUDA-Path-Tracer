@@ -86,7 +86,7 @@ __host__ __device__ float schlicks(const float cos_theta,
  */
 __host__ __device__ void scatterRay(PathSegment &pathSegment,
                                     const glm::vec3 intersect,
-                                    const glm::vec3 normal, const Material &m,
+                                    const glm::vec3 normal, const Material m,
                                     thrust::default_random_engine &rng) {
   if (m.emittance > 0.0f) {
     pathSegment.color *= (m.color * m.emittance);
@@ -95,39 +95,52 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment,
     thrust::uniform_real_distribution<float> u01(0, 1);
     const float random_sample = u01(rng);
 
+    // check if the current ray is in material
+    glm::vec3 in_direction = pathSegment.ray.direction;
+    bool is_inMaterial     = glm::dot(in_direction, normal) > 0.0f;
+    glm::vec3 true_normal  = (is_inMaterial) ? -1.0f * normal : normal;
+
+    if (is_inMaterial) {
+      true_normal = -1.0f * normal;
+    } else {
+      true_normal = normal;
+    }
+
     if (random_sample < m.hasRefractive) {
-      glm::vec3 in_direction = pathSegment.ray.direction;
-      // check if the current ray is in material
-      bool is_inMaterial = glm::dot(in_direction, normal) > 0.0f;
-      float idx_refraction_ratio =
-          (is_inMaterial) ? m.indexOfRefraction : (1.0f / m.indexOfRefraction);
-      glm::vec3 outward_normal = (is_inMaterial) ? -1.0f * normal : normal;
+      float idx_refraction_ratio = 1.0f
+          /* (is_inMaterial) ? m.indexOfRefraction : (1.0f /
+             m.indexOfRefraction) */
+          ;
+
       // get the incident angle
-      float cos_angle = glm::abs(glm::dot(in_direction, normal));
+      // float cos_angle = glm::abs(glm::dot(in_direction, normal));
       // calculate Fresnel factor
-      float fresnel_factor = schlicks(cos_angle, m.indexOfRefraction);
+      // float fresnel_factor = schlicks(cos_angle, m.indexOfRefraction);
       // As refraction is determined by both reflection & transmission,
       // probabilistically determine whether the next ray is reflective ray or
       // transmission ray
       glm::vec3 out_refracted_dir =
-          glm::refract(in_direction, outward_normal, idx_refraction_ratio);
-      const float prob = u01(rng);
-      pathSegment.ray.direction =
-          (/* prob < fresnel_factor || */ glm::length(out_refracted_dir) < EPS)
-              ? glm::reflect(in_direction, normal)
-              : out_refracted_dir;
-      pathSegment.color *= m.specular.color;
+          glm::refract(in_direction, true_normal, idx_refraction_ratio);
+      // const float prob = u01(rng);
+      if (/* prob < fresnel_factor || */ glm::length(out_refracted_dir) < EPS) {
+        pathSegment.ray.direction = glm::reflect(in_direction, true_normal);
+        pathSegment.ray.origin    = intersect + EPS * true_normal;
+      } else {
+        pathSegment.ray.direction = out_refracted_dir;
+        pathSegment.ray.origin    = intersect - EPS * true_normal;
+      }
+      // pathSegment.color *= m.specular.color;
     } else if (random_sample < m.hasReflective) {
-      pathSegment.ray.direction =
-          glm::reflect(pathSegment.ray.direction, normal);
+      pathSegment.ray.direction = glm::reflect(in_direction, true_normal);
       pathSegment.color *= m.specular.color;
+      pathSegment.ray.origin = intersect + EPS * normal;
     } else {
       pathSegment.ray.direction =
           calculateRandomDirectionInHemisphere(normal, rng);
+      pathSegment.ray.origin = intersect + EPS * normal;
     }
 
     --pathSegment.remainingBounces;
-    pathSegment.ray.origin = intersect + EPS * normal;
     pathSegment.color *= m.color;
     pathSegment.color =
         glm::clamp(pathSegment.color, glm::vec3(0.f), glm::vec3(1.0f));
