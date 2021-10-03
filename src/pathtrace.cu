@@ -15,6 +15,7 @@
 #include "interactions.h"
 
 #define SORT_MATERIAL 1
+#define CACHE_INTERSECTION 1
 
 #define ERRORCHECK 1
 
@@ -77,6 +78,7 @@ static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
+static ShadeableIntersection* dev_cache_intersections = NULL;
 
 void pathtraceInit(Scene* scene) {
     hst_scene = scene;
@@ -99,6 +101,9 @@ void pathtraceInit(Scene* scene) {
 
     // TODO: initialize any extra device memeory you need
 
+    cudaMalloc(&dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection));
+    cudaMemset(dev_cache_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -109,6 +114,7 @@ void pathtraceFree() {
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    cudaFree(dev_cache_intersections);
 
     checkCUDAError("pathtraceFree");
 }
@@ -239,7 +245,7 @@ __global__ void shadeFakeMaterial(
           // Set up the RNG
           // LOOK: this is how you use thrust's RNG! Please look at
           // makeSeededRandomEngine as well.
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 8);
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
@@ -292,6 +298,14 @@ struct needCompact
     }
 };
 
+struct cmpMaterials
+{
+    //overwrite sort_by_key compares key objects using operator<.
+    __host__ __device__ bool operator()(ShadeableIntersection& intersect1, const ShadeableIntersection& intersect2)
+    {
+        return intersect1.materialId < intersect2.materialId;
+    }
+};
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -353,10 +367,12 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
     bool iterationComplete = false;
     while (!iterationComplete) {
-
-        // clean shading chunks
+    dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+       
+#if CACHE_INTERSECTION
+        
+    if (iter == 1 || depth != 0) {
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
         computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
@@ -368,8 +384,35 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             , dev_intersections
             );
         checkCUDAError("trace one bounce");
-        cudaDeviceSynchronize();
 
+        cudaDeviceSynchronize();
+        if (depth == 0) {
+            // store first time bounce into cache
+            cudaMemcpy(dev_cache_intersections, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyHostToHost);
+            cudaDeviceSynchronize();
+        }
+    }
+    else {
+        cudaMemcpy(dev_intersections, dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyHostToHost);
+    }
+        
+#else 
+        // clean shading chunks
+        cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+
+        // tracing
+        computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+            depth
+            , num_paths
+            , dev_paths
+            , dev_geoms
+            , hst_scene->geoms.size()
+            , dev_intersections
+            );
+        checkCUDAError("trace one bounce");
+
+        cudaDeviceSynchronize();
+#endif
         depth++;
 
         // TODO:
@@ -380,6 +423,10 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
       // materials you have in the scenefile.
       // TODO: compare between directly shading the path segments and shading
       // path segments that have been reshuffled to be contiguous in memory.
+
+#if SORT_MATERIAL
+        thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, cmpMaterials());
+#endif
 
         shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
