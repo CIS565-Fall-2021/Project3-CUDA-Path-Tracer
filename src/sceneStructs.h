@@ -22,8 +22,7 @@ struct Ray {
 
 struct TriangleCustom
 {
-    glm::vec4 points[3];
-    glm::vec4 normals[3];
+    glm::vec4 points_normals[6];
 };
 
 struct Geom {

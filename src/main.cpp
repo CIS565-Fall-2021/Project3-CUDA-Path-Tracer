@@ -91,8 +91,8 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 			//Geom.Triangle.vertex = Polygon.vertex[triangle[i].index[j]]
 			glm::vec4 vertPos = p.m_verts[p.m_tris[i].m_indices[j]].m_pos;
 			glm::vec4 vertNormal = p.m_verts[p.m_tris[i].m_indices[j]].m_normal;
-			objGeom.meshTriangles[i].points[j] = vertPos;
-			objGeom.meshTriangles[i].normals[j] = vertNormal;
+			objGeom.meshTriangles[i].points_normals[2 * j] = vertPos;
+			objGeom.meshTriangles[i].points_normals[2 * j + 1] = vertNormal;
 		}
 	}
 	return p;
