@@ -55,7 +55,7 @@ SPECEX      0
 SPECRGB     0 0 0
 REFL        0
 REFR        1
-REFRIOR     1.5
+REFRIOR     1.333
 EMITTANCE   0
 
 // Diffuse blue
@@ -91,7 +91,7 @@ SCALE       4 .3 4
 // Floor
 OBJECT 1
 cube
-material 6
+material 1
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       10 .01 10
@@ -107,7 +107,7 @@ SCALE       .01 10 10
 // Back wall
 OBJECT 3
 cube
-material 1
+material 6
 TRANS       0 5 -5
 ROTAT       0 90 0
 SCALE       .01 10 10
@@ -137,9 +137,9 @@ ROTAT       0 0 0
 SCALE       6 6 6
 
 // cube
-OBJECT 7
-cube
-material 6
-TRANS       -2.5 4 -1
-ROTAT       0 0 0
-SCALE       1 1 1
+//OBJECT 7
+//cube
+//material 6
+//TRANS       -2.5 4 -1
+//ROTAT       0 0 0
+//SCALE       1 1 1

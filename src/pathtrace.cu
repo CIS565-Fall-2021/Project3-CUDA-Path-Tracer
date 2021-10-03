@@ -23,7 +23,7 @@
 
 #define SORT_MATERIALS false
 #define CACHE_FIRST_BOUNCE false
-#define DOF true
+#define DOF false
 
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
 #if ERRORCHECK
@@ -144,26 +144,48 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         PathSegment& segment = pathSegments[index];
         aliveSegments[index] = &segment;
 
-        // dof
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
-        thrust::uniform_real_distribution<float> u01(0, 1);
-        float sampleX = u01(rng);
-        float sampleY = u01(rng);
+        // calculate the ray origin
+        if (DOF) {
+            float aperture = 2.0;
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+            float sampleX = u01(rng);
+            float sampleY = u01(rng);
 
-        // warp pt to disk
-        float r = sqrt(sampleX);
-        float theta = 2 * 3.14159 * sampleY;
-        glm::vec2 res = glm::vec2(cos(theta), sin(theta)) * r;
+            // warp pt to disk
+            float r = sqrt(sampleX);
+            float theta = 2 * 3.14159 * sampleY;
+            glm::vec2 res = glm::vec2(cos(theta), sin(theta)) * r;
 
-        segment.ray.origin = cam.position + glm::vec3(res.x, res.y, 0);
+            segment.ray.origin = cam.position + glm::vec3(res.x, res.y, 0) * aperture;
+        }
+        else {
+            segment.ray.origin = cam.position;
+        }
+
+        // calculate the ray direction
+        if (DOF) {
+            float focalLen = 15.f;
+            float angle = glm::radians(cam.fov.y);
+            float aspect = ((float)cam.resolution.x / (float)cam.resolution.y);
+            float ndc_x = 1.f - ((float)x / cam.resolution.x) * 2.f;
+            float ndc_y = 1.f - ((float)y / cam.resolution.x) * 2.f;
+
+            glm::vec3 ref = cam.position + cam.view * focalLen;     
+            glm::vec3 H = tan(angle) * focalLen * cam.right * aspect;
+            glm::vec3 V = tan(angle) * focalLen * cam.up;
+            glm::vec3 target_pt = ref + V * ndc_y + H * ndc_x;
+            segment.ray.direction = normalize(target_pt - segment.ray.origin);
+        }
+        else {
+            // TODO: implement antialiasing by jittering the ray
+            segment.ray.direction = glm::normalize(cam.view
+                - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+                - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+            );
+        }
+
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
-
-        // TODO: implement antialiasing by jittering the ray
-        segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-        );
-
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
         segment.terminated = false;

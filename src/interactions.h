@@ -134,7 +134,7 @@ void scatterRay(
             newDir = glm::refract(wi, faceForwardN, eta);
         }
 
-        pathSegment.ray.origin = intersect + (entering ? 0.0002f : -0.0002f) * pathSegment.ray.direction;
+        pathSegment.ray.origin = intersect + (entering ? 0.0002f : 0.0f) * pathSegment.ray.direction;
         pathSegment.ray.direction = newDir;
         return;
         
