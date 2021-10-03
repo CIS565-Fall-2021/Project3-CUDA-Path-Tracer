@@ -23,9 +23,21 @@
 #define PREGATHER_FINAL_IMAGE 0//1
 #define ENABLE_PARTITION 1//1
 #define ENABLE_SORTING 0//1
-#define JITTER_ANTI_ALIASING 1//1
+#define ENABLE_JITTER_ANTI_ALIASING 1//1
+#define ENABLE_CACHE_FIRST_INTERSECTION 0//0
+
 #define ENABLE_BVH 1//1
 #define ENABLE_ADVANCED_PIPELINE 1//0
+
+#if ENABLE_CACHE_FIRST_INTERSECTION
+#undef ENABLE_JITTER_ANTI_ALIASING // Should disable it.
+#define ENABLE_JITTER_ANTI_ALIASING 0
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
+
+#if ENABLE_BVH
+// Seems not have so much difference. 
+#define SORT_BEFORE_BUILD_BVH 0//1
+#endif // ENABLE_BVH
 
 using ui8 = unsigned char;
 using ui16 = unsigned short;

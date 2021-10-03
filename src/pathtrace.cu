@@ -104,6 +104,11 @@ static Geom * dev_geoms = nullptr;
 static Material * dev_materials = nullptr;
 static PathSegment * dev_paths = nullptr;
 static ShadeableIntersection * dev_intersections = nullptr;
+#if ENABLE_CACHE_FIRST_INTERSECTION
+static ShadeableIntersection * dev_intersectionsCache = nullptr;
+bool cacheFirstIntersection = true;
+bool firstIntersectionCached = false;
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -127,6 +132,11 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
+#if ENABLE_CACHE_FIRST_INTERSECTION
+    cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
+    cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
+
     // TODO: initialize any extra device memeory you need
 
     checkCUDAError("pathtraceInit");
@@ -138,6 +148,9 @@ void pathtraceFree() {
     if(dev_geoms) cudaFree(dev_geoms);
     if(dev_materials) cudaFree(dev_materials);
     if(dev_intersections) cudaFree(dev_intersections);
+#if ENABLE_CACHE_FIRST_INTERSECTION
+    if(dev_intersectionsCache) cudaFree(dev_intersectionsCache);
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
     // TODO: clean up any extra device memory you created
 
     checkCUDAError("pathtraceFree");
@@ -165,13 +178,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
         // DONE: implement antialiasing by jittering the ray
         float dx = 0.f, dy = 0.f;
-#if JITTER_ANTI_ALIASING
+#if ENABLE_JITTER_ANTI_ALIASING
         thrust::random::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
         thrust::random::uniform_real_distribution<float> ud(-0.5f, 0.5f);
         dx = ud(rng);
         dy = ud(rng);
-#else // JITTER_ANTI_ALIASING
-#endif // JITTER_ANTI_ALIASING
+#else // ENABLE_JITTER_ANTI_ALIASING
+#endif // ENABLE_JITTER_ANTI_ALIASING
         segment.ray.direction = glm::normalize(cam.view
             - cam.right * cam.pixelLength.x * ((float)x + dx - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y + dy - (float)cam.resolution.y * 0.5f)
@@ -189,8 +202,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 __global__ void computeIntersections(
     int depth
     , int num_paths
-    , PathSegment * pathSegments
-    , Geom * geoms
+    , const PathSegment* const pathSegments
+    , const Geom* const geoms
     , int geoms_size
     , ShadeableIntersection * intersections
     )
@@ -220,7 +233,7 @@ __global__ void computeIntersections(
 
         for (int i = 0; i < geoms_size; i++)
         {
-            Geom & geom = geoms[i];
+            Geom geom = geoms[i];
 
             if (geom.type == GeomType::CUBE)
             {
@@ -603,6 +616,28 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+#if ENABLE_CACHE_FIRST_INTERSECTION
+        if (depth == 0 && cacheFirstIntersection && firstIntersectionCached) {
+            cudaMemcpy(dev_intersections, dev_intersectionsCache, sizeof(ShadeableIntersection) * num_paths, cudaMemcpyDeviceToDevice);
+            checkCUDAError("readIntersections");
+        }
+        else {
+            computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+                depth
+                , num_paths
+                , dev_paths
+                , dev_geoms
+                , hst_scene->geoms.size()
+                , dev_intersections
+                );
+            checkCUDAError("trace one bounce");
+            if (depth == 0 && !firstIntersectionCached) {
+                cudaMemcpy(dev_intersectionsCache, dev_intersections, sizeof(ShadeableIntersection) * num_paths, cudaMemcpyDeviceToDevice);
+                checkCUDAError("writeIntersections");
+                firstIntersectionCached = true;
+            }
+        }
+#else // ENABLE_CACHE_FIRST_INTERSECTION
         computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
             depth
             , num_paths
@@ -612,11 +647,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , dev_intersections
             );
         checkCUDAError("trace one bounce");
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
         //cudaDeviceSynchronize();
         depth++;
 
 #if ENABLE_SORTING
         // Sort
+        thrust::device_ptr<PathSegment> thrust_dev_paths(dev_paths);
 #if !ENABLE_ADVANCED_PIPELINE
         thrust::device_ptr<ShadeableIntersection> thrust_dev_intersection(dev_intersections);
         thrust::sort_by_key(thrust_dev_intersection, thrust_dev_intersection + num_paths, thrust_dev_paths);

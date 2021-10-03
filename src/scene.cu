@@ -36,6 +36,9 @@ void buildBVH_CPU_NaiveRecursive(BoundingVolumeHierarchy<Triangle>& BVH, Triangl
     else if (geomStart == geomEnd) {
         // Leaf node.
         BVH.nodesArray[rootIdx].box = BBox::getLocalBoundingBox(geoms[geomStart], expand);
+#if SORT_BEFORE_BUILD_BVH
+        geoms[geomStart].triangleid = geomStart; // Because you have already sorted triangles, reassign triangleId.
+#endif // SORT_BEFORE_BUILD_BVH
         BVH.nodesArray[rootIdx].geomIdx = geoms[geomStart].triangleid;
         BVH.nodesArray[rootIdx].leftSubtreeIdx = -1;
         BVH.nodesArray[rootIdx].rightSubtreeIdx = -1;
@@ -357,13 +360,20 @@ TriMesh Scene::loadModelObj(const std::string& filename) {
             ++triIdx;
         }
     }
+#if BUILD_BVH_FOR_TRIMESH
+#if SORT_BEFORE_BUILD_BVH
+    res.localBVH.buildBVH_CPU(tris.data(), tris.size(), FLT_EPSILON);
+#endif // SORT_BEFORE_BUILD_BVH
+#endif // BUILD_BVH_FOR_TRIMESH
     cudaMalloc(&res.triangles, sizeof(Triangle) * res.triangleNum);
     cudaMemcpy(res.triangles, tris.data(), sizeof(Triangle) * res.triangleNum, cudaMemcpyHostToDevice);
 
     cudaDeviceSynchronize();
     checkCUDAError("loadModelObj");
 #if BUILD_BVH_FOR_TRIMESH
+#if !SORT_BEFORE_BUILD_BVH
     res.localBVH.buildBVH_CPU(tris.data(), tris.size(), FLT_EPSILON);
+#endif // SORT_BEFORE_BUILD_BVH
 #endif // BUILD_BVH_FOR_TRIMESH
     std::cout << "Model " << filename << '<' << res.triangleNum << "> created.\n" << std::endl;
     return res;

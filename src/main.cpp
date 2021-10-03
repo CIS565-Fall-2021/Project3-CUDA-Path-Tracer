@@ -1,6 +1,7 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include "profile_log/logCore.hpp"
 
 #pragma warning(push)
 #pragma warning(disable:4996)
@@ -30,6 +31,14 @@ bool paused;
 int width;
 int height;
 
+#if ENABLE_CACHE_FIRST_INTERSECTION
+extern bool cacheFirstIntersection;
+extern bool firstIntersectionCached;
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
+#if ENABLE_PROFILE_LOG
+bool saveProfileLog = false;
+#endif // ENABLE_PROFILE_LOG
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -39,6 +48,7 @@ extern void unitTest();
 int main(int argc, char** argv) {
     startTimeString = currentTimeString();
 
+    std::string sceneFileStr;
     const char* sceneFile = nullptr;
 
     if (argc < 2) {
@@ -54,12 +64,24 @@ int main(int argc, char** argv) {
         //sceneFile = "../scenes/PA_BVH2000.txt";
         //sceneFile = "../scenes/PA_BVH135280.txt";
 
-        sceneFile = "../scenes/cornell_garage_kit.txt";
+        //sceneFile = "../scenes/cornell_garage_kit.txt";
         //sceneFile = "../scenes/cornell_garage_kit_microfacet.txt";
+        std::cout << "Input sceneFile: " << std::flush;
+        std::cin >> sceneFileStr;
+        sceneFile = sceneFileStr.c_str();
     }
     else {
         sceneFile = argv[1];
     }
+#if ENABLE_PROFILE_LOG
+    if (argc < 3) {
+        std::cout << "Save profile log? (1/0): " << std::flush;
+        std::cin >> saveProfileLog;
+    }
+    else {
+        saveProfileLog = atoi(argv[2]);
+    }
+#endif // ENABLE_PROFILE_LOG
 
     // Load scene file
     scene = new Scene(sceneFile);
@@ -218,6 +240,12 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
             //renderState->camera.lookAt = ogLookAt;
             renderState->recordDepth = std::max(-1, renderState->recordDepth - 1);
             break;
+#if ENABLE_CACHE_FIRST_INTERSECTION
+        case GLFW_KEY_C:
+            cacheFirstIntersection = !cacheFirstIntersection;
+            firstIntersectionCached = false;
+            break;
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
         case GLFW_KEY_0:
         case GLFW_KEY_1:
         case GLFW_KEY_2:

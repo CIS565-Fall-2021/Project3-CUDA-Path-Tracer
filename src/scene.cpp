@@ -282,13 +282,43 @@ int Scene::loadCamera() {
     }
 
     // Start image name
-#if JITTER_ANTI_ALIASING
+#if ENABLE_JITTER_ANTI_ALIASING
     state.imageName += "_JAA";
 #endif // JITTER_ANTI_ALIASING
 #if ENABLE_ADVANCED_PIPELINE
     state.imageName += "_ADVPIPE";
 #endif // ENABLE_ADVANCED_PIPELINE
     state.imageName += "_depth" + std::to_string(state.traceDepth);
+
+    std::string postprocessStr = "_PP";
+    size_t activePP = 0;
+    for (size_t i = 0; i < postprocesses.size(); ++i) {
+        if (postprocesses[i].second) {
+            postprocessStr += std::to_string(i);
+            ++activePP;
+        }
+    }
+    if (activePP > 0) {
+        state.imageName += postprocessStr;
+    }
+    ////
+#if ENABLE_PARTITION
+    state.imageName += "--PARTITION";
+#endif // ENABLE_PARTITION
+#if ENABLE_SORTING
+    state.imageName += "--SORTING";
+#endif // ENABLE_SORTING
+#if ENABLE_CACHE_FIRST_INTERSECTION
+    state.imageName += "--CACHE1st";
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
+#if ENABLE_BVH
+    state.imageName += "--BVH";
+#if SORT_BEFORE_BUILD_BVH
+    state.imageName += "-PRESORT";
+#endif // SORT_BEFORE_BUILD_BVH
+#endif // ENABLE_BVH
+    ////
+
     // End image name
 
     //utilityCore::safeGetline(fp_in, line);

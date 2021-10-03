@@ -2,6 +2,8 @@
 #include <ctime>
 #include "main.h"
 #include "preview.h"
+#include "profile_log/logCore.hpp"
+#include <iomanip>
 
 #pragma warning(push)
 #pragma warning(disable:4996)
@@ -12,6 +14,10 @@ GLuint pbo;
 GLuint displayImage;
 
 GLFWwindow *window;
+
+#if ENABLE_CACHE_FIRST_INTERSECTION
+extern bool cacheFirstIntersection;
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
 
 std::string currentTimeString() {
     time_t now;
@@ -177,13 +183,41 @@ bool init() {
 }
 
 extern bool paused;
+#if ENABLE_PROFILE_LOG
+extern bool saveProfileLog;
+#endif // ENABLE_PROFILE_LOG
 
-void mainLoop() {
+void mainLoop() { 
+#if ENABLE_PROFILE_LOG
+    if (saveProfileLog) {
+        LogCore::ProfileLog::get().initProfile(renderState->imageName, "end", 32, 64, 1, std::ios_base::out);
+        std::cout << "Init log profile [" << renderState->imageName << "]" << std::endl;
+    }
+#endif // ENABLE_PROFILE_LOG
+    double fps = 0;
+    double timebase = 0;
+    int frame = 0;
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         if (!paused) {
             runCuda();
+            frame++;
         }
+
+        double time = glfwGetTime();
+
+        if (time - timebase > 1.0) {
+            fps = frame / (time - timebase);
+            timebase = time;
+            frame = 0;
+        }
+
+#if ENABLE_PROFILE_LOG
+        if (!paused && saveProfileLog) {
+            LogCore::ProfileLog::get().step(fps, time * 1000.);
+        }
+#endif // ENABLE_PROFILE_LOG
 
         std::string postprocessStr = "PP: ";
         for (size_t i = 0; i < scene->postprocesses.size(); ++i) {
@@ -192,12 +226,24 @@ void mainLoop() {
             }
         }
 
+#if ENABLE_PROFILE_LOG
+        std::string fpsStr;
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2) << fps;
+        ss >> fpsStr;
+#endif // ENABLE_PROFILE_LOG
         std::string title = "CIS565 Path Tracer | "
+#if ENABLE_PROFILE_LOG
+            + std::string(" FPS: ") + fpsStr + " | "
+#endif // ENABLE_PROFILE_LOG
             + utilityCore::convertIntToString(renderState->traceDepth) + " Depths" " | "
-            + (renderState->recordDepth < 0 ? " All Bounce Recorded" " | " : (utilityCore::convertIntToString(renderState->recordDepth) + " Bounce or Upper Recorded" " | "))
+            + (renderState->recordDepth < 0 ? " All Bounce" " | " : (utilityCore::convertIntToString(renderState->recordDepth) + " Bounce or Upper" " | "))
             + postprocessStr + " | "
             + utilityCore::convertIntToString(iteration) + " Iterations"
-            + (paused ? " (paused)" : "");
+#if ENABLE_CACHE_FIRST_INTERSECTION
+            + (cacheFirstIntersection ? " (Cache1stBounce)" : "")
+#endif // ENABLE_CACHE_FIRST_INTERSECTION
+            + (paused ? " (Paused)" : "");
         glfwSetWindowTitle(window, title.c_str());
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
