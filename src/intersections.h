@@ -146,8 +146,15 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
 __host__ __device__ float TriangleArea(glm::vec4 a_p1, glm::vec4 a_p2, glm::vec4 a_p3)
 {
-    float A = 0.5f * glm::length(glm::cross(glm::vec3(a_p2[0] - a_p1[0], a_p2[1] - a_p1[1], 0),
-        glm::vec3(a_p3[0] - a_p1[0], a_p3[1] - a_p1[1], 0)));
+    glm::vec4 p1 = a_p1;
+    glm::vec4 p2 = a_p2;
+    glm::vec4 p3 = a_p3;
+    //float dist = glm::length(glm::cross(glm::vec3(a_p2[0]/ a_p2[2] - a_p1[0]/ a_p1[2], a_p2[1]/ a_p2[2] - a_p1[1]/ a_p2[2], 0.0f),
+    //    glm::vec3(a_p3[0]/ a_p3[2] - a_p1[0]/ a_p1[2], a_p3[1]/ a_p3[2] - a_p1[1]/ a_p1[2], 0.0f)));
+    //float A = 0.5f * glm::length(glm::cross(glm::vec3(a_p2[0] / a_p2[2] - a_p1[0] / a_p1[2], a_p2[1] / a_p2[2] - a_p1[1] / a_p1[2], 0.0f),
+    //    glm::vec3(a_p3[0] / a_p3[2] - a_p1[0] / a_p1[2], a_p3[1] / a_p3[2] - a_p1[1] / a_p1[2], 0.0f)));
+    float A = 0.5f * glm::length(glm::cross(glm::vec3(a_p2[0] - a_p1[0], a_p2[1] - a_p1[1], a_p2[2] - a_p1[2]),
+        glm::vec3(a_p3[0] - a_p1[0], a_p3[1] - a_p1[1], a_p3[2] - a_p1[2])));
     return A;
 }
 
@@ -210,18 +217,15 @@ __host__ __device__ float MeshIntersectionTest(Geom objGeom,TriangleCustom *mesh
             glm::vec4 n1 = mesh[i].points_normals[1];
             glm::vec4 n2 = mesh[i].points_normals[3];
             glm::vec4 n3 = mesh[i].points_normals[5];
-           /* Vertex v1 = Vertex(p1, glm::vec3(0, 0, 0), normal1, glm::vec2(0,0));
-            Vertex v2 = Vertex(p2, glm::vec3(0, 0, 0), normal2, glm::vec2(0,0));
-            Vertex v3 = Vertex(p3, glm::vec3(0, 0, 0), normal3, glm::vec2(0,0));*/
-            //internormal = glm::vec3(GetBarycentricWeightedNormal(v1, v2, v3, glm::vec4(interPoint, 1.0f)));
             internormal = glm::vec3(GetBarycentricWeightedNormal(p1, n1, p2, n2, p3, n3, glm::vec4(interPoint, 1.0f)));
+            internormal = glm::normalize(internormal);
             break;
         }
     }
     if (intersection)
     {
         intersectionPoint = interPoint;
-        //normal = internormal;
+        normal = internormal;
         return glm::length(r.origin - intersectionPoint);
     }
     return -1;
