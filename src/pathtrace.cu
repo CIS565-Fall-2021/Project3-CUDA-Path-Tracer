@@ -167,7 +167,7 @@ __device__ glm::vec3 random_in_unit_disk(thrust::default_random_engine& rng) {
 * motion blur - jitter rays "in time"
 * lens effect - jitter ray origin positions based on a lens
 */
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, bool usingCache)
+__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments, bool usingCache, bool usingDOF)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -187,9 +187,9 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 				thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
 				thrust::uniform_real_distribution<float> u01(0, 1);
-				double lens_radius = cam.aperture / 2;
-				glm::vec3 rd = lens_radius * random_in_unit_disk(rng);
-				glm::vec3 offset = cam.up * rd.x + cam.right * rd.y;
+				//double lens_radius = cam. / 2;
+				/*glm::vec3 rd = lens_radius * random_in_unit_disk(rng);
+				glm::vec3 offset = cam.up * rd.x + cam.right * rd.y;*/
 				segment.ray.origin = cam.position;
 				// TODO: implement antialiasing by jittering the ray
 				segment.ray.direction = glm::normalize(cam.view
@@ -477,7 +477,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	{
 		if (!cacheAvailable)
 		{
-			generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache);
+			generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache, usingDOF );
 			checkCUDAError("generate camera ray");
 		}
 		else
@@ -490,7 +490,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	}
 	else
 	{
-		generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache);
+		generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache, usingDOF);
 		checkCUDAError("generate camera ray");
 	}
 	cudaDeviceSynchronize();
