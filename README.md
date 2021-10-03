@@ -15,7 +15,7 @@ CUDA Path Tracer
 
 ![Result3](img/output_arch/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_23-22-10z.6024samp-PS.png)
 
-[toc]
+
 
 ## Features
 
