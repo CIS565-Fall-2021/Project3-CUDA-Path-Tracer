@@ -5,6 +5,8 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 #include <thrust/partition.h>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -21,7 +23,7 @@
 #define MATERIAL_SORT 1
 
 // Cache the first bounce intersections for re-use across all subsequent iterations
-#define CACHE_FIRST_BOUNCE 1
+#define CACHE_FIRST_BOUNCE 0
 
 // Apply 4x stochastic sampling and average
 #define ANTIALIASING 0
@@ -266,6 +268,17 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 #endif
 }
 
+// Copy from utilities.cpp
+__host__ __device__
+glm::mat4 build_transformation_matrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale) {
+    glm::mat4 translationMat = glm::translate(glm::mat4(), translation);
+    glm::mat4 rotationMat = glm::rotate(glm::mat4(), rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
+    rotationMat = rotationMat * glm::rotate(glm::mat4(), rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
+    rotationMat = rotationMat * glm::rotate(glm::mat4(), rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
+    glm::mat4 scaleMat = glm::scale(glm::mat4(), scale);
+    return translationMat * rotationMat * scaleMat;
+}
+
 // TODO:
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
@@ -277,6 +290,7 @@ __global__ void computeIntersections(
     , Geom *geoms
     , int geoms_size
     , ShadeableIntersection *intersections
+    , float time
 )
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -301,6 +315,19 @@ __global__ void computeIntersections(
         {
             Geom &geom = geoms[i];
 
+            // Blur moving objects
+            if (geom.end_translation != geom.translation) {  
+
+                geom.old_transform = geom.transform;
+                geom.old_inverseTransform = geom.inverseTransform;
+                geom.old_invTranspose = geom.invTranspose;
+
+                // Linear interpolate current translation
+                geom.transform = build_transformation_matrix(geom.translation + time * (geom.end_translation - geom.translation), geom.rotation, geom.scale);
+                geom.inverseTransform = glm::inverse(geom.transform);
+                geom.invTranspose = glm::inverseTranspose(geom.transform);
+            }
+
             if (geom.type == CUBE)
             {
                 t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
@@ -310,6 +337,13 @@ __global__ void computeIntersections(
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
+
+            // Set original translation back
+            if (geom.end_translation != geom.translation) {
+                geom.transform = geom.old_transform;
+                geom.inverseTransform = geom.old_inverseTransform;
+                geom.invTranspose = geom.old_invTranspose;
+            }
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -544,6 +578,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
 
+    // Take random time elapsed ratio
+    thrust::default_random_engine rng = makeSeededRandomEngine(iter, 0, 0);
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float time = u01(rng);
+
     bool iterationComplete = false;
     while (!iterationComplete) {
 
@@ -565,6 +604,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 , dev_geoms
                 , hst_scene->geoms.size()
                 , dev_intersections
+                , time
                 );
             checkCUDAError("trace one bounce");
             cudaDeviceSynchronize();
@@ -587,6 +627,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , dev_geoms
             , hst_scene->geoms.size()
             , dev_intersections
+            , time
             );
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();

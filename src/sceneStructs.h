@@ -26,6 +26,10 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    glm::vec3 end_translation;
+    glm::mat4 old_transform;
+    glm::mat4 old_inverseTransform;
+    glm::mat4 old_invTranspose;
 };
 
 struct Material {
