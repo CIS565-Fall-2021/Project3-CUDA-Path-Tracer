@@ -9,7 +9,7 @@
  */
 __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+    glm::vec3 normal, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -24,9 +24,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     glm::vec3 directionNotNormal;
     if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(1, 0, 0);
-    } else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
+    }
+    else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(0, 1, 0);
-    } else {
+    }
+    else {
         directionNotNormal = glm::vec3(0, 0, 1);
     }
 
@@ -68,12 +70,30 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+    PathSegment& pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material& m,
+    thrust::default_random_engine& rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    if (m.hasReflective > 0.f)
+    {
+        // Color the ray according to surface's material encountered
+        pathSegment.color *= m.color;
+
+        // Perform reflection about surface normal of surface
+        pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+        pathSegment.ray.origin = intersect;
+    }
+    else
+    {
+        // Color the ray according to surface's material encountered
+        pathSegment.color *= m.color;
+
+        // Perform random scattering from surface normal of surface
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        pathSegment.ray.origin = intersect;
+    }
 }
