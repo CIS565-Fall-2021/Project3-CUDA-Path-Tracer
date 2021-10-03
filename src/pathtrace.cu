@@ -130,6 +130,30 @@ void pathtraceFree() {
     checkCUDAError("pathtraceFree");
 }
 
+// Sample point on disk
+// Used for depth of field
+__host__ __device__ void concentric_sample_disk(float *dx, float *dy, thrust::default_random_engine &rng) {
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    thrust::uniform_real_distribution<float> u02(0, 1);
+    float sx = 2 * u01(rng) - 1;
+    float sy = 2 * u02(rng) - 1;
+
+    // Trick referenced from http://psgraphics.blogspot.com/2011/01/improved-code-for-concentric-map.html
+    float r;
+    float theta;
+    if (sx * sx > sy * sy) {
+        r = sx;
+        theta = (PI / 4.f) * (sy / sx);
+    }
+    else {
+        r = sy;
+        theta = (PI / 2.f) - (PI / 4.f) * (sx / sy);
+    }
+
+    *dx = r * cosf(theta);
+    *dy = r * sinf(theta);
+}
+
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -147,15 +171,35 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         int index = x + (y * cam.resolution.x);
         PathSegment &segment = pathSegments[index];
 
-        segment.ray.origin = cam.position;
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
+        segment.ray.origin = cam.position;
         segment.ray.direction = glm::normalize(cam.view
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
         );
 
+        // Depth of field
+        if (cam.lens_radius) {
+            // Sample on lens
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+            float sample_x;
+            float sample_y;
+            concentric_sample_disk(&sample_x, &sample_y, rng);
+            sample_x *= cam.lens_radius;
+            sample_y *= cam.lens_radius;
+            glm::vec3 len_pos(sample_x, sample_y, 0.f);
+
+            // Update ray direction
+            float ft = cam.focal_length / -segment.ray.direction.z;
+            glm::vec3 focus_point = ft * segment.ray.direction;
+
+            // Convert to world space
+            segment.ray.origin += len_pos;
+            segment.ray.direction = glm::normalize(focus_point - len_pos);
+        }
+        
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }

@@ -124,6 +124,10 @@ int Scene::loadCamera() {
             camera.lookAt = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
             camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        } else if (strcmp(tokens[0].c_str(), "LENRAD") == 0) {
+            camera.lens_radius = atof(tokens[1].c_str());
+        } else if (strcmp(tokens[0].c_str(), "FOCALLEN") == 0) {
+            camera.focal_length = atof(tokens[1].c_str());
         }
 
         utilityCore::safeGetline(fp_in, line);
