@@ -73,6 +73,7 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
+
     //return if there's no bounces left
     if (pathSegment.remainingBounces == 0) {
         return;
@@ -80,22 +81,68 @@ void scatterRay(
     glm::vec3 new_ray;
     thrust::uniform_real_distribution<float> u01(0, 1);
 
-    if (m.hasReflective) {
-        new_ray = glm::reflect(pathSegment.ray.direction, normal);
-    }
-    else if (m.hasRefractive) {
-        new_ray = glm::refract(pathSegment.ray.direction, normal, 0.5f);
-    } 
-    else {
-        //Perfectly diffuse
+    //Handle perfectly diffuse
+    if (!m.hasReflective && !m.hasReflective) {
         pathSegment.color *= m.color;
-        new_ray = calculateRandomDirectionInHemisphere(normal, rng);
-    }
+        pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+        pathSegment.ray.origin = intersect;
+    } 
+    //Both reflection and refraction
+    else if (m.hasRefractive && m.hasReflective) {
+        glm::vec3 incident = pathSegment.ray.direction;
 
-    pathSegment.ray.direction = new_ray;
-    pathSegment.ray.origin = intersect;
+        float ior_in{ 0.f };
+        float ior_out{ 0.f };
+
+        float cosThetaI = glm::dot(incident, normal);
+        //Determine whether inside or outside the surface
+        //If cosThetaI is negative: shooting from outside
+        if (cosThetaI > 0.f) {
+            normal = -normal;
+            ior_in = 1.f;
+            ior_out = m.indexOfRefraction;
+        }
+        else {
+            ior_in = m.indexOfRefraction;
+            ior_out = 1.f;
+        }
+
+        //Randomly choose between reflection and refraction
+        thrust::uniform_real_distribution<float> u01(0, 1);
+        float R_0 = powf((ior_in - ior_out) / (ior_in + ior_out), 2.f);
+        float ref_coeff = R_0 + (1 - R_0) * powf(1.f + glm::dot(normal, incident), 5.f);
+
+        float index = ior_in / ior_out;
+
+        if (u01(rng) < ref_coeff) {
+            //This is reflection
+            pathSegment.ray.direction = glm::reflect(incident, normal);
+            pathSegment.ray.origin = intersect;
+            pathSegment.color *= m.specular.color;
+        }
+        else {
+            glm::vec3 refract_dir = glm::refract(incident, normal, 1.f / index);
+
+            if (glm::length(refract_dir) == 0.f) {
+                //This is total internal reflection
+                pathSegment.ray.direction = glm::reflect(incident, normal);
+                pathSegment.ray.origin = intersect;
+                pathSegment.color *= m.color;
+            }
+            else {
+                //This is refraction
+                pathSegment.ray.direction = glm::normalize(refract_dir);
+                pathSegment.ray.origin = intersect + 0.002f * pathSegment.ray.direction;
+                pathSegment.color *= m.specular.color;
+            }
+        }
+    }
+    //Only reflection
+    else {
+        pathSegment.color *= m.specular.color;
+        pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+        pathSegment.ray.origin = intersect;
+    }
+    
     pathSegment.remainingBounces--;
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
 }
