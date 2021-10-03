@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
-
+#include <glm/gtc/matrix_inverse.hpp>
 #include "sceneStructs.h"
 #include "utilities.h"
 
@@ -141,4 +141,16 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
+                                               glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+    // create bounding box and test for intersection
+    Geom box;
+    box.type = CUBE;
+    box.transform = mesh.boundingBox.transform;
+    box.inverseTransform = mesh.boundingBox.inverseTransform;
+    box.invTranspose = mesh.boundingBox.invTranspose;
+
+    return boxIntersectionTest(box, r, intersectionPoint, normal, outside);
 }

@@ -1,8 +1,10 @@
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only one .cc
 #include <iostream>
 #include "scene.h"
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -32,12 +34,92 @@ Scene::Scene(string filename) {
     }
 }
 
+bool Scene::loadObj(string filename, Geom& geom) {
+
+    // bounding box 
+    geom.boundingBox.minX = 10000000.f;
+    geom.boundingBox.maxX = 0.f;
+    geom.boundingBox.minY = 10000000.f;
+    geom.boundingBox.maxY = 0.f;
+    geom.boundingBox.minZ = 10000000.f;
+    geom.boundingBox.maxZ = 0.f;
+
+    // read in mesh and construct bounding box
+
+    tinyobj::ObjReaderConfig reader_config;
+    tinyobj::ObjReader reader;
+
+    // read from file
+    if (!reader.ParseFromFile(filename, reader_config)) {
+        if (!reader.Error().empty()) {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+        exit(1);
+    }
+
+    if (!reader.Warning().empty()) {
+        std::cout << "TinyObjReader: " << reader.Warning();
+    }
+    
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+
+    // loop over shapes
+    for (size_t s = 0; s < shapes.size(); s++) {
+
+        // loop over faces
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+            //loop over verts
+            for (size_t v = 0; v < fv; v++) {
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+                geom.boundingBox.minX = min(geom.boundingBox.minX, vx);
+                geom.boundingBox.maxX = max(geom.boundingBox.maxX, vx);
+                geom.boundingBox.minY = min(geom.boundingBox.minX, vy);
+                geom.boundingBox.maxY = max(geom.boundingBox.maxX, vy);
+                geom.boundingBox.minZ = min(geom.boundingBox.minX, vz);
+                geom.boundingBox.maxZ = max(geom.boundingBox.maxX, vz);
+            }
+        }
+    }
+
+    //std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
+    return true;
+}
+
+void calcBoundingBox(Geom& geom) {
+    // calc scale of bounding box in mesh's untransformed space
+    glm::vec3 bbScale(geom.boundingBox.maxX - geom.boundingBox.minX,
+                      geom.boundingBox.maxY - geom.boundingBox.minY,
+                      geom.boundingBox.maxZ - geom.boundingBox.minZ);
+    // bb scale assumes we are scaling uniformly -- translate so that it's placed correctly
+    glm::vec3 unitBox(0.5, 0.5, 0.5);
+    glm::vec3 bbTop(geom.boundingBox.maxX, geom.boundingBox.maxY, geom.boundingBox.maxZ);
+    glm::vec3 bbTrans = bbTop - unitBox * bbScale;
+
+    // translate/scale resulting bounding box
+    bbScale *= geom.scale;
+    bbTrans += geom.translation;
+
+    geom.boundingBox.transform = utilityCore::buildTransformationMatrix(
+        bbTrans, geom.rotation, bbScale);
+    geom.boundingBox.inverseTransform = glm::inverse(geom.boundingBox.transform);
+    geom.boundingBox.invTranspose = glm::inverseTranspose(geom.boundingBox.transform);
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
         cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
         return -1;
-    } else {
+    }
+    else {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
         string line;
@@ -48,9 +130,14 @@ int Scene::loadGeom(string objectid) {
             if (strcmp(line.c_str(), "sphere") == 0) {
                 cout << "Creating new sphere..." << endl;
                 newGeom.type = SPHERE;
-            } else if (strcmp(line.c_str(), "cube") == 0) {
+            }
+            else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(line.c_str(), "mesh") == 0) {
+                cout << "Creating new mesh..." << endl;
+                newGeom.type = MESH;
             }
         }
 
@@ -62,6 +149,21 @@ int Scene::loadGeom(string objectid) {
             cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << endl;
         }
 
+        //link filename for obj
+        if (newGeom.type == MESH) {
+            utilityCore::safeGetline(fp_in, line);
+            if (!line.empty() && fp_in.good()) {
+                vector<string> tokens = utilityCore::tokenizeString(line);
+
+                if (strcmp(tokens[0].c_str(), "FILENAME") == 0) {
+                    string filename = tokens[1].c_str();
+                    std::cout << "Reading obj file from " << filename << " ..." << endl;
+
+                    if (!loadObj(filename, newGeom)) return -1;
+                }
+            }
+        }
+
         //load transformations
         utilityCore::safeGetline(fp_in, line);
         while (!line.empty() && fp_in.good()) {
@@ -70,9 +172,11 @@ int Scene::loadGeom(string objectid) {
             //load tranformations
             if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
                 newGeom.translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
+            }
+            else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-            } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
+            }
+            else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             }
 
@@ -80,11 +184,17 @@ int Scene::loadGeom(string objectid) {
         }
 
         newGeom.transform = utilityCore::buildTransformationMatrix(
-                newGeom.translation, newGeom.rotation, newGeom.scale);
+            newGeom.translation, newGeom.rotation, newGeom.scale);
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
+        // if mesh, set bounding box transformations
+        if (newGeom.type == MESH) {
+            calcBoundingBox(newGeom);
+        }
+        
         geoms.push_back(newGeom);
+
         return 1;
     }
 }

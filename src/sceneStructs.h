@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH
 };
 
 struct Ray {
@@ -19,6 +20,17 @@ struct Ray {
 
 struct Geom {
     enum GeomType type;
+    struct {
+        float minX;
+        float minY;
+        float minZ;
+        float maxX;
+        float maxY;
+        float maxZ;
+        glm::mat4 transform;
+        glm::mat4 inverseTransform;
+        glm::mat4 invTranspose;
+    } boundingBox;
     int materialid;
     glm::vec3 translation;
     glm::vec3 rotation;
