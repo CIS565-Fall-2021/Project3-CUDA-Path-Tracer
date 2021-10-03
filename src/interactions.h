@@ -96,48 +96,40 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment,
     const float random_sample = u01(rng);
 
     // check if the current ray is in material
-    glm::vec3 in_direction = pathSegment.ray.direction;
+    glm::vec3 in_direction = glm::normalize(pathSegment.ray.direction);
     bool is_inMaterial     = glm::dot(in_direction, normal) > 0.0f;
     glm::vec3 true_normal  = (is_inMaterial) ? -1.0f * normal : normal;
 
-    if (is_inMaterial) {
-      true_normal = -1.0f * normal;
-    } else {
-      true_normal = normal;
-    }
-
     if (random_sample < m.hasRefractive) {
-      float idx_refraction_ratio = 1.0f
-          /* (is_inMaterial) ? m.indexOfRefraction : (1.0f /
-             m.indexOfRefraction) */
-          ;
+      float idx_refraction_ratio =
+          (is_inMaterial) ? m.indexOfRefraction : (1.0f / m.indexOfRefraction);
 
       // get the incident angle
-      // float cos_angle = glm::abs(glm::dot(in_direction, normal));
+      float cos_angle = glm::abs(glm::dot(in_direction, normal));
       // calculate Fresnel factor
-      // float fresnel_factor = schlicks(cos_angle, m.indexOfRefraction);
+      float fresnel_factor = schlicks(cos_angle, m.indexOfRefraction);
       // As refraction is determined by both reflection & transmission,
       // probabilistically determine whether the next ray is reflective ray or
       // transmission ray
-      glm::vec3 out_refracted_dir =
-          glm::refract(in_direction, true_normal, idx_refraction_ratio);
-      // const float prob = u01(rng);
-      if (/* prob < fresnel_factor || */ glm::length(out_refracted_dir) < EPS) {
+      glm::vec3 out_refracted_dir = glm::refract(
+          in_direction, glm::normalize(true_normal), idx_refraction_ratio);
+      const float prob = u01(rng);
+      if (prob < fresnel_factor || glm::length(out_refracted_dir) < EPS) {
         pathSegment.ray.direction = glm::reflect(in_direction, true_normal);
         pathSegment.ray.origin    = intersect + EPS * true_normal;
       } else {
         pathSegment.ray.direction = out_refracted_dir;
         pathSegment.ray.origin    = intersect - EPS * true_normal;
       }
-      // pathSegment.color *= m.specular.color;
+      pathSegment.color *= m.specular.color;
     } else if (random_sample < m.hasReflective) {
       pathSegment.ray.direction = glm::reflect(in_direction, true_normal);
       pathSegment.color *= m.specular.color;
-      pathSegment.ray.origin = intersect + EPS * normal;
+      pathSegment.ray.origin = intersect + EPS * true_normal;
     } else {
       pathSegment.ray.direction =
-          calculateRandomDirectionInHemisphere(normal, rng);
-      pathSegment.ray.origin = intersect + EPS * normal;
+          calculateRandomDirectionInHemisphere(true_normal, rng);
+      pathSegment.ray.origin = intersect + EPS * true_normal;
     }
 
     --pathSegment.remainingBounces;
