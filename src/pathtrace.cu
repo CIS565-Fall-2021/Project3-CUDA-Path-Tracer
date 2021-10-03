@@ -14,6 +14,8 @@
 #include "intersections.h"
 #include "interactions.h"
 
+#define SORT_MATERIAL 1
+
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -245,6 +247,7 @@ __global__ void shadeFakeMaterial(
 
             // If the material indicates that the object was a light, "light" the ray
             if (material.emittance > 0.0f) {
+                pathSegments[idx].remainingBounces = 0;
                 pathSegments[idx].color *= (materialColor * material.emittance);
             }
             // Otherwise, do some pseudo-lighting computation. This is actually more
@@ -263,6 +266,7 @@ __global__ void shadeFakeMaterial(
             // This can be useful for post-processing and image compositing.
         }
         else {
+            pathSegments[idx].remainingBounces = 0;
             pathSegments[idx].color = glm::vec3(0.0f);
         }
     }
@@ -279,6 +283,15 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
         image[iterationPath.pixelIndex] += iterationPath.color;
     }
 }
+
+struct needCompact
+{
+    __host__ __device__ bool operator()(const PathSegment& seg)
+    {
+        return seg.remainingBounces;
+    }
+};
+
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -328,7 +341,6 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     //   for you.
 
     // TODO: perform one iteration of path tracing
-
     generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
     checkCUDAError("generate camera ray");
 
@@ -357,8 +369,8 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             );
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
-        depth++;
 
+        depth++;
 
         // TODO:
         // --- Shading Stage ---
@@ -376,12 +388,19 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             dev_paths,
             dev_materials
             );
-        iterationComplete = true; // TODO: should be based off stream compaction results.
+
+        // compaction using thrust::partition
+        dev_path_end = thrust::partition(thrust::device, dev_paths, dev_paths + num_paths, needCompact());
+        num_paths = dev_path_end - dev_paths;
+
+        if (num_paths == 0) {
+            iterationComplete = true; // TODO: should be based off stream compaction results.
+        }
     }
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dev_image, dev_paths);
+    finalGather << <numBlocksPixels, blockSize1d >> > (pixelcount, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 

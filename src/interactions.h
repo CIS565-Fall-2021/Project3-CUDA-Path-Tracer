@@ -78,6 +78,8 @@ void scatterRay(
         return;
     }
     glm::vec3 new_ray;
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
     if (m.hasReflective) {
         new_ray = glm::reflect(pathSegment.ray.direction, normal);
     }
