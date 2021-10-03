@@ -89,6 +89,7 @@ int cacheNumPaths = 0;
 TriangleCustom* dev_meshTriangles;
 
 bool usingCache = false;
+bool usingDOF= false;
 
 void pathtraceInit(Scene* scene) {
 	hst_scene = scene;
@@ -151,6 +152,13 @@ void pathtraceFree() {
 	checkCUDAError("pathtraceFree");
 }
 
+__device__ glm::vec3 random_in_unit_disk(thrust::default_random_engine& rng) {
+		thrust::uniform_real_distribution<float> u01(0, 1);
+		glm::vec3 p = glm::vec3(u01(rng), u01(rng), 0);
+		p = glm::normalize(p);
+		return p;
+}
+
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -173,13 +181,34 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 		if (!usingCache)
 		{
-			thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
-			thrust::uniform_real_distribution<float> u01(0, 1);
-			// TODO: implement antialiasing by jittering the ray
-			segment.ray.direction = glm::normalize(cam.view
-				- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f + u01(rng))
-				- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + +u01(rng))
-			);
+			//AA plus DOF
+			if (usingDOF)
+			{
+
+				thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+				thrust::uniform_real_distribution<float> u01(0, 1);
+				double lens_radius = cam.aperture / 2;
+				glm::vec3 rd = lens_radius * random_in_unit_disk(rng);
+				glm::vec3 offset = cam.up * rd.x + cam.right * rd.y;
+				segment.ray.origin = cam.position;
+				// TODO: implement antialiasing by jittering the ray
+				segment.ray.direction = glm::normalize(cam.view
+					- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f + u01(rng))
+					- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + +u01(rng))
+				);
+			}
+			// Use only AA
+			else
+			{
+
+				thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+				thrust::uniform_real_distribution<float> u01(0, 1);
+				// TODO: implement antialiasing by jittering the ray
+				segment.ray.direction = glm::normalize(cam.view
+					- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f + u01(rng))
+					- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + +u01(rng))
+				);
+			}
 		}
 		else
 		{
