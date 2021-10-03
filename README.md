@@ -9,9 +9,9 @@ CUDA Path Tracer
 
 
 
-![Result1](img/output_archive/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_23-22-10z.6031samp.png)
+![Result1](img/output_arch/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_23-22-10z.6031samp.png)
 
-![Result2](img/output_archive/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_02-50-18z.5933samp.png)
+![Result2](img/output_arch/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_02-50-18z.5933samp.png)
 
 
 
