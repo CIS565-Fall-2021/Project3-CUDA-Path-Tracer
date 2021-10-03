@@ -18,7 +18,8 @@
 
 #define ERRORCHECK 1
 #define MATERIAL_SORT 1
-#define FIRST_BOUNCE_CACHE 1
+#define FIRST_BOUNCE_CACHE 0
+#define ANTI_ALIASING 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -145,10 +146,22 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.ray.origin = cam.position;
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-        // TODO: implement antialiasing by jittering the ray
+        float xOffset = ((float)x - (float)cam.resolution.x * 0.5f);
+        float yOffset = ((float)y - (float)cam.resolution.y * 0.5f);
+
+#if ANTI_ALIASING
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
+        thrust::uniform_real_distribution<float> xDisplacement(-1.f, 1.f);
+        thrust::uniform_real_distribution<float> yDisplacement(-1.f, 1.f);
+
+        xOffset += 0.5 * xDisplacement(rng);
+        yOffset += 0.5 * yDisplacement(rng);
+#endif
+
+        // DONE: implement antialiasing by jittering the ray
         segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+            - cam.right * cam.pixelLength.x * xOffset
+            - cam.up * cam.pixelLength.y * yOffset
         );
 
         segment.pixelIndex = index;
