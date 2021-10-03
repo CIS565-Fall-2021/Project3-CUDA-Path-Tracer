@@ -15,7 +15,8 @@ static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
 
-
+static double aperture = 0.2;
+static double focus_dist = 10.0;
 float zoom, theta, phi;
 glm::vec3 cameraPosition;
 glm::vec3 ogLookAt; // for recentering the camera
@@ -120,6 +121,8 @@ int main(int argc, char** argv) {
 	iteration = 0;
 	renderState = &scene->state;
 	Camera& cam = renderState->camera;
+	cam.aperture = aperture;
+	cam.focus_dist = focus_dist;
 	width = cam.resolution.x;
 	height = cam.resolution.y;
 
@@ -129,7 +132,7 @@ int main(int argc, char** argv) {
 	up = glm::cross(right, view);
 
 	cameraPosition = cam.position;
-
+	cam.focus_dist = (cam.position - cam.lookAt).length();
 	// compute phi (horizontal) and theta (vertical) relative 3D axis
 	// so, (0 0 1) is forward, (0 1 0) is up
 	glm::vec3 viewXZ = glm::vec3(view.x, 0.0f, view.z);
@@ -198,6 +201,7 @@ void runCuda() {
 		glm::vec3 r = glm::cross(v, u);
 		cam.up = glm::cross(r, v);
 		cam.right = r;
+		cam.focus_dist = (cam.position - cam.lookAt).length();
 
 		cam.position = cameraPosition;
 		cameraPosition += cam.lookAt;

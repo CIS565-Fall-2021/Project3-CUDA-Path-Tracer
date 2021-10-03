@@ -89,7 +89,7 @@ int cacheNumPaths = 0;
 TriangleCustom* dev_meshTriangles;
 
 bool usingCache = false;
-bool usingDOF= false;
+bool usingDOF= true;
 
 void pathtraceInit(Scene* scene) {
 	hst_scene = scene;
@@ -187,14 +187,14 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 				thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
 				thrust::uniform_real_distribution<float> u01(0, 1);
-				//double lens_radius = cam. / 2;
-				/*glm::vec3 rd = lens_radius * random_in_unit_disk(rng);
-				glm::vec3 offset = cam.up * rd.x + cam.right * rd.y;*/
-				segment.ray.origin = cam.position;
+				double lens_radius = cam.aperture / 2;
+				glm::vec3 rd = float(lens_radius) * random_in_unit_disk(rng);
+				glm::vec3 offset = cam.up * rd.x + cam.right * rd.y;
+				segment.ray.origin = cam.position + offset;
 				// TODO: implement antialiasing by jittering the ray
-				segment.ray.direction = glm::normalize(cam.view
-					- cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f + u01(rng))
-					- cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f + +u01(rng))
+				segment.ray.direction = glm::normalize(cam.view * (float)cam.focus_dist
+					- cam.right * cam.pixelLength.x * (float)cam.focus_dist * ((float)x - (float)cam.resolution.x * 0.5f + u01(rng))
+					- cam.up * cam.pixelLength.y * (float)cam.focus_dist * ((float)y - (float)cam.resolution.y * 0.5f + +u01(rng)) - offset
 				);
 			}
 			// Use only AA
