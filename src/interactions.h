@@ -96,8 +96,8 @@ __host__ __device__ void scatterRay(PathSegment & pathSegment,
 	// sin(theta2)/sin(theta1) = ior1/ior2 where theta1 is the angle between the ray
 	// and the surface normal. solving for theta2 (and using dot(ray, normal) = cos(theta)
 	// theta2 = invsin(sqrt(1 - dot(ray, normal)^2) * ior1/ior2)
-	float sinTheta = sqrt(1 - pow(glm::dot(pathSegment.ray.direction, normal), 2)) / m.indexOfRefraction;
-	float theta = asin(sinTheta);
+	//float sinTheta = sqrt(1 - pow(glm::dot(pathSegment.ray.direction, normal), 2)) / m.indexOfRefraction;
+	//float theta = asin(sinTheta);
 	
 	// Some angles produce total internal refelction. detect/handle that here
 		// update the ray direction using the calculated theta
@@ -115,14 +115,25 @@ __host__ __device__ void scatterRay(PathSegment & pathSegment,
 
 		// Schlick's approximation has a static value of five where we use FresnelPower here,
 		// allowing for a trade-off between accuracy and aesthetic choices
-		float FresnelFactor = R0 + (1 - R0) * pow((1 - cos(theta)), m.FresnelPower);
+        float cosTheta = glm::dot(glm::normalize(pathSegment.ray.direction), glm::normalize(normal));
+        float sinTheta = sqrt(1 - (cosTheta * cosTheta));
+		float FresnelFactor = R0 + (1 - R0) * pow((1 - abs(cosTheta)), m.FresnelPower);
 
-		if (uf01(rng) > FresnelFactor) {
+        
+            //pathSegment.color = glm::vec3(FresnelFactor);
+            //pathSegment.remainingBounces = 0;
+
+		if (sinTheta > 1 || uf01(rng) > FresnelFactor) {
 			// update the ray origin. 
 			// offset a little bit in the direction of the ray because hit detection
 			// stops a smidge shy of the surface (and the origin should now be beyond the surface
 			pathSegment.ray.origin = intersect + (pathSegment.ray.direction * 0.0002f);
-			pathSegment.ray.direction = cos(theta) * pathSegment.ray.direction + sinTheta * f;
+			//pathSegment.ray.direction = glm::normalize(cosTheta * pathSegment.ray.direction + sinTheta * f);
+            float eta = glm::dot(pathSegment.ray.direction, normal) > 0 ? m.indexOfRefraction : 1.0f / m.indexOfRefraction;
+            pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, normal, eta);
+
+            //pathSegment.color = pathSegment.ray.direction;
+            //pathSegment.remainingBounces = 0;
 			// note, whereas for diffuse and only-reflective materieals we scale the color 
 			// contribution of each stochastic path taken, here the likelihoods of each path
 			// are the actual ratio of how much light is either reflected or refracted, so
