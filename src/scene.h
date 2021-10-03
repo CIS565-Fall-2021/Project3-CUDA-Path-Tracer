@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <sstream>
 #include <fstream>
 #include <iostream>
@@ -9,6 +10,13 @@
 #include "sceneStructs.h"
 
 using namespace std;
+
+struct Transform
+{
+    glm::vec3 translate;
+    glm::vec3 rotate;
+    glm::vec3 scale;
+};
 
 class Scene {
 private:
@@ -19,6 +27,10 @@ private:
 public:
     Scene(string filename);
     ~Scene();
+
+    int loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
+
+    bool LoadObj(string filename, Transform transform, int materialId);
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;

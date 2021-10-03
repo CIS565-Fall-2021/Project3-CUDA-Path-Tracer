@@ -20,7 +20,7 @@
 
 //#define CACHE_FIRST_INTERSECTION
 
-//#define ANTIALIASING
+#define ANTIALIASING
 
 //#define SORT_BY_MATERIAL
 
@@ -81,7 +81,9 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+#ifdef CACHE_FIRST_INTERSECTION
 static ShadeableIntersection* dev_firstIntersections = NULL;
+#endif
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -213,6 +215,10 @@ __global__ void computeIntersections(
               t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
           }
           // TODO: add more intersection tests here... triangle? metaball? CSG?
+          else if (geom.type == TRIANGLE)
+          {
+              t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+          }
 
           // Compute the minimum t from the intersection tests to determine what
           // scene geometry object was hit first.

@@ -4,6 +4,8 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#include "tiny_obj_loader.h"
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -30,6 +32,82 @@ Scene::Scene(string filename) {
             }
         }
     }
+}
+
+bool Scene::LoadObj(string filename, Transform transform, int materialId)
+{
+    tinyobj::ObjReader reader;
+    tinyobj::ObjReaderConfig reader_config;
+
+    if (!reader.ParseFromFile(filename, reader_config)) {
+        if (!reader.Error().empty()) {
+            std::cout << "TinyObjReader: " << reader.Error() << std::endl;
+        }
+        return false;
+    }
+
+    if (!reader.Warning().empty()) {
+        std::cout << "TinyObjReader: " << reader.Warning() << std::endl;
+    }
+
+    std::cout << "Successfully read obj" << std::endl;
+
+    auto& shapes = reader.GetShapes();
+    auto& attrib = reader.GetAttrib();
+
+    std::vector<std::array<glm::vec3, 3>> triangles;
+    int triangleIndex = 0;
+
+    // Get the triangles from the object
+    // Loop over shapes
+    for (size_t s = 0; s < shapes.size(); s++) {
+        // Loop over faces(polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+            // Loop over vertices in the face.
+            for (size_t v = 1; v < fv; ) {
+                // first index
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset];
+                glm::vec3 firstVertex = {
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 0],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 1],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 2]
+                };
+
+                idx = shapes[s].mesh.indices[index_offset + v++];
+                glm::vec3 secondVertex =
+                {
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 0],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 1],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 2]
+                };
+
+                idx = shapes[s].mesh.indices[index_offset + v++];
+                glm::vec3 thirdVertex =
+                {
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 0],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 1],
+                    attrib.vertices[3 * size_t(idx.vertex_index) + 2]
+                };
+
+                std::array<glm::vec3, 3> triangle = { firstVertex, secondVertex, thirdVertex };
+                triangles.push_back(triangle);
+            }
+            index_offset += fv;
+        }
+    }
+
+    std::cout << "Number of triangles: " << triangles.size() << std::endl;
+
+    // load the triangles
+    for (auto& triangle : triangles)
+    {
+        loadTriangle(triangle, transform, materialId);
+    }
+
+    return true;
 }
 
 int Scene::loadGeom(string objectid) {
@@ -87,6 +165,28 @@ int Scene::loadGeom(string objectid) {
         geoms.push_back(newGeom);
         return 1;
     }
+}
+
+int Scene::loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
+{
+    Geom geom;
+    geom.type = GeomType::TRIANGLE;
+    geom.materialid = materialId;
+    geom.translation = transform.translate;
+    geom.rotation = transform.rotate;
+    geom.scale = transform.scale;
+    geom.transform = utilityCore::buildTransformationMatrix(
+        geom.translation, geom.rotation, geom.scale);
+    //geom.inverseTransform = glm::inverse(geom.transform);
+    //geom.invTranspose = glm::inverseTranspose(geom.transform);
+
+    geom.pos1 = glm::vec3(geom.transform * glm::vec4(triangle[0], 1.f));
+    geom.pos2 = glm::vec3(geom.transform * glm::vec4(triangle[1], 1.f));
+    geom.pos3 = glm::vec3(geom.transform * glm::vec4(triangle[2], 1.f));
+    
+    geoms.push_back(geom);
+
+    return 1;
 }
 
 int Scene::loadCamera() {
