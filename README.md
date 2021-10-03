@@ -13,9 +13,11 @@ CUDA Path Tracer
 
 ![Result2](img/output_arch/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_02-50-18z.5933samp.png)
 
+![Result3](img/output_arch/cornell_garage_kit_JAA_ADVPIPE_depth12.2021-10-01_23-22-10z.6024samp-PS.png)
 
+[toc]
 
-## Feature
+## Features
 
 ![Overall](img/readme/overall.png)
 
@@ -48,15 +50,23 @@ Partition and sorting are some methods to optimize the path tracing. Partition i
 
 The benefit of partition depends on the rate of the surface area of the background and emitted objects in the viewport, as well as the colors of the objects. If the colors are bright, or the surface area of the background and emitted objects is small, there are few paths that can be omitted, thus to make the performance even worse, counting the cost of the partition.
 
-Because I haven't implemented any complex material, such as subsurface scattering surface, sorting seems to make the performance worse in my project. 
+Here are some analysis for three scenes, with maximum depth 16. The first scene is relatively simple. The second scene contains a few triangle meshes and more specular. The third scene is closed so that the rays have no chance to reach the background. I generated the images with 128 samples per pixel, and record the fps of iteration.
 
-Here are some analysis with three scenes. The first scene is relatively simple. The second scene contains a few triangle meshes and more specular. The third scene is closed so that the rays have no chance to reach the background.
+|                            Scene1                            |                            Scene2                            |                        Scene3(Close)                         |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+| ![PA_PartitionSorting1](profiles/partition_sorting/PA_PartitionSorting1_JAA_ADVPIPE_depth16--BVH.2021-10-02_15-27-29z.128samp.png) | ![PA_PartitionSorting2](profiles/partition_sorting/PA_PartitionSorting2_JAA_ADVPIPE_depth16--BVH.2021-10-02_15-43-22z.128samp.png) | ![PA_PartitionSorting3](profiles/partition_sorting/PA_PartitionSorting3_JAA_ADVPIPE_depth16--BVH.2021-10-02_15-56-27z.128samp.png) |
 
-//TODO
+
+
+Scene 1 contains 1 emissive box, 5 boxes, 2 spheres, and 1 triangle mesh with 2000 triangles. Scene 2 contains more 3 triangle mesh with 2000 triangles each. Scene 3 is closed with another box, with camera zoom-in to prevent rays from hitting the background. 
+
+![PA_PartitionSorting](img/readme/PA_PartitionSorting.png)
 
 
 
-Based on the result, I would enable partition but disable sorting in further analysis.
+The result tells us that the partition and sorting cannot make the performance better if the scene is too simple. However, when the scene is complex, or there are even more glossy objects, there are more rays that may hit the background or emissive objects earlier, so the partition performs a good improvement. Because I haven't implemented any complex material effects, such as subsurface scattering, sorting seems to make the performance worse in my project. 
+
+Based on the result, I would enable partition but disable sorting in further analysis. 
 
 
 
@@ -66,11 +76,11 @@ Because stochastic anti-aliasing varies the first intersection for every iterati
 
 Here are some analysis for the third scene above.
 
-//TODO
+![PA_Cache1stBounce](img/readme/PA_Cache1stBounce.png)
 
 
 
-There is a slight performance improvement with first bounce cache. 
+There is a slight performance improvement with first bounce cache. Maybe there are some better results when applying this method to a scene with tons of triangles. 
 
 
 
@@ -86,17 +96,13 @@ In a Monte-Carlo based path tracer, we must have many rays created for each pixe
 
 The next two pictures show that, the diagonal in the second picture, which is processed by anti-aliasing, is smoother than the sawtooth-like diagonal in the first picture. 
 
-<img src="profiles/anti_aliasing/PA_PartitionSorting3_woAA.png" alt="woAA" style="zoom: 250%;" />
-
-<img src="profiles/anti_aliasing/PA_PartitionSorting3_wiAA.png" alt="wiAA" style="zoom:250%;" />
-
-
+|                      w/o Anti-Aliasing                       |                      with Anti-Aliasing                      |
+| :----------------------------------------------------------: | :----------------------------------------------------------: |
+| <img src="profiles/anti_aliasing/PA_PartitionSorting3_woAA.png" alt="woAA" style="zoom: 200%;" /> | <img src="profiles/anti_aliasing/PA_PartitionSorting3_wiAA.png" alt="wiAA" style="zoom: 200%;" /> |
 
 
 
-
-
-### Materials and Sampling Methods
+### Materials and Importance Sampling
 
 I implemented several simple materials, including:
 
@@ -104,7 +110,9 @@ I implemented several simple materials, including:
 - Perfect dielectric material, which can appear as perfect reflection material or perfect refraction material.
 - Microfacet material with GGX normal distribution, which is a kind of physically-based material.
 
-These materials have different //TODO
+These materials have different bidirectional scattering distribution function (BSDF), and can have different sampling functions to make the convergence of the estimate to the actual value faster. The core idea is to sample from the CDF of the BSDF rather than from the uniform distribution. For example, the lambert material gives a PDF of reflection angle as cosine weighted. Further discussion can be found in [Importannce Sampling of the Phong Reflectance Model](https://www.cs.princeton.edu/courses/archive/fall16/cos526/papers/importance.pdf) for Phong material.
+
+In some BSDF of material, there are more than one terms and contains different light directions. With BSDF=BRDF+BTDF, for example, I randomly determine whether the ray is reflected or transmitted, by a weight such as diffuse color and specular color, or Fresnel term. And then we sample a specific ray on this single term. We should consider that randomly picking a term is a kind of multiplying a probability to this term, and we should do some calculations to make the result match the original BSDF. 
 
 
 
@@ -118,21 +126,9 @@ I implemented some simple post processing, such as drawing outlines by stencil v
 
 Here are some effects of post processing. It seems weird of the ramp shading result, maybe because the ramp texture is not so suitable for this scene.
 
-Outlines:
-
-![Outlines](profiles/postprocess/PA_Outline_JAA_ADVPIPE_depth16_PP1--PARTITION--BVH.2021-10-02_17-20-04z.128samp.png)
-
-
-
-Ramp shading:
-
-![Ramp Shading](profiles/postprocess/PA_Outline_JAA_ADVPIPE_depth16_PP0--PARTITION--BVH.2021-10-02_17-20-26z.128samp.png)
-
-
-
-Ramp shading with outlines:
-
-![Ramp Shading](profiles/postprocess/PA_Outline_JAA_ADVPIPE_depth16_PP01--PARTITION--BVH.2021-10-02_17-21-21z.128samp.png)
+| Outlines                                                     | Ramp Shading                                                 | Ramp Shading with Outlines                                   |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![Outlines](profiles/postprocess/PA_Outline_JAA_ADVPIPE_depth16_PP1--PARTITION--BVH.2021-10-02_17-20-04z.128samp.png) | ![Ramp Shading](profiles/postprocess/PA_Outline_JAA_ADVPIPE_depth16_PP0--PARTITION--BVH.2021-10-02_17-20-26z.128samp.png) | ![Ramp Shading](profiles/postprocess/PA_Outline_JAA_ADVPIPE_depth16_PP01--PARTITION--BVH.2021-10-02_17-21-21z.128samp.png) |
 
 
 
@@ -150,7 +146,7 @@ I apply bilinear interpolation when reading a pixel from a texture by texture co
 
 ### Bounding Volume Hierarchy
 
-Bounding volume hierarchy (BVH) is a hierarchical spatial structure based on bounding volume, which the most common representation is bounding box. Compared to other structures such as the octree and the KD-tree, the BVH is more suitable for static triangle meshes in my opinion, because the BVH makes no difficulties for us to deal with many corner cases, such as objects overlapping at some axes. 
+Bounding volume hierarchy (BVH) is a hierarchical spatial structure based on bounding volume, which the most common representation is bounding box. Compared to other structures such as the octree and the KD-tree, the BVH is more suitable for static triangle meshes in my opinion, because the BVH partitions by objects instead of spatial area, and makes no difficulties for us to deal with many spatial-area-based corner cases, such as objects overlapping at some axes, and determining whether a triangle is in a spatial area. 
 
 The structure of the BVH can be shown by the figure below. each node contains a bounding box, and the subtree is divided based on two smaller bounding boxes. In leaf nodes, there should be some target objects. Using the BVH decreases the average time complexity of ray-triangle intersection from O(N) to O(logN). 
 
@@ -168,23 +164,82 @@ The structure of the BVH can be shown by the figure below. each node contains a 
 
 I build the BVH on CPU and simply pass it to GPU. Because I store the triangle (or geometry) index in leaves, and store node index for left and right children, there is no gap between CPU and GPU, compared to the pointer representation. Since we can set the maximum depth of the BVH or it is obvious that the depth cannot exceeds 32 if we build a half-divided BVH, we can allocate a stack with fixed capacity for depth-first traversal, instead of recursive traversal. In addition, the binary tree can be represented in an array, as the table above shown. In this case, the children of i-th node is the (i\*2+1)-th and (i\*2+2)-th. 
 
-I haven't use any heuristic method, such as surface area heuristic, in this project, because it is more difficult and needs to store more data to build an imbalanced binary tree for GPU, and the improvement of half-divided BVH is good enough. Here are some analysis. 
+I haven't use any heuristic method, such as surface area heuristic, in this project, because it is more difficult and needs to store more data to build an imbalanced binary tree for GPU, and the improvement of half-divided BVH is good enough. 
+
+Here are some analysis for three scenes, with maximum depth 8. Each scene has a triangle mesh object with glossy microfacet GGX material and an HDR image sky sphere, and the three objects have 2000, 135280, 871306 triangles respectively. 
+
+|                          Bunny2000                           |                          Ball135280                          |                         Dragon871306                         |
+| :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+| ![BVH2000](profiles/BVH/PA_BVH2000_JAA_ADVPIPE_depth8--PARTITION.2021-10-02_17-32-00z.128samp.png) | ![BVH135280](profiles/BVH/PA_BVH135280_JAA_ADVPIPE_depth8--PARTITION.2021-10-02_17-33-01z.128samp.png) | ![BVH871306](profiles/BVH/PA_BVH871306_JAA_ADVPIPE_depth8--PARTITION.2021-10-03_02-59-41z.128samp.png) |
 
 
 
+I also tested how passing a sorted triangle array to GPU enabling the triangle index in the BVH leaves consecutive would affect the performance. However it doesn't seem to give an improvement, maybe because the BVH access in each thread is already out of order. 
 
-
-## Questions and Answers
-
-
+![PA_BVH](img/readme/PA_BVH.png)
 
 
 
-## Scene File Format
+It turns out that the fps is extremely low without BVH if the number of triangle is greater and greater. However, with BVH, it still holds a good fps. 
+
+
+
+## Changes
+
+### CMakeList Changes
+
+I add a new project `log_profile` for logging the profile. 
+
+
+
+### Scene File Format
 
 To support more features, I modified the original scene file format. 
 
+Materials are defined in the following fashion:
 
+* MATERIAL (material ID) //material header
+* MATERIAL_TYPE (MaterialType) //material type, including PHONG, DIELECTRIC, MICROFACET_GGX, default is PHONG
+* RGB (float r) (float g) (float b) //diffuse color
+* DIFFUSE_TEXTURE (file) //diffuse texture instead of single color
+* SPECX (float specx) //specular exponent
+* SPECRGB (float r) (float g) (float b) //specular color
+* SPECULAR_TEXTURE (file) //specular texture instead of single color
+* REFL (float refl) //reflectivity flag, 0 for no, 1 for yes, or as a float of 1 - roughness
+* REFR (bool refr) //refractivity flag, 0 for no, 1 for yes
+* REFRIOR (float ior) //index of refraction for Fresnel effects
+* EMITTANCE (float emittance) //the emittance strength of the material. Material is a light source iff emittance > 0.
+
+Cameras are defined in the following fashion:
+
+* CAMERA //camera header
+* RES (float x) (float y) //resolution
+* FOVY (float fovy) //vertical field of view half-angle. the horizonal angle is calculated from this and the reslution
+* ITERATIONS (float interations) //how many iterations to refine the image
+* DEPTH (int depth) //maximum depth (number of times the path will bounce)
+* FILE (string filename) //file to output render to upon completion
+* EYE (float x) (float y) (float z) //camera's position in worldspace
+* LOOKAT (float x) (float y) (float z) //point in space that the camera orbits around and points at
+* UP (float x) (float y) (float z) //camera's up vector
+* POSTPROCESS (integer n) //number of post process, default is 0
+* (OUTLINE_BY_STENCIL stencil r g b width OR COLOR_RAMP texturefile) //post process method and their arguments
+
+Backgrounds are defined in the following fashion:
+
+- BACKGROUND //background header
+- RGB (float r) (float g) (float b) //background color, default is 0,0,0
+- SPHERE_MAP (file) //sky sphere texture instead of single color
+
+Objects are defined in the following fashion:
+
+* OBJECT (object ID) //object header
+* (cube OR sphere OR trimesh) //type of object, can be either "cube", "sphere", or "trimesh". Note that cubes and spheres are unit sized and centered at the origin.
+* material (material ID) //material to assign this object
+* MODEL (file) //model file needed if the type of object is "trimesh"
+* STENCIL (integer stencil) //stencil value of object, default is 0
+* TRANS (float transx) (float transy) (float transz) //translation
+* ROTAT (float rotationx) (float rotationy) (float rotationz) //rotation
+* SCALE (float scalex) (float scaley) (float scalez) //scale
 
 
 
