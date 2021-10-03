@@ -188,6 +188,7 @@ int Scene::loadMaterial(string materialid) {
             if (strcmp(tokens[0].c_str(), "RGB") == 0) {
                 glm::vec3 color( atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()) );
                 newMaterial.color = color;
+                newMaterial.pbrMetallicRoughness.baseColorFactor = color;
             } else if (strcmp(tokens[0].c_str(), "SPECEX") == 0) {
                 newMaterial.specular.exponent = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "SPECRGB") == 0) {
@@ -195,12 +196,15 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.specular.color = specColor;
             } else if (strcmp(tokens[0].c_str(), "REFL") == 0) {
                 newMaterial.hasReflective = atof(tokens[1].c_str());
+                newMaterial.pbrMetallicRoughness.metallicFactor = 0.0f;
             } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
-                newMaterial.emittance = atof(tokens[1].c_str());
+                float e = atof(tokens[1].c_str());
+                newMaterial.emittance = e;
+                newMaterial.emissiveFactor = glm::vec3(e, e, e);
             }
         }
         materials.push_back(newMaterial);
@@ -265,6 +269,30 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
     geoms.push_back(newGeom);
   }
 
+  int mat_offset = materials.size();
+
+  //// Load all materials
+  for (const tinygltf::Material& gltfMat : model.materials) {
+    Material newMat;
+    newMat.pbrMetallicRoughness.baseColorTexture = gltfMat.pbrMetallicRoughness.baseColorTexture;
+    newMat.pbrMetallicRoughness.metallicRoughnessTexture = gltfMat.pbrMetallicRoughness.metallicRoughnessTexture;
+    materials.push_back(newMat);
+  }
+
+  // Iterate through all texture declaration in glTF file
+  for (const tinygltf::Texture& gltfTexture : model.textures) {
+    std::cout << "Found texture: " << gltfTexture.name << std::endl;
+    Texture loadedTexture;
+    const tinygltf::Image& image = model.images[gltfTexture.source];
+    loadedTexture.components = image.component;  // number of components
+    loadedTexture.width = image.width;
+    loadedTexture.height = image.height;
+    loadedTexture.size = image.component * image.width * image.height * sizeof(unsigned char);
+    loadedTexture.image = new unsigned char[loadedTexture.size];
+    memcpy(loadedTexture.image, image.image.data(), loadedTexture.size);
+    textures.push_back(loadedTexture);
+  }
+
   glm::mat4 xform = utilityCore::buildTransformationMatrix(glm::vec3(0, 1, 0), glm::vec3(0), glm::vec3(scale, scale, scale));
 
   // Get all meshes
@@ -285,6 +313,8 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
       const auto byteStride = indicesAccessor.ByteStride(bufferView);
       const size_t count = indicesAccessor.count;
       loadedMesh.count = count;
+
+      loadedMesh.mat_id = mat_offset + meshPrimitive.material;
 
       // Load indices
       loadedMesh.i_offset = mesh_indices.size();
@@ -373,10 +403,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               std::cout << "found texture attribute\n";
 
               loadedMesh.uv_offset = mesh_uvs.size();
-
-              // IMPORTANT: We need to reorder normals (and texture
-              // coordinates into "facevarying" order) for each face
-              // 
+              
               // For each triangle :
               for (int i = 0; i < loadedMesh.count; i += 3) {
                 // get the i'th triange's indexes
@@ -397,6 +424,39 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 mesh_uvs.push_back(t0);
                 mesh_uvs.push_back(t1);
                 mesh_uvs.push_back(t2);
+              }
+            }
+            else if (attribute.first == "TANGENT") {
+              std::cout << "found tangent attribute\n";
+
+              loadedMesh.t_offset = mesh_tangents.size();
+
+              // For each triangle :
+              for (int i = 0; i < loadedMesh.count; i += 3) {
+                // get the i'th triange's indexes
+                int f0 = indices[i + 0];
+                int f1 = indices[i + 1];
+                int f2 = indices[i + 2];
+
+                // get the 3 texture coordinates for each triangle
+                glm::vec4 t0, t1, t2;
+                t0.x = data[4 * f0 + 0];
+                t0.y = data[4 * f0 + 1];
+                t0.z = data[4 * f0 + 2];
+                t0.w = data[4 * f0 + 3];
+                t1.x = data[4 * f1 + 0];
+                t1.y = data[4 * f1 + 1];
+                t1.z = data[4 * f1 + 2];
+                t1.w = data[4 * f1 + 3];
+                t2.x = data[4 * f2 + 0];
+                t2.y = data[4 * f2 + 1];
+                t2.z = data[4 * f2 + 2];
+                t2.w = data[4 * f2 + 3];
+
+                // Put them in the array in the correct order
+                mesh_tangents.push_back(t0);
+                mesh_tangents.push_back(t1);
+                mesh_tangents.push_back(t2);
               }
             }
           }

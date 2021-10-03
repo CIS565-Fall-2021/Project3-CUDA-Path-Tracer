@@ -211,7 +211,7 @@ __host__ __device__ bool hitBox(const Ray& r, const glm::vec3& v_min, const glm:
  * Test intersection between a ray and a mesh
  */
 __host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
-    glm::vec3& intersectionPoint, glm::vec3& normal, glm::vec2& uv, int& materialid) {
+    glm::vec3& intersectionPoint, glm::vec3& normal, glm::vec2& uv, glm::vec4& tangent, int& materialid) {
   
     const Mesh& m = md.meshes[geom.meshid];
 
@@ -255,7 +255,16 @@ __host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
           uv2 = md.uvs[m.uv_offset + f2];
           lerp<glm::vec2>(uv, uv0, uv1, uv2, bary.x, bary.y);
 
+          // Interpolate Tangent
+          glm::vec4 t0, t1, t2;
+          t0 = md.tangents[m.t_offset + f0];
+          t1 = md.tangents[m.t_offset + f1];
+          t2 = md.tangents[m.t_offset + f2];
+          lerp<glm::vec4>(tangent, t0, t1, t2, bary.x, bary.y);
+
           t = bary.z;
+
+          materialid = m.mat_id;
         }
       }
     }

@@ -59,17 +59,8 @@ EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
 
-
-// Ceiling light
-OBJECT 0
-cube
-material 0
-TRANS       0 10 0
-ROTAT       0 0 0
-SCALE       3 .3 3
-
 // Floor
-OBJECT 1
+OBJECT 0
 cube
 material 1
 TRANS       0 0 0
@@ -77,15 +68,15 @@ ROTAT       0 0 0
 SCALE       10 .01 10
 
 // Ceiling
-OBJECT 2
+OBJECT 1
 cube
-material 1
+material 0
 TRANS       0 10 0
 ROTAT       0 0 90
 SCALE       .01 10 10
 
 // Back wall
-OBJECT 3
+OBJECT 2
 cube
 material 1
 TRANS       0 5 -5
@@ -93,7 +84,7 @@ ROTAT       0 90 0
 SCALE       .01 10 10
 
 // Left wall
-OBJECT 4
+OBJECT 3
 cube
 material 2
 TRANS       -5 5 0
@@ -101,7 +92,7 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Right wall
-OBJECT 5
+OBJECT 4
 cube
 material 3
 TRANS       5 5 0

@@ -6,6 +6,7 @@
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/partition.h>
+#include <vector>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -70,6 +71,7 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
     }
 }
 
+//Static variables for device memory, any extra info you need, etc
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
@@ -78,8 +80,11 @@ static PathSegment * dev_paths = NULL;
 static PathSegment * dev_final_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_first_intersections = NULL;
-// TODO: static variables for device memory, any extra info you need, etc
-// ...
+
+// Texture Data
+static cudaTextureObject_t * dev_texObjs = NULL;
+static std::vector<cudaArray_t> dev_texArrays;
+static std::vector<cudaTextureObject_t> texObjs;
 
 // Mesh Data for the GPU
 static MeshData dev_mesh_data;
@@ -89,6 +94,45 @@ template <class T>
 void mallocAndCopy(T* &d, std::vector<T> &h) {
   cudaMalloc(&d, h.size() * sizeof(T));
   cudaMemcpy(d, h.data(), h.size() * sizeof(T), cudaMemcpyHostToDevice);
+}
+
+/**
+* Initialize texture objects
+* Based on: https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-object-api
+*/
+void textureInit(const Texture& tex, int i) {
+    // Allocate CUDA array in device memory
+    cudaTextureObject_t texObj;
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<uchar4>();
+    cudaMallocArray(&dev_texArrays[i], &channelDesc, tex.width, tex.height);
+
+    // Set pitch of the source (the width in memory in bytes of the 2D array pointed
+    // to by src, including padding), we dont have any padding
+    // const size_t spitch = tex.width * sizeof(unsigned char);
+    // Copy texture image in host memory to device memory
+    cudaMemcpyToArray(dev_texArrays[i], 0, 0, tex.image, tex.width * tex.height * tex.components * sizeof(unsigned char), cudaMemcpyHostToDevice);
+
+    // Specify texture
+    struct cudaResourceDesc resDesc;
+    memset(&resDesc, 0, sizeof(resDesc));
+    resDesc.resType = cudaResourceTypeArray;
+    resDesc.res.array.array = dev_texArrays[i];
+
+    // Specify texture object parameters
+    struct cudaTextureDesc texDesc;
+    memset(&texDesc, 0, sizeof(texDesc));
+    texDesc.addressMode[0] = cudaAddressModeWrap;
+    texDesc.addressMode[1] = cudaAddressModeWrap;
+    texDesc.filterMode = cudaFilterModeLinear;
+    texDesc.readMode = cudaReadModeNormalizedFloat;
+    texDesc.normalizedCoords = 1;
+
+    // Create texture object
+    cudaCreateTextureObject(&texObj, &resDesc, &texDesc, NULL);
+    cudaMemcpy(dev_texObjs+i, &texObj, sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice);
+    checkCUDAError("textureInit failed");
+
+    texObjs.push_back(texObj);
 }
 
 void pathtraceInit(Scene *scene) {
@@ -114,6 +158,14 @@ void pathtraceInit(Scene *scene) {
     mallocAndCopy<glm::vec3>(dev_mesh_data.vertices, scene->mesh_vertices);
     mallocAndCopy<glm::vec3>(dev_mesh_data.normals, scene->mesh_normals);
     mallocAndCopy<glm::vec2>(dev_mesh_data.uvs, scene->mesh_uvs);
+    mallocAndCopy<glm::vec4>(dev_mesh_data.tangents, scene->mesh_tangents);
+
+    // Create Texture Memory
+    texObjs.clear(); dev_texArrays.clear();
+    cudaMalloc(&dev_texObjs, scene->textures.size()*sizeof(cudaTextureObject_t));
+    dev_texArrays.resize(scene->textures.size());
+    for (int i = 0; i < scene->textures.size(); i++)
+      textureInit(scene->textures[i], i);
 
     if (CACHE_FIRST_BOUNCE) {
       cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
@@ -129,10 +181,14 @@ void pathtraceFree() {
     cudaFree(dev_geoms);
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
-    // TODO: clean up any extra device memory you created
 
     // Mesh GPU data free
     dev_mesh_data.free();
+
+    for (int i = 0; i < texObjs.size(); i++) {
+      cudaDestroyTextureObject(texObjs[i]);
+      cudaFreeArray(dev_texArrays[i]);
+    }
 
     if (CACHE_FIRST_BOUNCE) {
       cudaFree(dev_first_intersections);
@@ -159,7 +215,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         PathSegment & segment = pathSegments[index];
 
         segment.ray.origin = cam.position;
-        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+        segment.color = Color(1.0);
 
         // TODO: implement antialiasing by jittering the ray
         segment.ray.direction = glm::normalize(cam.view
@@ -196,14 +252,17 @@ __global__ void computeIntersections(
         glm::vec3 intersect_point;
         glm::vec3 normal;
         glm::vec2 uv;
+        glm::vec4 tangent;
         int materialId = -1;
         float t_min = FLT_MAX;
         int hit_geom_index = -1;
         bool outside = true;
 
+        // TODO: Maybe just create a temp ShadeableIntersection object
         glm::vec3 tmp_intersect;
         glm::vec3 tmp_normal;
         glm::vec2 tmp_uv;
+        glm::vec4 tmp_tangent;
 
         // naive parse through global geoms
 
@@ -221,7 +280,7 @@ __global__ void computeIntersections(
             }
             else if (geom.type == MESH)
             {
-                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, materialId);
+                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, tmp_tangent, materialId);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -234,23 +293,23 @@ __global__ void computeIntersections(
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
                 uv = tmp_uv;
+                tangent = tmp_tangent;
             }
         }
 
+        ShadeableIntersection& intersection = intersections[path_index];
         if (hit_geom_index == -1)
         {
-            intersections[path_index].t = -1.0f;
+            intersection.t = -1.0f;
         }
         else
         {
             //The ray hits something
-            intersections[path_index].t = t_min;
-            intersections[path_index].materialId = materialId < 0 ? geoms[hit_geom_index].materialid : materialId;
-            intersections[path_index].surfaceNormal = normal;
-            intersections[path_index].uv = uv;
-            
-            // TODO:
-            // store intersect point?
+            intersection.t = t_min;
+            intersection.materialId = materialId < 0 ? geoms[hit_geom_index].materialid : materialId;
+            intersection.surfaceNormal = normal;
+            intersection.uv = uv;
+            intersection.tangent = tangent;
         }
     }
 }
@@ -260,7 +319,8 @@ __global__ void shadeBSDF(
   , int num_paths
   , ShadeableIntersection* shadeableIntersections
   , PathSegment* pathSegments
-  , Material* materials) {
+  , Material* materials
+  , cudaTextureObject_t* textures) {
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_paths) {
@@ -272,22 +332,20 @@ __global__ void shadeBSDF(
       thrust::uniform_real_distribution<float> u01(0, 1);
 
       Material material = materials[intersection.materialId];
-      glm::vec3 materialColor = material.color;
+      Color materialColor = material.pbrMetallicRoughness.baseColorFactor;
 
       // If the material indicates that the object was a light, "light" the ray
-      if (material.emittance > 0.0f) {
-        pathSegment.color *= (materialColor * material.emittance);
+      if (glm::length(material.emissiveFactor) > 0.0f) {
+        pathSegment.color *= (materialColor * material.emissiveFactor);
         pathSegment.remainingBounces = 0;
       }
       else {
-        glm::vec3 intersect = getPointOnRay(pathSegment.ray, intersection.t);
-        scatterRay(pathSegment, intersect, intersection.surfaceNormal, material, rng);
-
+        scatterRay(pathSegment, intersection, material, textures, rng);
         --pathSegment.remainingBounces;
       }
     }
     else {
-      pathSegment.color = glm::vec3(0.0f);
+      pathSegment.color = Color(0.0f);
       pathSegment.remainingBounces = 0;
     }
 
@@ -342,7 +400,7 @@ __global__ void shadeFakeMaterial (
     // used for opacity, in which case they can indicate "no opacity".
     // This can be useful for post-processing and image compositing.
     } else {
-      pathSegments[idx].color = glm::vec3(0.0f);
+      pathSegments[idx].color = Color(0.0f);
     }
   }
 }
@@ -466,7 +524,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         num_paths,
         dev_intersections,
         dev_paths,
-        dev_materials
+        dev_materials,
+        dev_texObjs
         );
       checkCUDAError("shadeBSDF failed");
 

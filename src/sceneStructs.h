@@ -8,6 +8,8 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
+typedef glm::vec3 Color;
+
 enum GeomType {
     SPHERE,
     CUBE,
@@ -25,6 +27,8 @@ struct Mesh {
     int v_offset;
     int n_offset;
     int uv_offset;
+    int t_offset;
+    int mat_id;
     glm::vec3 bbox_max;
     glm::vec3 bbox_min;
     glm::mat4 pivot_xform;
@@ -36,6 +40,7 @@ struct MeshData {
     glm::vec3* normals;
     uint16_t* indices;
     glm::vec2* uvs;
+    glm::vec4* tangents;
 
     void free() {
       cudaFree(meshes);
@@ -43,6 +48,7 @@ struct MeshData {
       cudaFree(normals);
       cudaFree(indices);
       cudaFree(uvs);
+      cudaFree(tangents);
     }
 };
 
@@ -58,6 +64,42 @@ struct Geom {
     glm::mat4 invTranspose;
 };
 
+struct Texture {
+  int width;
+  int height;
+  int components;
+  unsigned char* image;
+  int size;
+};
+
+struct TextureInfo {
+  int index = -1;
+  int texCoord;
+
+  TextureInfo& operator=(const tinygltf::TextureInfo t) {
+    index = t.index;
+    texCoord = t.texCoord;
+    return *this;
+  }
+};
+
+// Based on tinygltf::PbrMetallicRoughness
+// pbrMetallicRoughness class defined in glTF 2.0 spec.
+// Defining a custom PbrMetallicRoughness struct here because
+// all vectors have to use glm::vec to be supported in CUDA
+struct PbrMetallicRoughness {
+  Color baseColorFactor = Color(1.0f);  // Change to vec4 if alpha is used
+  TextureInfo baseColorTexture;
+  float metallicFactor;   // default 1
+  float roughnessFactor;  // default 1
+  TextureInfo metallicRoughnessTexture;
+
+  __host__ __device__ PbrMetallicRoughness()
+    : baseColorFactor(Color(1.0f)),
+      metallicFactor(1.0f),
+      roughnessFactor(1.0f) {}
+};
+
 struct Material {
     glm::vec3 color;
     struct {
@@ -68,10 +110,13 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
-};
 
-struct Texture {
-  int test;
+    PbrMetallicRoughness pbrMetallicRoughness;
+
+    //tinygltf::NormalTextureInfo normalTexture;
+    //tinygltf::OcclusionTextureInfo occlusionTexture;
+    //tinygltf::TextureInfo emissiveTexture;
+    glm::vec3 emissiveFactor;  // length 3. default [0, 0, 0]
 };
 
 struct Camera {
@@ -96,7 +141,7 @@ struct RenderState {
 
 struct PathSegment {
     Ray ray;
-    glm::vec3 color;
+    Color color;
     int pixelIndex;
     int remainingBounces;
 };
@@ -109,6 +154,7 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   int materialId;
   glm::vec2 uv;
+  glm::vec4 tangent;
 };
 
 // Predicate for checking if a path is complete or not

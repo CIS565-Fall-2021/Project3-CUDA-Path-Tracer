@@ -1,6 +1,8 @@
 #pragma once
 
+
 #include "intersections.h"
+#include "cuda_runtime.h"
 
 // CHECKITOUT
 /**
@@ -42,6 +44,48 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 }
 
 /**
+ * Computes the imperfect specular ray direction.
+ * Based on: https://developer.nvidia.com/gpugems/gpugems3/part-iii-rendering/chapter-20-gpu-based-importance-sampling
+ */
+__host__ __device__
+glm::vec3 calculateImperfectSpecularDirection(
+    glm::vec3 normal, glm::vec3 reflect, glm::vec4 tangent,
+    thrust::default_random_engine& rng, 
+    float roughness, float shininess) {
+
+    thrust::uniform_real_distribution<float> u01(0, roughness);
+    float x1 = 1 + u01(rng);
+    float x2 = u01(rng);
+  
+    float theta = acos(1 / powf(x1, shininess + 1));
+    float phi = 2 * PI * x2;
+  
+    glm::vec3 dir;
+    dir.x = cos(phi) * sin(theta);
+    dir.y = sin(phi) * sin(theta);
+    dir.z = cos(theta);
+    
+    // Transform dir from specular-space to tangent-space
+    float c = glm::dot(normal, reflect);
+    float s = glm::length(glm::cross(normal, reflect));
+    dir = glm::mat3(c, 0.0f, s, 0.0f, 1.0f, 0.0f, -s, 0.0f, c) * dir;
+
+    // Transform dir from tangent-space to world-space
+    glm::vec3 t(tangent);
+    glm::vec3 b = glm::cross(normal, t) * tangent.w;
+    dir = t * dir.x + b * dir.y + normal * dir.z;
+
+    return dir;
+}
+
+__device__
+void sampleTexture(Color& color, cudaTextureObject_t texObj, const glm::vec2 uv) {
+  // NOTE: cudaReadModeNormalizedFloat will convert uchar4 to float4
+  float4 rgba = tex2D<float4>(texObj, uv.x, uv.y);
+  color = Color(rgba.x, rgba.y, rgba.z);
+}
+
+/**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
  * A perfect specular surface scatters in the reflected ray direction.
@@ -66,26 +110,58 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
-__host__ __device__
+__device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+    PathSegment& pathSegment,
+    const ShadeableIntersection& i,
+    const Material& m,
+    cudaTextureObject_t* textures,
+    thrust::default_random_engine &rng) {
     
-    glm::vec3 color;
-    glm::vec3 newDir;
+    glm::vec3 intersect = getPointOnRay(pathSegment.ray, i.t);
 
-    if (m.hasReflective) {
-      newDir = glm::reflect(pathSegment.ray.direction, normal);
+    Color color;
+    glm::vec3 newDir;
+    int txId = -1;
+
+    txId = m.pbrMetallicRoughness.baseColorTexture.index;
+    if (txId < 0) {
+      color = m.pbrMetallicRoughness.baseColorFactor;
     }
     else {
-      newDir = calculateRandomDirectionInHemisphere(normal, rng);
+      sampleTexture(color, textures[txId], i.uv);
     }
-    color = m.color;
+
+    float pM, pR;  // metallic and roughness parameters
+
+    txId = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
+    if (txId < 0) {
+      pM = m.pbrMetallicRoughness.metallicFactor;
+      pR = m.pbrMetallicRoughness.roughnessFactor;
+    }
+    else {
+      Color pbr;
+      sampleTexture(pbr, textures[txId], i.uv);
+      pM = pbr.b * m.pbrMetallicRoughness.metallicFactor;
+      pR = pbr.g * m.pbrMetallicRoughness.roughnessFactor;
+    }
+
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
+    if (u01(rng) < pM) {
+      // Specular
+      glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, i.surfaceNormal);
+      newDir = calculateImperfectSpecularDirection(i.surfaceNormal, reflect, i.tangent, rng, pR, m.specular.exponent);
+      color *= pM;
+    }
+    else {
+      // Diffuse
+      newDir = calculateRandomDirectionInHemisphere(i.surfaceNormal, rng);
+      color *= (1.0f - pM);
+    }
 
     pathSegment.ray.origin = intersect;
     pathSegment.ray.direction = glm::normalize(newDir);
     pathSegment.color *= color;
 }
+
