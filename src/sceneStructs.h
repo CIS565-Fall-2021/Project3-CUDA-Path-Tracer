@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    CUSTOM_OBJ
 };
 
 struct Ray {

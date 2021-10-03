@@ -14,6 +14,7 @@
 #include "intersections.h"
 #include "interactions.h"
 
+
 #define SORT_MATERIAL 1
 #define CACHE_INTERSECTION 1
 
@@ -192,6 +193,9 @@ __global__ void computeIntersections(
             else if (geom.type == SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            }
+            else if (geom.type == CUSTOM_OBJ) {
+                t = customObjIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
