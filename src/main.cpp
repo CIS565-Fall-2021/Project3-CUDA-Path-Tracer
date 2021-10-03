@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
 	{
 		if ((int)scene->geoms[i].type == 2)
 		{
-			p = LoadOBJ(filepathWahoo, filename, scene->geoms[i]);
+			p = LoadOBJ(filepathCube, filename, scene->geoms[i]);
 		}
 	}
 
