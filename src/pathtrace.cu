@@ -41,14 +41,6 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
-/*
-__host__ __device__
-thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
-    int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
-    return thrust::default_random_engine(h);
-}
-*/
-
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
         int iter, glm::vec3* image) {
@@ -89,13 +81,14 @@ void pathtraceInit(Scene *scene) {
     hst_scene = scene;
     const Camera &cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
+    const int pixSamples = hst_scene->state.pixSamples;
 
     cudaMalloc(&dev_image, pixelcount * sizeof(glm::vec3));
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
-    cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
-    cudaMalloc(&dev_paths2, pixelcount * sizeof(PathSegment));
-    cudaMalloc(&dev_pathBounce1Cache, pixelcount * sizeof(PathSegment));
+    cudaMalloc(&dev_paths, pixelcount * pixSamples * sizeof(PathSegment));
+    cudaMalloc(&dev_paths2, pixelcount * pixSamples * sizeof(PathSegment));
+    cudaMalloc(&dev_pathBounce1Cache, pixelcount * pixSamples * sizeof(PathSegment));
 
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
@@ -103,10 +96,10 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
     cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
-    cudaMalloc(&dev_intersections2, pixelcount * sizeof(ShadeableIntersection));
-    cudaMalloc(&dev_itxnBounce1Cache, pixelcount * sizeof(ShadeableIntersection));
-    cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+    cudaMalloc(&dev_intersections, pixelcount * pixSamples * sizeof(ShadeableIntersection));
+    cudaMalloc(&dev_intersections2, pixelcount * pixSamples * sizeof(ShadeableIntersection));
+    cudaMalloc(&dev_itxnBounce1Cache, pixelcount * pixSamples * sizeof(ShadeableIntersection));
+    cudaMemset(dev_intersections, 0, pixelcount * pixSamples * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
 
@@ -183,7 +176,11 @@ __device__ void samplePointOnLens(thrust::default_random_engine rng,
     *lensV *= lensRadius;
 }
 
-__global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCameraDOF(Camera cam, 
+										 int iter, 
+										 int traceDepth, 
+										 PathSegment* pathSegments, 
+										 int pixSamples)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -215,12 +212,16 @@ __global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, P
 
         // initialixe other aspects of path segment
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
-        segment.pixelIndex = index;
+        segment.pixelIndex = index / pixSamples;
         segment.remainingBounces = traceDepth;
     }
 }
 
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCamera(Camera cam, 
+									  int iter, 
+									  int traceDepth, 
+									  PathSegment* pathSegments,
+									  int pixSamples)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -548,7 +549,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     //   for you.
     int depth = 0;
-    PathSegment* dev_path_end = dev_paths + pixelcount;
+    PathSegment* dev_path_end = dev_paths + pixelcount * hst_scene->state.pixSamples;
     int num_paths = dev_path_end - dev_paths;
     int preCulledNumPaths = num_paths;
     PathSegment* pathSwp;
@@ -569,10 +570,18 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     else {
         // cast camera rays using either the DOF kernel or the pinhole kernel
         if (hst_scene->state.useDOF) {
-            generateRayFromCameraDOF << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+            generateRayFromCameraDOF<<<blocksPerGrid2d, blockSize2d>>>(cam, 
+																	   iter, 
+																	   traceDepth, 
+																	   dev_paths, 
+																	   hst_scene->state.pixSamples);
         }
         else {
-            generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+            generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, 
+																	iter, 
+																	traceDepth, 
+																	dev_paths, 
+																	hst_scene->state.pixSamples);
         }
         checkCUDAError("generate camera ray");
     }
@@ -655,7 +664,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     
     // Assemble this iteration and apply it to the image
-    dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
+    dim3 numBlocksPixels = (pixelcount * hst_scene->state.pixSamples + blockSize1d - 1) / blockSize1d;
     finalGather<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths, dev_image, dev_paths, iter);
 
     // reset num_paths. We've culled some but want the full number next iteration

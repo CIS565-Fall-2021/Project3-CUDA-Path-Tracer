@@ -206,7 +206,7 @@ int Scene::loadSceneSettings() {
     RenderState &state = this->state;
 
     //load static properties
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         string line;
         utilityCore::safeGetline(fp_in, line);
         vector<string> tokens = utilityCore::tokenizeString(line);
@@ -218,6 +218,9 @@ int Scene::loadSceneSettings() {
         }
         else if (strcmp(tokens[0].c_str(), "USE_DOF") == 0) {
             state.useDOF = atoi(tokens[1].c_str());
+        }
+        else if (strcmp(tokens[0].c_str(), "SAMPLES_PER_PIX") == 0) {
+            state.pixSamples = atoi(tokens[1].c_str());
         }
     }
     return 1;
