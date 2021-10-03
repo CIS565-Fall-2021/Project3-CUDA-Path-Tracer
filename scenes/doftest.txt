@@ -2,6 +2,7 @@
 SETTINGS
 SORT_MATERIALS 1
 CACHE_BOUNCE 0
+USE_DOF 0
 
 // Emissive material (light)
 MATERIAL 0

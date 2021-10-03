@@ -63,6 +63,7 @@ struct RenderState {
     std::string imageName;
     bool sortMaterials = false;
     bool cacheFirstBounce = false;
+    bool useDOF = false;
 };
 
 struct PathSegment {

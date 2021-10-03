@@ -183,62 +183,6 @@ __device__ void samplePointOnLens(thrust::default_random_engine rng,
     *lensV *= lensRadius;
 }
 
-//__global__ void generateRayFromCameraDOF(Camera cam, 
-//                                         int iter, 
-//                                         int traceDepth, 
-//                                         PathSegment* pathSegments){
-//    // TODO, this is a repeated line. just make one
-//    float LENSRADIUS = 1.0f;
-//    float FOCALDIST = 1.0f;
-//
-//    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
-//    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
-//
-//      thrust::default_random_engine rng = makeSeededRandomEngine(iter, x+y, 0);
-//    if (x < cam.resolution.x && y < cam.resolution.y) {
-//        int index = x + (y * cam.resolution.x);
-//        PathSegment & segment = pathSegments[index];
-//
-//        //segment.ray.origin = cam.position;
-//        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
-//
-//        // TODO: implement antialiasing by jittering the ray
-//        segment.ray.origin = glm::normalize(cam.position
-//            + cam.right * cam.pixelLength.x * 10.0f * ((float)x - (float)cam.resolution.x * 0.5f)
-//            + cam.up * cam.pixelLength.y * 10.0f *((float)y - (float)cam.resolution.y * 0.5f)
-//            );
-//        segment.ray.direction = cam.view;
-//
-//        /*
-//        float u = cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f);
-//        float v = cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f);
-//
-//
-//
-//        // pfocus = ray.origin + focalDist * ray.direction
-//
-//        float lensU, lensV;
-//
-//        samplePointOnLens(rng, 
-//						  &lensU, 
-//						  &lensV, 
-//						  LENSRADIUS);
-//
-//        float ft = FOCALDIST / segment.ray.direction.z;
-//        // not sure about this line here
-//        glm::vec3 Pfocus = glm::vec3(ft);
-//        
-//        segment.ray.origin = glm::vec3(lensU, lensV, 0.0f);
-//        //segment.ray.direction = glm::normalize(Pfocus - segment.ray.origin);
-//
-//        segment.color = segment.ray.origin * 20.0f;
-//        segment.remainingBounces = 0;
-//        */
-//        segment.pixelIndex = index;
-//        segment.remainingBounces = traceDepth;
-//    }
-//}
-
 __global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -623,7 +567,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         depth=1;
     }
     else {
-        generateRayFromCameraDOF << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+        // cast camera rays using either the DOF kernel or the pinhole kernel
+        if (hst_scene->state.useDOF) {
+            generateRayFromCameraDOF << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+        }
+        else {
+            generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
+        }
         checkCUDAError("generate camera ray");
     }
 
