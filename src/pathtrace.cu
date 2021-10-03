@@ -141,8 +141,9 @@ void pathtraceFree() {
 // Sections 6.2.3 and 13.6
 __device__ void concentricSampleDisk(thrust::default_random_engine& rng,
 								  float* dx,
-								  float* dy) {
-    thrust::uniform_real_distribution<float> un11(-1.0f, 1.0f);
+								  float* dy,
+                                  float apSize) {
+    thrust::uniform_real_distribution<float> un11(-1.0f * apSize, apSize);
     float r;
     float theta;
     float sy = un11(rng);
@@ -175,8 +176,9 @@ __device__ void concentricSampleDisk(thrust::default_random_engine& rng,
 __device__ void samplePointOnLens(thrust::default_random_engine rng,
                                   float *lensU,
                                   float *lensV,
-                                  float lensRadius) {
-    concentricSampleDisk(rng, lensU, lensV);
+                                  float lensRadius,
+                                  float apSize) {
+    concentricSampleDisk(rng, lensU, lensV, apSize);
     *lensU *= lensRadius;
     *lensV *= lensRadius;
 }
@@ -246,23 +248,29 @@ __global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, P
         int index = x + (y * cam.resolution.x);
         PathSegment & segment = pathSegments[index];
 
-        float u, v;
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, x+y, 0);
-
-        samplePointOnLens(rng, &u, &v, 0.1f);
-
-        //
-//        // pfocus = ray.origin + focalDist * ray.direction
-
-        segment.ray.origin = cam.position + u*cam.right + v*cam.up;
-        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
-
-        // TODO: implement antialiasing by jittering the ray
+        // calculate initial rays based on pin-hole camera
         segment.ray.direction = glm::normalize(cam.view
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
             );
 
+        // find the point on plane of focus, i.e. the plane on which all rays bent 
+        // by the lens well converge
+        glm::vec3 pfocus = cam.position + segment.ray.direction * cam.focalDist;
+
+        // Offset the ray origins. Rather than all being from one point, they are now
+        // effectively cast from an aperture
+        float u, v;
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+        samplePointOnLens(rng, &u, &v, cam.lensRadius, cam.aperture);
+        segment.ray.origin = cam.position + u*cam.right + v*cam.up;
+
+        // recalculate ray direction based on aperture/lens model. Ray now
+        // points to the point of focus
+        segment.ray.direction = glm::normalize(pfocus - segment.ray.origin);
+
+        // initialixe other aspects of path segment
+        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
