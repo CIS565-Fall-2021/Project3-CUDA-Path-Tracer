@@ -1,3 +1,10 @@
+// Scene settings
+SETTINGS
+SORT_MATERIALS 1
+CACHE_BOUNCE 0
+USE_DOF 0
+SAMPLES_PER_PIX 2
+
 // Emissive material (light)
 MATERIAL 0
 RGB         1 1 1
@@ -6,11 +13,12 @@ SPECRGB     0 0 0
 REFL        0
 REFR        0
 REFRIOR     0
+FRESNELPOW  5
 EMITTANCE   5
 
 // Camera
 CAMERA
-RES         800 800
+RES         50 50
 FOVY        45
 ITERATIONS  5000
 DEPTH       8
@@ -26,6 +34,6 @@ UP          0 1 0
 OBJECT 0
 sphere
 material 0
-TRANS       0 0 0
+TRANS       0 10 0
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       50 50 3
