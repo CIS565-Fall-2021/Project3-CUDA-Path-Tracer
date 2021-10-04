@@ -150,10 +150,6 @@ __host__ __device__ float TriangleArea(glm::vec4 a_p1, glm::vec4 a_p2, glm::vec4
     glm::vec4 p1 = a_p1;
     glm::vec4 p2 = a_p2;
     glm::vec4 p3 = a_p3;
-    //float dist = glm::length(glm::cross(glm::vec3(a_p2[0]/ a_p2[2] - a_p1[0]/ a_p1[2], a_p2[1]/ a_p2[2] - a_p1[1]/ a_p2[2], 0.0f),
-    //    glm::vec3(a_p3[0]/ a_p3[2] - a_p1[0]/ a_p1[2], a_p3[1]/ a_p3[2] - a_p1[1]/ a_p1[2], 0.0f)));
-    //float A = 0.5f * glm::length(glm::cross(glm::vec3(a_p2[0] / a_p2[2] - a_p1[0] / a_p1[2], a_p2[1] / a_p2[2] - a_p1[1] / a_p1[2], 0.0f),
-    //    glm::vec3(a_p3[0] / a_p3[2] - a_p1[0] / a_p1[2], a_p3[1] / a_p3[2] - a_p1[1] / a_p1[2], 0.0f)));
     float A = 0.5f * glm::length(glm::cross(glm::vec3(a_p2[0] - a_p1[0], a_p2[1] - a_p1[1], a_p2[2] - a_p1[2]),
         glm::vec3(a_p3[0] - a_p1[0], a_p3[1] - a_p1[1], a_p3[2] - a_p1[2])));
     return A;
