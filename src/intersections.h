@@ -188,6 +188,10 @@ __host__ __device__ float MeshIntersectionTest(Geom objGeom,TriangleCustom *mesh
     glm::vec3 internormal;
     int count = objGeom.triangleCount;
 
+    glm::vec3 minBary = glm::vec3(INT_MAX, INT_MAX, INT_MAX);
+    glm::vec3 BaryPosition;
+    glm::vec4 n1, n2, n3;
+
     for (int i = 0; i < count; i++)
     {
         //glm::vec4 p1 = glm::vec3(multiplyMV(objGeom.transform, objGeom.meshTriangles[i].points[0]));
@@ -205,23 +209,33 @@ __host__ __device__ float MeshIntersectionTest(Geom objGeom,TriangleCustom *mesh
         //glm::vec4 p2 = objGeom.transform * glm::vec4(1, 2, 1, 1);
         //glm::vec4 p3  = objGeom.transform * glm::vec4(2, 1, 1, 1);
 
-        intersection = glm::intersectRayTriangle(r.origin, r.direction, glm::vec3(p1), glm::vec3(p2), glm::vec3(p3), interPoint);
-
-
+        intersection = glm::intersectRayTriangle(r.origin, r.direction, glm::vec3(p1), glm::vec3(p2), glm::vec3(p3), BaryPosition);
 
         if (intersection)
         {
+            if (BaryPosition[2] >= 0 && BaryPosition[2] < minBary[2])
+            {
+                minBary = BaryPosition;
+            }
+            n1 = mesh[i].points_normals[1];
+            n2 = mesh[i].points_normals[3];
+            n3 = mesh[i].points_normals[5];
           /*  glm::vec4 n1 = mesh[i].points_normals[1];
             glm::vec4 n2 = mesh[i].points_normals[3];
             glm::vec4 n3 = mesh[i].points_normals[5];
             internormal = glm::vec3(GetBarycentricWeightedNormal(p1, n1, p2, n2, p3, n3, glm::vec4(interPoint, 1.0f)));
             internormal = glm::normalize(internormal);*/
-            internormal = glm::triangleNormal(glm::vec3(p1), glm::vec3(p2), glm::vec3(p3));
+            //internormal = glm::triangleNormal(glm::vec3(p1), glm::vec3(p2), glm::vec3(p3));
             break;
         }
     }
     if (intersection)
     {
+        float u = minBary[0];
+        float v = minBary[1];
+        float t = minBary[2];
+        interPoint = getPointOnRay(r, t);
+        internormal = glm::vec3(u * n1 + v * n2 + (1 - u - v) * n3);
         intersectionPoint = interPoint;
         normal = internormal;
         return glm::length(r.origin - intersectionPoint);
