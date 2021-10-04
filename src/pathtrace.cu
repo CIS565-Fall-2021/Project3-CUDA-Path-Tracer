@@ -89,7 +89,7 @@ int cacheNumPaths = 0;
 TriangleCustom* dev_meshTriangles;
 
 bool usingCache = false;
-bool usingDOF= true;
+bool usingDOF= false;
 
 void pathtraceInit(Scene* scene) {
 	hst_scene = scene;

@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
+#include <glm/gtx/normal.hpp>
 
 #include "sceneStructs.h"
 #include "utilities.h"
@@ -214,11 +215,12 @@ __host__ __device__ float MeshIntersectionTest(Geom objGeom,TriangleCustom *mesh
 
         if (intersection)
         {
-            glm::vec4 n1 = mesh[i].points_normals[1];
+          /*  glm::vec4 n1 = mesh[i].points_normals[1];
             glm::vec4 n2 = mesh[i].points_normals[3];
             glm::vec4 n3 = mesh[i].points_normals[5];
             internormal = glm::vec3(GetBarycentricWeightedNormal(p1, n1, p2, n2, p3, n3, glm::vec4(interPoint, 1.0f)));
-            internormal = glm::normalize(internormal);
+            internormal = glm::normalize(internormal);*/
+            internormal = glm::triangleNormal(glm::vec3(p1), glm::vec3(p2), glm::vec3(p3));
             break;
         }
     }
