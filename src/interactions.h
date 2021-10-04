@@ -98,7 +98,6 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment,
     // check if the current ray is in material
     glm::vec3 in_direction = glm::normalize(pathSegment.ray.direction);
     bool is_inMaterial     = glm::dot(in_direction, normal) > 0.0f;
-    glm::vec3 true_normal  = (is_inMaterial) ? -1.0f * normal : normal;
 
     if (random_sample < m.hasRefractive) {
       float idx_refraction_ratio =
@@ -111,28 +110,26 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment,
       // As refraction is determined by both reflection & transmission,
       // probabilistically determine whether the next ray is reflective ray or
       // transmission ray
-      glm::vec3 out_refracted_dir = glm::refract(
-          in_direction, glm::normalize(true_normal), idx_refraction_ratio);
+      glm::vec3 out_refracted_dir =
+          glm::refract(in_direction, normal, idx_refraction_ratio);
       const float prob = u01(rng);
-      if (prob < fresnel_factor || glm::length(out_refracted_dir) < EPS) {
-        pathSegment.ray.direction = glm::reflect(in_direction, true_normal);
-        pathSegment.ray.origin    = intersect + EPS * true_normal;
-      } else {
-        pathSegment.ray.direction = out_refracted_dir;
-        pathSegment.ray.origin    = intersect - EPS * true_normal;
-      }
+      pathSegment.ray.direction =
+          (prob < fresnel_factor || glm::length(out_refracted_dir) < EPS)
+              ? glm::reflect(in_direction, normal)
+              : out_refracted_dir;
       pathSegment.color *= m.specular.color;
     } else if (random_sample < m.hasReflective) {
-      pathSegment.ray.direction = glm::reflect(in_direction, true_normal);
+      pathSegment.ray.direction = glm::reflect(in_direction, normal);
       pathSegment.color *= m.specular.color;
-      pathSegment.ray.origin = intersect + EPS * true_normal;
     } else {
       pathSegment.ray.direction =
-          calculateRandomDirectionInHemisphere(true_normal, rng);
-      pathSegment.ray.origin = intersect + EPS * true_normal;
+          calculateRandomDirectionInHemisphere(normal, rng);
     }
 
     --pathSegment.remainingBounces;
+    // 0.001f is a really WIERD magic number here. We cannot unify this offset
+    // with EPS since that would BREAK the refraction renderer.
+    pathSegment.ray.origin = intersect + 0.001f * pathSegment.ray.direction;
     pathSegment.color *= m.color;
     pathSegment.color =
         glm::clamp(pathSegment.color, glm::vec3(0.f), glm::vec3(1.0f));
