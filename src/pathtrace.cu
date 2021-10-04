@@ -21,7 +21,7 @@
 #define ERRORCHECK 1
 #define SUB_PIXEL_SAMPLE 10
 #define USE_ANTIALIASING 1
-#define USE_MATERIAL_SORT 1
+#define USE_MATERIAL_SORT 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
