@@ -18,3 +18,17 @@ Finished path tracing core features:
 - radix sort by material type
 - path continuation/termination by Thrust stream compaction 
 
+Finished Advanced Features:
+- Refraction with Fresnel effects using Schlick's approximation
+- Stochastic sampled anti-aliasing
+
+### Ray Refraction for Glass-like Materials
+|            Perfect Specular Reflection             |               Glass-like Refraction                |
+| :------------------------------------------------: | :------------------------------------------------: |
+| ![](img/cornell.2021-10-04_02-10-06z.5000samp.png) | ![](img/cornell.2021-10-04_01-57-31z.5000samp.png) |
+
+### Stochastic Sampled Anti-Aliasing
+|                 1x Anti-Aliasing (Feature OFF)                  |                        4x Anti-Aliasing                         |
+| :-------------------------------------------------------------: | :-------------------------------------------------------------: |
+| ![](img/cornell.2021-10-04_01-14-01z.5000samp-antialias-1x.png) | ![](img/cornell.2021-10-04_01-07-24z.5000samp-antialias-4x.png) |
+

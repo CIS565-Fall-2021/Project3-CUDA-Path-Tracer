@@ -81,10 +81,14 @@ static PathSegment *dev_paths                   = NULL;
 static ShadeableIntersection *dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
-static int *dev_materialIDs       = NULL;
-static int *dev_materialIDBuffers = NULL;
+static int *dev_materialIDs        = NULL;
+static int *dev_materialIDBuffers  = NULL;
+static glm::vec3 *dev_image_buffer = NULL;
+
+// first-bounce intersection caching
 #ifdef CACHE_INTERSECTIONS
 static ShadeableIntersection *dev_intersections_cache = NULL;
+static int *dev_materialIDs_cache                     = NULL;
 #endif
 
 void pathtraceInit(Scene *scene) {
@@ -95,7 +99,7 @@ void pathtraceInit(Scene *scene) {
   cudaMalloc(&dev_image, pixelcount * sizeof(glm::vec3));
   cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
-  cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
+  cudaMalloc(&dev_paths, ANTIALIAS_FACTOR * pixelcount * sizeof(PathSegment));
 
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom),
@@ -106,15 +110,22 @@ void pathtraceInit(Scene *scene) {
              scene->materials.size() * sizeof(Material),
              cudaMemcpyHostToDevice);
 
-  cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
-  cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+  cudaMalloc(&dev_intersections,
+             ANTIALIAS_FACTOR * pixelcount * sizeof(ShadeableIntersection));
+  cudaMemset(dev_intersections, 0,
+             ANTIALIAS_FACTOR * pixelcount * sizeof(ShadeableIntersection));
 
   // TODO: initialize any extra device memeory you need
-  cudaMalloc((void **)&dev_materialIDs, pixelcount * sizeof(int));
-  cudaMalloc((void **)&dev_materialIDBuffers, pixelcount * sizeof(int));
+  cudaMalloc((void **)&dev_materialIDs,
+             ANTIALIAS_FACTOR * pixelcount * sizeof(int));
+  cudaMalloc((void **)&dev_materialIDBuffers,
+             ANTIALIAS_FACTOR * pixelcount * sizeof(int));
+  cudaMalloc(&dev_image_buffer, pixelcount * sizeof(glm::vec3));
 #ifdef CACHE_INTERSECTIONS
   cudaMalloc((void **)&dev_intersections_cache,
-             pixelcount * sizeof(ShadeableIntersection));
+             ANTIALIAS_FACTOR * pixelcount * sizeof(ShadeableIntersection));
+  cudaMalloc((void **)&dev_materialIDs_cache,
+             ANTIALIAS_FACTOR * pixelcount * sizeof(int));
 #endif
 
   checkCUDAError("pathtraceInit");
@@ -129,8 +140,10 @@ void pathtraceFree() {
   // TODO: clean up any extra device memory you created
   cudaFree(dev_materialIDs);
   cudaFree(dev_materialIDBuffers);
+  cudaFree(dev_image_buffer);
 #ifdef CACHE_INTERSECTIONS
   cudaFree(dev_intersections_cache);
+  cudaFree(dev_materialIDs_cache);
 #endif
 
   checkCUDAError("pathtraceFree");
@@ -150,13 +163,14 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth,
   int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
   if (x < cam.resolution.x && y < cam.resolution.y) {
-    int index            = x + (y * cam.resolution.x);
-    PathSegment &segment = pathSegments[index];
+    int index = x + (y * cam.resolution.x);
 
-    segment.ray.origin = cam.position;
-    segment.color      = glm::vec3(1.0f, 1.0f, 1.0f);
-
-    // TODO: implement antialiasing by jittering the ray
+    // primary ray per pixel
+    PathSegment &segment     = pathSegments[index];
+    segment.ray.origin       = cam.position;
+    segment.color            = glm::vec3(1.0f, 1.0f, 1.0f);
+    segment.pixelIndex       = index;
+    segment.remainingBounces = traceDepth;
     segment.ray.direction =
         glm::normalize(cam.view -
                        cam.right * cam.pixelLength.x *
@@ -164,8 +178,25 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth,
                        cam.up * cam.pixelLength.y *
                            ((float)y - (float)cam.resolution.y * 0.5f));
 
-    segment.pixelIndex       = index;
-    segment.remainingBounces = traceDepth;
+    // implement antialiasing by jittering the ray
+    // sub-sampled extra rays per pixel
+    int pixelcount = cam.resolution.x * cam.resolution.y;
+    for (int i = 1; i < ANTIALIAS_FACTOR; ++i) {
+      PathSegment &extra_segment     = pathSegments[i * pixelcount + index];
+      extra_segment.ray.origin       = cam.position;
+      extra_segment.color            = glm::vec3(1.0f, 1.0f, 1.0f);
+      extra_segment.pixelIndex       = index;
+      extra_segment.remainingBounces = traceDepth;
+      thrust::default_random_engine rng =
+          makeSeededRandomEngine(iter, index, i);
+      thrust::uniform_real_distribution<float> u01(0, 1);
+      extra_segment.ray.direction = glm::normalize(
+          cam.view -
+          cam.right * cam.pixelLength.x *
+              ((float)x + u01(rng) - (float)cam.resolution.x * 0.5f) -
+          cam.up * cam.pixelLength.y *
+              ((float)y + u01(rng) - (float)cam.resolution.y * 0.5f));
+    }
   }
 }
 
@@ -263,14 +294,25 @@ __global__ void shadeMaterial(
   }
 }
 
-// Add the current iteration's output to the overall image
-__global__ void finalGather(int nPaths, glm::vec3 *image,
-                            PathSegment *iterationPaths) {
+// Add the current iteration's output to the image buffer
+__global__ void finalGather(int nPaths, glm::vec3 *img_buffer,
+                            const PathSegment *iterationPaths) {
   int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-
   if (index < nPaths) {
     PathSegment iterationPath = iterationPaths[index];
-    image[iterationPath.pixelIndex] += iterationPath.color;
+    atomicAdd(&img_buffer[iterationPath.pixelIndex][0], iterationPath.color[0]);
+    atomicAdd(&img_buffer[iterationPath.pixelIndex][1], iterationPath.color[1]);
+    atomicAdd(&img_buffer[iterationPath.pixelIndex][2], iterationPath.color[2]);
+  }
+}
+
+// Average the accumulative subpixel values in image buffer & add it to final
+// image
+__global__ void addToImage(int pixelcount, glm::vec3 *image,
+                           const glm::vec3 *img_buffer) {
+  int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if (index < pixelcount) {
+    image[index] += (img_buffer[index] / (1.0f * ANTIALIAS_FACTOR));
   }
 }
 
@@ -326,15 +368,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   checkCUDAError("generate camera ray");
 
   int depth            = 0;
-  int num_active_paths = pixelcount;
+  int num_active_paths = ANTIALIAS_FACTOR * pixelcount;
 
   // --- PathSegment Tracing Stage ---
   // Shoot ray into scene, bounce between objects, push shading chunks
-
   while (num_active_paths > 0) {
     // clean shading chunks
     cudaMemset(dev_intersections, 0,
-               pixelcount * sizeof(ShadeableIntersection));
+               ANTIALIAS_FACTOR * pixelcount * sizeof(ShadeableIntersection));
 
     // --- Tracing Stage ---
     dim3 numblocksPathSegmentTracing =
@@ -345,6 +386,18 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       cudaMemcpy(dev_intersections, dev_intersections_cache,
                  pixelcount * sizeof(ShadeableIntersection),
                  cudaMemcpyDeviceToDevice);
+      cudaMemcpy(dev_materialIDs, dev_materialIDs_cache,
+                 pixelcount * sizeof(int), cudaMemcpyDeviceToDevice);
+      if (num_active_paths - pixelcount > 0) {
+        dim3 numBlocksAntialiasTracing =
+            (num_active_paths - pixelcount + blockSize1d - 1) / blockSize1d;
+        computeIntersections<<<numBlocksAntialiasTracing, blockSize1d>>>(
+            depth, num_active_paths - pixelcount, dev_paths + pixelcount,
+            dev_geoms, hst_scene->geoms.size(), dev_intersections + pixelcount,
+            dev_materialIDs + pixelcount);
+        checkCUDAError("anti-alias extra rays trace one bounce");
+        cudaDeviceSynchronize();
+      }
     } else {
       computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
           depth, num_active_paths, dev_paths, dev_geoms,
@@ -356,6 +409,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         cudaMemcpy(dev_intersections_cache, dev_intersections,
                    pixelcount * sizeof(ShadeableIntersection),
                    cudaMemcpyDeviceToDevice);
+        cudaMemcpy(dev_materialIDs_cache, dev_materialIDs,
+                   pixelcount * sizeof(int), cudaMemcpyDeviceToDevice);
       }
     }
 #else
@@ -401,9 +456,14 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   }
 
   // Assemble this iteration and apply it to the image
+  cudaMemset(dev_image_buffer, 0, pixelcount * sizeof(glm::vec3));
+  dim3 numBlocksSubPixels =
+      (ANTIALIAS_FACTOR * pixelcount + blockSize1d - 1) / blockSize1d;
+  finalGather<<<numBlocksSubPixels, blockSize1d>>>(
+      ANTIALIAS_FACTOR * pixelcount, dev_image_buffer, dev_paths);
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-  finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image,
-                                                dev_paths);
+  addToImage<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image,
+                                               dev_image_buffer);
 
   // Send results to OpenGL buffer for rendering
   sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter,

@@ -5,7 +5,8 @@
 #include <device_launch_parameters.h>
 
 #define CACHE_INTERSECTIONS
-#define EPS 0.0001f
+#define EPS              0.0001f
+#define ANTIALIAS_FACTOR 4
 
 namespace static_config {
 
