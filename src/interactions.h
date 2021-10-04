@@ -49,18 +49,6 @@ __host__ __device__
 #define SMALL_OFFSET 0.001f
 #define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
 
-__host__ __device__ __forceinline__ void diffuse(
-    PathSegment &pathSegment,
-    glm::vec3 intersect,
-    glm::vec3 normal,
-    const Material &m,
-    thrust::default_random_engine &rng,
-    glm::vec3 &colorAcc)
-{
-    pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-    pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
-    colorAcc = m.color;
-}
 __host__ __device__ float reflectance(float cosine, float ior)
 {
     float r0 = (1 - ior) / (1 + ior);
@@ -112,14 +100,11 @@ __host__ __device__ void scatterRay(
     glm::vec3 origAcc(0.f);
     glm::vec3 dirAcc(0.f);
     thrust::uniform_real_distribution<float> u01(0, 1);
+    // This lets us probabilistically choose refractive, reflective, and diffuse
+    float randFloat(u01(rng));
 
-    if (m.hasReflective > 0.f) // Shiny
-    {
-        colorAcc = m.specular.color;
-        origAcc = intersect + OFFSET_VECTOR(normal);
-        dirAcc = glm::reflect(cacheDir, normal);
-    }
-    else if (m.hasRefractive > 0.f) // bendy-lite
+    // if (m.hasRefractive > 0.f) // will bend light but this also applies glass stuff
+    if (randFloat < m.hasRefractive)
     {
         // TODO: When to normalize
 
@@ -139,6 +124,13 @@ __host__ __device__ void scatterRay(
         origAcc = offsetOrigin;
         dirAcc = refractedDir;
         colorAcc = willReflect ? m.specular.color : glm::vec3(1.f);
+    }
+    // else if (m.hasReflective > 0.f) // Shiny
+    else if (randFloat < m.hasReflective)
+    {
+        colorAcc = m.specular.color;
+        origAcc = intersect + OFFSET_VECTOR(normal);
+        dirAcc = glm::reflect(cacheDir, normal);
     }
     else // Else lambort
     {
