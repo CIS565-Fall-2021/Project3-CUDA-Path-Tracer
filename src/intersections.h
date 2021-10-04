@@ -101,8 +101,10 @@ __host__ __device__ float customObjIntersectionTest(Geom custom_obj, Ray r,
     glm::vec3& intersectionPoint, glm::vec3 vertex1, glm::vec3 vertex2, glm::vec3 vertex3, 
     int vertexCount, glm::vec3& normal, bool& outside) {
 
-    outside = false;
-    glm::intersectRayTriangle(r.origin, r.direction, vertex1, vertex2, vertex3, intersectionPoint);
+    glm::vec3 ro = multiplyMV(custom_obj.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 rd = glm::normalize(multiplyMV(custom_obj.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    glm::intersectRayTriangle(ro, rd, vertex1, vertex2, vertex3, intersectionPoint);
     intersectionPoint = multiplyMV(custom_obj.transform, glm::vec4(intersectionPoint, 1.0));
 
     return glm::length(r.origin - intersectionPoint);
