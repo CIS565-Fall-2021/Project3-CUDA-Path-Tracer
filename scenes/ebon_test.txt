@@ -28,6 +28,6 @@ UP          0 1 0
 OBJECT 0
 mesh ../scenes/ebon_hawk/scene.obj
 material 0
-TRANS       0 0 0
+TRANS       0 5 -10
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       0.002 0.002 0.002
