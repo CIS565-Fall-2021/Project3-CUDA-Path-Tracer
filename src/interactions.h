@@ -83,15 +83,15 @@ void scatterRay(
     glm::vec3 norVec = glm::normalize(normal); 
 
     if (prob < m.hasReflective) {
-        pathSegment.ray.origin = intersect + (float)0.001f * norVec;
+        pathSegment.ray.origin = intersect + (float) EPSILON * norVec;
         pathSegment.ray.direction = glm::normalize(glm::reflect(rayVec, norVec)); // Reflection  
     } 
     else if (prob < (m.hasReflective + m.hasRefractive)) {
-        pathSegment.ray.origin = intersect + (float)0.001f * norVec;
+        pathSegment.ray.origin = intersect + (float) EPSILON * norVec;
         pathSegment.ray.direction = glm::normalize(glm::refract(rayVec, norVec, m.indexOfRefraction)); // Refraction 
     } 
     else {
-        pathSegment.ray.origin = intersect + (float)0.001f * norVec;
+        pathSegment.ray.origin = intersect + (float) EPSILON * norVec;
         pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng)); // Diffuse
     }
     pathSegment.color *= m.color;

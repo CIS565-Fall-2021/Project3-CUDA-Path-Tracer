@@ -64,6 +64,14 @@ struct hasNoRemainingBounces
     }
 };
 
+struct compareMaterial
+{
+    __host__ __device__ bool operator()(const ShadeableIntersection& x, const ShadeableIntersection& y)
+    {
+        return x.materialId < y.materialId;
+    }
+};
+
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
     int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
@@ -456,6 +464,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 hst_scene->geoms.size(), 
                 dev_intersections);
         checkCUDAError("computeIntersections failed!");
+        thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, compareMaterial());
 
         // TODO:
         // --- Shading Stage ---
@@ -477,7 +486,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
         checkCUDAError("shadeMaterialCore failed!");
         depth++;
-
 #if USE_PARTITION
         dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_stencil, hasRemainingBounces());
 #else // USE_REMOVE_IF
@@ -488,8 +496,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 #if ERRORCHECK & PRINT
         std::cout << "\tdev_path_end: " << dev_path_end << " dev_paths: " << dev_paths << " num_paths: " << num_paths << std::endl;
 #endif // ERRORCHECK & PRINT
-
-
 
         iterationComplete = (depth > traceDepth) | (num_paths <= 0); // TODO: should be based off stream compaction results.
     }
