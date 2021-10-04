@@ -1,90 +1,54 @@
 #include "sceneStructs.h"
 
-glm::vec3* getMinVertex(std::array<glm::vec3, 3>* triangle, int axis)
+glm::vec3 getCenter(std::array<glm::vec3, 3>* triangle, int axis)
 {
-    glm::vec3* v = &glm::vec3(FLT_MAX);
+    glm::vec3 v = glm::vec3(0);
 
     if (axis == 0)
     {
         for (auto& vertex : *triangle)
         {
-            if (vertex.x < v->x)
-                v = &vertex;
+            v += glm::vec3(vertex.x, 0, 0);
         }
-        return v;
+        return v / 3.f;
     }
     else if (axis == 1)
     {
         for (auto& vertex : *triangle)
         {
-            if (vertex.y < v->y)
-                v = &vertex;
+            v += glm::vec3(0,vertex.y, 0);
         }
-        return v;
+        return v / 3.f;
     }
     else if (axis == 2)
     {
         for (auto& vertex : *triangle)
         {
-            if (vertex.z < v->z)
-                v = &vertex;
+            v += glm::vec3(0,0,vertex.z);
         }
-        return v;
+        return v / 3.f;
     }
     return v;
 }
 
 // TODO: use getMinVertex to clean up code
 bool xSort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b) {
-    // get the minimum A
-    glm::vec3 minA = glm::vec3(FLT_MAX);
-    for (auto& vertex : *a)
-    {
-        if (vertex.x < minA.x)
-            minA = vertex;
-    }
-    // get the minimum B
-    glm::vec3 minB = glm::vec3(FLT_MAX);
-    for (auto& vertex : *b)
-    {
-        if (vertex.x < minB.x)
-            minB = vertex;
-    }
-    return minA.x < minB.x;
+    glm::vec3 centerA = getCenter(a, 0);
+    glm::vec3 centerB = getCenter(b, 0);
+
+    return centerA.x < centerB.x;
 }
 bool ySort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b) {
-    // get the minimum A
-    glm::vec3 minA = glm::vec3(FLT_MAX);
-    for (auto& vertex : *a)
-    {
-        if (vertex.y < minA.y)
-            minA = vertex;
-    }
-    // get the minimum B
-    glm::vec3 minB = glm::vec3(FLT_MAX);
-    for (auto& vertex : *b)
-    {
-        if (vertex.y < minB.y)
-            minB = vertex;
-    }
-    return minA.y < minB.y;
+    glm::vec3 centerA = getCenter(a, 1);
+    glm::vec3 centerB = getCenter(b, 1);
+
+    return centerA.x < centerB.x;
 }
 bool zSort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b) {
-    // get the minimum A
-    glm::vec3 minA = glm::vec3(FLT_MAX);
-    for (auto& vertex : *a)
-    {
-        if (vertex.z < minA.z)
-            minA = vertex;
-    }
-    // get the minimum B
-    glm::vec3 minB = glm::vec3(FLT_MAX);
-    for (auto& vertex : *b)
-    {
-        if (vertex.z < minB.z)
-            minB = vertex;
-    }
-    return minA.z < minB.z;
+    glm::vec3 centerA = getCenter(a, 2);
+    glm::vec3 centerB = getCenter(b, 2);
+
+    return centerA.x < centerB.x;
 }
 
 void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
@@ -123,19 +87,18 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
     float median = FLT_MAX;
     if (node->axis == 0)
     {
-        // TODO: check if you need to handle arraySize being odd
-        glm::vec3* vertex = getMinVertex(triangles.at(arraySize / 2), 0);
-        median = vertex->x;
+        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), node->axis).x :
+            (getCenter(triangles.at(arraySize / 2), node->axis).x + getCenter(triangles.at(arraySize / 2 - 1), node->axis).x) / 2;
     }
     else if (node->axis == 1)
     {
-        glm::vec3* vertex = getMinVertex(triangles.at(arraySize / 2), 1);
-        median = vertex->y;
+        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), node->axis).y :
+            (getCenter(triangles.at(arraySize / 2), node->axis).y + getCenter(triangles.at(arraySize / 2 - 1), node->axis).y) / 2;
     }
     else
     {
-        glm::vec3* vertex = getMinVertex(triangles.at(arraySize / 2), 2);
-        median = vertex->z;
+        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), node->axis).z :
+            (getCenter(triangles.at(arraySize / 2), node->axis).z + getCenter(triangles.at(arraySize / 2 - 1), node->axis).z) / 2;
     }
 
     // split the triangles by the axis-median
@@ -145,11 +108,11 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
     {
         float comparison = FLT_MAX;
         if (node->axis == 0)
-            comparison = getMinVertex(triangle, 0)->x;
+            comparison = getCenter(triangle, 0).x;
         if (node->axis == 1)
-            comparison = getMinVertex(triangle, 1)->y;
+            comparison = getCenter(triangle, 1).y;
         if (node->axis == 2)
-            comparison = getMinVertex(triangle, 2)->z;
+            comparison = getCenter(triangle, 2).z;
 
         if (comparison < median)
             ltriangles.push_back(triangle);
