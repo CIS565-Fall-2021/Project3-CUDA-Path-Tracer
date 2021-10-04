@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH
 };
 
 struct Ray {
@@ -17,15 +18,28 @@ struct Ray {
     glm::vec3 direction;
 };
 
-struct Geom {
+struct Triangle
+{
+    glm::vec3 pos[3];
+    glm::vec3 normal[3];
+};
+
+struct AABB 
+{
+    glm::vec3 bound[2] = { glm::vec3(FLT_MAX), glm::vec3(FLT_MIN) };
+};
+
+struct Geom 
+{
     enum GeomType type;
     int materialid;
-    glm::vec3 translation;
-    glm::vec3 rotation;
-    glm::vec3 scale;
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+    int triBeginIdx;
+    int triEndIdx;
+    AABB aabb;
 };
 
 struct Material {
@@ -69,8 +83,14 @@ struct PathSegment {
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
-struct ShadeableIntersection {
+struct ShadeableIntersection 
+{
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+
+  __host__ __device__ bool operator<(const ShadeableIntersection& other) const
+  {
+      return materialId < other.materialId;
+  }
 };

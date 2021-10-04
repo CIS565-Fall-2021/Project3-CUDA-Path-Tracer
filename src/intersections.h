@@ -142,3 +142,52 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float triangleIntersectionTest(Geom geom,
+                                                   const Triangle& tri,
+                                                   Ray r,
+                                                   glm::vec3& intersectionPoint,
+                                                   glm::vec3& normal,
+                                                   bool& outside)
+{
+    Ray rt;
+    rt.origin = multiplyMV(geom.inverseTransform, glm::vec4(r.origin, 1.0f));
+    rt.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    glm::vec3 baryPos;
+    if (!glm::intersectRayTriangle(rt.origin, rt.direction, tri.pos[0], tri.pos[1], tri.pos[2], baryPos))
+    {
+        return -1;
+    }
+
+    intersectionPoint = multiplyMV(geom.transform, glm::vec4(getPointOnRay(rt, baryPos.z), 1.f));
+    normal = (1.f - baryPos.x - baryPos.y) * tri.normal[0] + baryPos.x * tri.normal[1] + baryPos.y * tri.normal[2];
+    return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ bool aabbIntersectionTest(AABB aabb, Ray r)
+{
+    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+    glm::vec3 invdir = 1.f / r.direction;
+    glm::ivec3 sign;
+    for (int i = 0; i < 3; ++i)
+    {
+        sign[i] = invdir[i] < 0;
+    }
+
+    tmin = (aabb.bound[sign.x].x - r.origin.x) * invdir.x;
+    tmax = (aabb.bound[1 - sign.x].x - r.origin.x) * invdir.x;
+    tymin = (aabb.bound[sign.y].y - r.origin.y) * invdir.y;
+    tymax = (aabb.bound[1 - sign.y].y - r.origin.y) * invdir.y;
+    tzmin = (aabb.bound[sign.z].z - r.origin.z) * invdir.z;
+    tzmax = (aabb.bound[1 - sign.z].z - r.origin.z) * invdir.z;
+
+    if (tmin > tymax || tymin > tmax || max(tmin, tymin) > tzmax || tzmin > min(tmax, tymax))
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}

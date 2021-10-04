@@ -15,12 +15,14 @@ private:
     ifstream fp_in;
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
+    int loadGLTF(string filename, Geom& geomTemplate);
     int loadCamera();
 public:
     Scene(string filename);
     ~Scene();
 
     std::vector<Geom> geoms;
+    std::vector<Triangle> triangles;
     std::vector<Material> materials;
     RenderState state;
 };

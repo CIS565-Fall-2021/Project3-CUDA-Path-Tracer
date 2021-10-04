@@ -3,6 +3,7 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <tiny_gltf.h>
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -32,6 +33,67 @@ Scene::Scene(string filename) {
     }
 }
 
+int Scene::loadGLTF(string filename, Geom& geom)
+{
+    tinygltf::Model model;
+    tinygltf::TinyGLTF loader;
+    string err, warn;
+    bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filename);
+    if (!warn.empty())
+    {
+        cout << "Warning: " << warn << endl;
+    }
+    if (!err.empty())
+    {
+        cout << "Error: " << err << endl;
+    }
+    if (!ret)
+    {
+        cout << "Failed to parse glTF" << endl;
+        return -1;
+    }
+
+    geom.triBeginIdx = triangles.size();
+    for (auto& mesh : model.meshes)
+    {
+        for (auto& prim : mesh.primitives)
+        {   
+            const int numAttrs = 3;
+            const int attr[numAttrs] = { prim.indices, prim.attributes["POSITION"], prim.attributes["NORMAL"] };
+            const unsigned char* data[numAttrs];
+
+            for (int i = 0; i < numAttrs; ++i)
+            {
+                auto accessor = &model.accessors[attr[i]];
+                auto bufferView = &model.bufferViews[accessor->bufferView];
+                auto buffer = &model.buffers[bufferView->buffer];
+                data[i] = &buffer->data[bufferView->byteOffset + accessor->byteOffset];
+            }
+
+            auto indices = reinterpret_cast<const unsigned short*>(data[0]);
+            auto positions = reinterpret_cast<const float*>(data[1]);
+            auto normals = reinterpret_cast<const float*>(data[2]);
+
+            for (size_t i = 0; i < model.accessors[prim.indices].count; i += 3)
+            {
+                Triangle tri;
+                for (int j = 0; j < 3; ++j)
+                {
+                    int idx = indices[i + j] * 3;
+                    tri.pos[j] = glm::vec3(positions[idx], positions[idx + 1], positions[idx + 2]);
+                    tri.normal[j] = glm::vec3(normals[idx], normals[idx + 1], normals[idx + 2]);
+                    glm::vec3 worldPos(geom.transform * glm::vec4(tri.pos[j], 1.f));
+                    geom.aabb.bound[0] = glm::min(geom.aabb.bound[0], worldPos);
+                    geom.aabb.bound[1] = glm::max(geom.aabb.bound[1], worldPos);
+                }
+                triangles.push_back(tri);
+            }
+        }
+    }
+    geom.triEndIdx = triangles.size();
+    return 1;
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -40,18 +102,31 @@ int Scene::loadGeom(string objectid) {
     } else {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
-        string line;
+        string line, gltf_file;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
         if (!line.empty() && fp_in.good()) {
-            if (strcmp(line.c_str(), "sphere") == 0) {
+            if (strcmp(line.c_str(), "sphere") == 0) 
+            {
                 cout << "Creating new sphere..." << endl;
                 newGeom.type = SPHERE;
-            } else if (strcmp(line.c_str(), "cube") == 0) {
+            } 
+            else if (strcmp(line.c_str(), "cube") == 0) 
+            {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+            else if (strcmp(line.c_str(), "gltf") == 0)
+            {
+                cout << "Loading gltf object..." << endl;
+                newGeom.type = MESH;
+            }
+        }
+
+        if (newGeom.type == MESH)
+        {
+            utilityCore::safeGetline(fp_in, gltf_file);
         }
 
         //link material
@@ -63,26 +138,30 @@ int Scene::loadGeom(string objectid) {
         }
 
         //load transformations
+        glm::vec3 translation, rotation, scale;
         utilityCore::safeGetline(fp_in, line);
         while (!line.empty() && fp_in.good()) {
             vector<string> tokens = utilityCore::tokenizeString(line);
 
             //load tranformations
             if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
-                newGeom.translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+                translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
-                newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+                rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
-                newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+                scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             }
 
             utilityCore::safeGetline(fp_in, line);
         }
-
-        newGeom.transform = utilityCore::buildTransformationMatrix(
-                newGeom.translation, newGeom.rotation, newGeom.scale);
+        newGeom.transform = utilityCore::buildTransformationMatrix(translation, rotation, scale);
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+
+        if (newGeom.type == MESH)
+        {
+            loadGLTF(gltf_file, newGeom);
+        }
 
         geoms.push_back(newGeom);
         return 1;
