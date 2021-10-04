@@ -16,6 +16,7 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    int Scene::loadObj(string filename, std::vector<Geom>& geom);
 public:
     Scene(string filename);
     ~Scene();

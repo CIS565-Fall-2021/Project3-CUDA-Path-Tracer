@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #include <ctime>
+
 #include "main.h"
 #include "preview.h"
 
@@ -171,7 +172,9 @@ bool init() {
 void mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        
         runCuda();
+        
 
         string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations";
         glfwSetWindowTitle(window, title.c_str());

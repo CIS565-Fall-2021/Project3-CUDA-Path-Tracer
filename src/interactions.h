@@ -10,7 +10,7 @@
  */
 __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+    glm::vec3 normal, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -25,9 +25,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     glm::vec3 directionNotNormal;
     if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(1, 0, 0);
-    } else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
+    }
+    else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(0, 1, 0);
-    } else {
+    }
+    else {
         directionNotNormal = glm::vec3(0, 0, 1);
     }
 
@@ -75,26 +77,22 @@ __device__ glm::vec3 random_spherical(thrust::default_random_engine& rng) {
  *
  * You may need to change the parameter list for your purposes!
  */
+__host__ __device__ float reflectance(float cosine, float ref_idx) {
+    // Use Schlick's approximation for reflectance.
+    float r0 = powf((1.f - ref_idx) / (1.0f + ref_idx), 2.0f);
+    return r0 + (1.f - r0) * powf((1.0f - cosine), 5.0f);
+}
+
 __host__ __device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+    PathSegment& pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material& m,
+    thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
     float random_num = u01(rng);
-    if (m.hasReflective == 0 && m.hasRefractive == 0) {
-        // my implementation
-        //glm::vec3 random_vec = random_spherical(rng);
-        //pathSegments.ray.direction = glm::normalize(normal + random_vec);
-        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
-        pathSegment.ray.origin = intersect + EPSILON * normal;
-        pathSegment.color *= m.color;
-        pathSegment.color = glm::clamp(pathSegment.color, glm::vec3(0.0f), glm::vec3(1.0f));
-        
-    }
-    else if (m.hasReflective > random_num){
+    if (m.hasReflective > random_num){
         pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
         pathSegment.ray.origin = intersect + EPSILON * normal;
         pathSegment.color *= m.specular.color;
@@ -106,17 +104,18 @@ void scatterRay(
         glm::vec3 refract_ray_direction;
         float refraction_ratio = m.indexOfRefraction;
         if (from_inside) {
-            refract_ray_direction = glm::normalize(glm::refract(pathSegment.ray.direction, glm::normalize(-1.0f * normal), m.indexOfRefraction));
+            normal = glm::normalize(-1.0f * normal);
+            refract_ray_direction = glm::normalize(glm::refract(pathSegment.ray.direction, normal, m.indexOfRefraction));
         }
         else {
-            float refraction_ratio = 1.0f / m.indexOfRefraction;
+            refraction_ratio = 1.0f / m.indexOfRefraction;
             refract_ray_direction = glm::normalize(glm::refract(pathSegment.ray.direction, normal, 1.0f / m.indexOfRefraction));
         }
-        float cos_theta = fmin(glm::dot(ray_direction, normal), 1.0f);
+        float cos_theta = fmin(glm::dot(-ray_direction, normal), 1.0f);
         float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
         bool cannot_refract = (refraction_ratio * sin_theta) > 1.0;
 
-        if (cannot_refract) {
+        if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_num) {
             pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
             pathSegment.ray.origin = intersect + EPSILON * normal;;
             pathSegment.color *= m.specular.color;
@@ -126,7 +125,16 @@ void scatterRay(
             pathSegment.ray.origin = intersect + 0.001f * refract_ray_direction;
             pathSegment.color *= m.specular.color;
         }
-        
+    }
+    else {
+        // my implementation
+        //glm::vec3 random_vec = random_spherical(rng);
+        //pathSegments.ray.direction = glm::normalize(normal + random_vec);
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        pathSegment.ray.origin = intersect + EPSILON * normal;
+        pathSegment.color *= m.color;
+        pathSegment.color = glm::clamp(pathSegment.color, glm::vec3(0.0f), glm::vec3(1.0f));
+
     }
     pathSegment.remainingBounces--;
     pathSegment.color = glm::clamp(pathSegment.color, glm::vec3(0.0f), glm::vec3(1.0f));
