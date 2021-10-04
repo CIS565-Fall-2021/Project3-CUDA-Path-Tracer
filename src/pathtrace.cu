@@ -23,10 +23,13 @@
 #define MATERIAL_SORT 1
 
 // Cache the first bounce intersections for re-use across all subsequent iterations
-#define CACHE_FIRST_BOUNCE 0
+#define CACHE_FIRST_BOUNCE 1
 
 // Apply 4x stochastic sampling and average
 #define ANTIALIASING 0
+
+// Direct lighting by taking a final ray directly to a random point on an emissive object
+#define DIRECT_LIGHT 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -96,6 +99,11 @@ static PathSegment *dev_first_paths = NULL;
 static glm::vec3 *dev_final_image = NULL;
 #endif
 
+#if DIRECT_LIGHT
+static int num_lights;
+static int *dev_lights = NULL;
+#endif
+
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
     const Camera &cam = hst_scene->state.camera;
@@ -129,6 +137,21 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_first_paths, pixelcount * sizeof(PathSegment));
 #endif
 
+#if DIRECT_LIGHT
+    // Add emissive geoms as lights
+    num_lights = 0;
+    std::vector<int> lights;
+    for (int i = 0; i < scene->geoms.size(); i++) {
+        Geom &geom = scene->geoms[i];
+        if (scene->materials[geom.materialid].emittance > 0.f) {
+            lights.push_back(i);
+            num_lights++;
+        }
+    }
+    cudaMalloc(&dev_lights, num_lights * sizeof(int));
+    cudaMemcpy(dev_lights, lights.data(), num_lights * sizeof(int), cudaMemcpyHostToDevice);
+#endif
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -146,6 +169,10 @@ void pathtraceFree() {
 
 #if ANTIALIASING
     cudaFree(dev_final_image);
+#endif
+
+#if DIRECT_LIGHT
+    cudaFree(dev_lights);
 #endif
 
     checkCUDAError("pathtraceFree");
@@ -396,7 +423,6 @@ __global__ void shadeFakeMaterial(
           // LOOK: this is how you use thrust's RNG! Please look at
           // makeSeededRandomEngine as well.
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-            thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
             glm::vec3 materialColor = material.color;
@@ -412,10 +438,6 @@ __global__ void shadeFakeMaterial(
             // like what you would expect from shading in a rasterizer like OpenGL.
             // TODO: replace this! you should be able to start with basically a one-liner
             else {
-                //float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-                //pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-                //pathSegments[idx].color *= u01(rng); // apply some noise because why not
-
                 // Accumulate current color and generate bounce ray
                 scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
             }
@@ -429,6 +451,100 @@ __global__ void shadeFakeMaterial(
             pathSegments[idx].remainingBounces = 0;
 
             pathSegments[idx].color = glm::vec3(0.0f);
+        }
+    }
+}
+
+__host__ __device__ glm::vec3 sample_cube(Geom cube, thrust::default_random_engine &rng, float* pdf) {
+    // Sample in unit cube
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    thrust::uniform_real_distribution<float> u02(0, 1);
+    thrust::uniform_real_distribution<float> u03(0, 1);
+
+    // Convert to world space
+    glm::vec3 sample_point = multiplyMV(cube.transform, glm::vec4(u01(rng) - .5f, u02(rng) - .5f, u03(rng) - .5f, 1.f));
+    // Inverse of volume
+    *pdf = 1.f / (cube.scale.x * cube.scale.y * cube.scale.z);
+    return sample_point;
+}
+
+__global__ void shade_direct_light(
+    int iter
+    , int num_paths
+    , ShadeableIntersection *shadeableIntersections
+    , PathSegment *pathSegments
+    , Material *materials
+    , Geom *geoms
+    , int geoms_size
+    , int *lights
+    , int light_num
+)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths)
+    {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        PathSegment &pathSegment = pathSegments[idx];
+        if (intersection.t > 0.0f) { // if the intersection exists...
+
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+            
+            glm::vec3 intersection_pos = getPointOnRay(pathSegment.ray, intersection.t);
+
+            // If the material indicates that the object was a light, "light" the ray
+            if (material.emittance > 0.0f) {
+                // Terminate when hitting a light
+                pathSegment.remainingBounces = 0;
+
+                pathSegment.color *= (materialColor * material.emittance);
+            }
+            // Bounce on reflective or refractive surface
+            else if (material.hasReflective || material.hasRefractive) {               
+                // Accumulate current color and generate bounce ray
+                scatterRay(pathSegment, intersection_pos, intersection.surfaceNormal, material, rng);
+            }
+            // For diffuse surface, take a final ray directly to a random point on an emissive object
+            else {
+                // Shadow ray does not reach lights
+                if (pathSegment.remainingBounces == 1) {
+                    pathSegment.remainingBounces--;
+                    pathSegment.color *= glm::vec3(0.f, 0.f, 0.f);
+                    return;
+                }
+                // Shoot final ray to light when hitting a diffuse surface
+                pathSegment.remainingBounces = 1;
+
+                // Choose a light randomly
+                int light_index = int(u01(rng) * light_num);
+                Geom &light = geoms[lights[light_index]];
+
+                // Sample on light
+                float pdf;
+                glm::vec3 sample_light = sample_cube(light, rng, &pdf);
+                // Attenuate light by square of distance
+                float distance = glm::length2(sample_light - intersection_pos);
+
+                // Shoot shadow ray
+                pathSegment.ray.origin = intersection_pos;
+                pathSegment.ray.direction = glm::normalize(sample_light - intersection_pos);   
+
+                // Shade by incident angle
+                pathSegment.color *= (materialColor * abs(glm::dot(pathSegment.ray.direction, intersection.surfaceNormal)) / (distance * pdf));
+            }
+            // If there was no intersection, color the ray black.
+            // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
+            // used for opacity, in which case they can indicate "no opacity".
+            // This can be useful for post-processing and image compositing.
+        }
+        else {
+            // Terminate if nothing hitted
+            pathSegment.remainingBounces = 0;
+
+            pathSegment.color = glm::vec3(0.0f);
         }
     }
 }
@@ -518,10 +634,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // 1D block for path tracing
     const int blockSize1d = 128;
 #endif
-
-    
-
-    
 
     ///////////////////////////////////////////////////////////////////////////
 
@@ -648,6 +760,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, compare_material());
 #endif
 
+#if DIRECT_LIGHT
+        shade_direct_light << <numblocksPathSegmentTracing, blockSize1d >> > (
+            iter,
+            num_paths,
+            dev_intersections,
+            dev_paths,
+            dev_materials,
+            dev_geoms,
+            hst_scene->geoms.size(),
+            dev_lights,
+            num_lights
+            );
+#else
         shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
@@ -655,6 +780,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             dev_paths,
             dev_materials
             );
+#endif
 
         // Stream compaction
         dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, is_path_terminated());
