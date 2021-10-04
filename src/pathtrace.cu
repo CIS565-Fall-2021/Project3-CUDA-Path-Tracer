@@ -3,7 +3,7 @@
 #include <cmath>
 //#include <thrust/host_vector.h>
 //#include <thrust/device_vector.h>
-//#include <thrust/partition.h>
+#include <thrust/partition.h>
 //#include <thrust/sort.h>
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
@@ -18,6 +18,8 @@
 #include "intersections.h"
 #include "interactions.h"
 
+#define USE_PARTITION 1
+#define PRINT 0
 #define ERRORCHECK 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -41,6 +43,26 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
     exit(EXIT_FAILURE);
 #endif
 }
+
+// Used for thrust::stable_partition
+struct hasRemainingBounces
+{
+    __host__ __device__
+        bool operator()(const int &x)
+    {
+        return x > 0;
+    }
+};
+
+// Used for thrust::remove_if
+struct hasNoRemainingBounces
+{
+    __host__ __device__
+    bool operator()(const PathSegment &x)
+    {
+        return x.remainingBounces == 0;
+    }
+};
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
@@ -77,6 +99,10 @@ static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
+#if USE_PARTITION
+int* dev_stencil = NULL;
+#endif // USE_PARTITION
+
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -100,6 +126,9 @@ void pathtraceInit(Scene* scene) {
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+#if USE_PARTITION
+    cudaMalloc(&dev_stencil, pixelcount * sizeof(int));
+#endif // USE_PARTITION
 
     checkCUDAError("pathtraceInit");
 }
@@ -111,6 +140,9 @@ void pathtraceFree() {
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+#if USE_PARTITION
+    cudaFree(dev_stencil);
+#endif // USE_PARTITION
 
     checkCUDAError("pathtraceFree");
 }
@@ -269,9 +301,10 @@ __global__ void shadeFakeMaterial(
 }
 
 __global__ void shadeMaterialCore(
-    int depth, 
+    int depth,
     int iter,
     int num_paths,
+    int* stencil, 
     ShadeableIntersection* shadeableIntersections,
     PathSegment* pathSegments,
     Material* materials)
@@ -316,6 +349,9 @@ __global__ void shadeMaterialCore(
         // like what you would expect from shading in a rasterizer like OpenGL.
         // TODO: replace this! you should be able to start with basically a one-liner
         else {
+#ifdef USE_PARTITION
+            stencil[idx] = 1;
+#endif // USE_PARTITION
             pathSegments[idx].remainingBounces--;
             scatterRay(pathSegments[idx], 
                     pathSegments[idx].ray.origin + pathSegments[idx].ray.direction * intersection.t, 
@@ -397,11 +433,18 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
 
+#if ERRORCHECK & PRINT
+    std::cout << "Iter: " << iter << "\n";
+#endif // ERRORCHECK & PRINT
+
+
     bool iterationComplete = false;
     while (!iterationComplete) {
 
+
         // clean shading chunks
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+        cudaMemset(dev_stencil, 0, num_paths * sizeof(int));
 
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
@@ -427,6 +470,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 depth,
                 iter,
                 num_paths,
+                dev_stencil,
                 dev_intersections,
                 dev_paths,
                 dev_materials);
@@ -434,15 +478,25 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         checkCUDAError("shadeMaterialCore failed!");
         depth++;
 
-       /* if (depth > traceDepth) {
-            iterationComplete = true; 
-        }*/
-        iterationComplete = depth > traceDepth; // TODO: should be based off stream compaction results.
+#if USE_PARTITION
+        dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_stencil, hasRemainingBounces());
+#else // USE_REMOVE_IF
+        dev_path_end = thrust::remove_if(thrust::device, dev_paths, dev_paths + num_paths, hasNoRemainingBounces());
+#endif // USE_PARTITION
+        num_paths = dev_path_end - dev_paths;
+
+#if ERRORCHECK & PRINT
+        std::cout << "\tdev_path_end: " << dev_path_end << " dev_paths: " << dev_paths << " num_paths: " << num_paths << std::endl;
+#endif // ERRORCHECK & PRINT
+
+
+
+        iterationComplete = (depth > traceDepth) | (num_paths <= 0); // TODO: should be based off stream compaction results.
     }
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+    finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 
