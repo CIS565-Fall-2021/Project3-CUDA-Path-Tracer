@@ -44,9 +44,12 @@ bool Scene::loadObj(string filename, Geom& geom) {
     geom.boundingBox.minZ = 10000000.f;
     geom.boundingBox.maxZ = 0.f;
 
+    geom.triangles = std::vector<Triangle>();
+
     // read in mesh and construct bounding box
 
     tinyobj::ObjReaderConfig reader_config;
+    reader_config.triangulate = true;
     tinyobj::ObjReader reader;
 
     // read from file
@@ -72,6 +75,7 @@ bool Scene::loadObj(string filename, Geom& geom) {
         for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
+            Triangle t;
             //loop over verts
             for (size_t v = 0; v < fv; v++) {
                 tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
@@ -79,17 +83,30 @@ bool Scene::loadObj(string filename, Geom& geom) {
                 tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
                 tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
 
+                // Check if `normal_index` is zero or positive. negative = no normal data
+                if (idx.normal_index >= 0) {
+                    tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+                    tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+                    tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+
+                    t.nors[v] = glm::vec3(nx, ny, nz);
+                }
+
+                // check against bounding box bounds
                 geom.boundingBox.minX = min(geom.boundingBox.minX, vx);
                 geom.boundingBox.maxX = max(geom.boundingBox.maxX, vx);
-                geom.boundingBox.minY = min(geom.boundingBox.minX, vy);
-                geom.boundingBox.maxY = max(geom.boundingBox.maxX, vy);
-                geom.boundingBox.minZ = min(geom.boundingBox.minX, vz);
-                geom.boundingBox.maxZ = max(geom.boundingBox.maxX, vz);
+                geom.boundingBox.minY = min(geom.boundingBox.minY, vy);
+                geom.boundingBox.maxY = max(geom.boundingBox.maxY, vy);
+                geom.boundingBox.minZ = min(geom.boundingBox.minZ, vz);
+                geom.boundingBox.maxZ = max(geom.boundingBox.maxZ, vz);
+
+                t.pts[v] = glm::vec3(vx, vy, vz);
             }
+            geom.triangles.push_back(t);
         }
     }
 
-    //std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
+    std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
     return true;
 }
 

@@ -145,6 +145,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
 __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
                                                glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+    // NOTE: try first w/o bounding box?
     // create bounding box and test for intersection
     Geom box;
     box.type = CUBE;
@@ -152,5 +153,36 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
     box.inverseTransform = mesh.boundingBox.inverseTransform;
     box.invTranspose = mesh.boundingBox.invTranspose;
 
-    return boxIntersectionTest(box, r, intersectionPoint, normal, outside);
+    int intersectsBB = boxIntersectionTest(box, r, intersectionPoint, normal, outside);
+    return intersectsBB;
+
+    // if intersects the bounding box, check against each triangle
+    if (intersectsBB != -1) {
+
+        // transform ray
+        // NOTE: get working w/o transformation first
+        Ray q;
+        q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+        q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+        glm::vec3 tmp_isect_pt;
+        float tmin = -1.f;
+        glm::vec3 tmin_n;
+        for (int i = 0; i < mesh.triangles.size(); i++) {
+            
+            Triangle &t = mesh.triangles[i];
+            glm::intersectRayTriangle(r.origin, r.direction, t.pts[0], t.pts[1], t.pts[2], tmp_isect_pt);
+            float tri_tmin = glm::length(r.origin - tmp_isect_pt);
+
+            if (tmin == -1 || (tri_tmin < tmin && tri_tmin >= 0.0)) {
+                tmin = tri_tmin;
+                tmin_n = t.nors[0];
+            }
+        }
+
+        intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
+        normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmin_n, 0.0f)));
+        return glm::length(r.origin - intersectionPoint);
+    }
+    return -1;
 }

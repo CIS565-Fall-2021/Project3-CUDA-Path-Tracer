@@ -18,6 +18,11 @@ struct Ray {
     glm::vec3 direction;
 };
 
+struct Triangle {
+    glm::vec3 pts[3];
+    glm::vec3 nors[3];
+};
+
 struct Geom {
     enum GeomType type;
     struct {
@@ -38,6 +43,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    std::vector<Triangle> triangles;
 };
 
 struct Material {

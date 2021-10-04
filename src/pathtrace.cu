@@ -421,6 +421,15 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
     while (!iterationComplete) {
 
+        // THOUGHTS ON LAST BOUNCE PATH GUIDING
+        /* 1. find num lights by iterating over geoms (do so outside this function)
+        *  2. if depth == traceDepth - 1, call guide paths kernel (w rng)
+        *  3. For each ray, randomly choose light
+        *  4. get light position (translation)
+        *  5. shoot ray toward it (light pos - origin)
+        *  6. Deal with sampling later?
+        */
+
         // clean shading chunks
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
