@@ -43,6 +43,15 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__
+float reflectance(float indexRefract, float cosTheta)
+{
+    float r0 = (1.f - indexRefract) / (1.f + indexRefract);
+    r0 = r0 * r0;
+
+    return r0 + (1.f - r0) * glm::pow(1 - glm::abs(cosTheta), 5.f);
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -78,14 +87,52 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    
+    // TODO - AH: account for probabilities of each factor
+    
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    glm::vec3 incomingRayDirection = pathSegment.ray.direction;
+
+
+
     if (m.hasReflective > 0.f)
     {
         // Color the ray according to surface's material encountered
         pathSegment.color *= m.color;
 
         // Perform reflection about surface normal of surface
-        pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
+        pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal));
         pathSegment.ray.origin = intersect;
+    }
+    else if (m.hasRefractive > 0.f)
+    {
+        float uniformSample = u01(rng);
+
+        bool isOutside = glm::dot(incomingRayDirection, normal) < 0;
+        float eta = isOutside ? 1.f / m.indexOfRefraction : m.indexOfRefraction;
+
+        float cosTheta = glm::min(1.f, glm::dot(-incomingRayDirection, normal));
+        float sinTheta = glm::sqrt(1.f - cosTheta * cosTheta);
+
+        float refractiveProbability = reflectance(m.indexOfRefraction, cosTheta);
+        bool cannotRefract = m.indexOfRefraction * sinTheta > 1.f;
+
+        if (cannotRefract || refractiveProbability > uniformSample)
+        {
+            // Reflect the ray back
+            pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal));
+            pathSegment.color *= m.color;
+
+            pathSegment.ray.origin = intersect + 0.001f * normal;
+        }
+        else
+        {
+            // Refract the ray about the surface normal
+            pathSegment.ray.direction = glm::normalize(glm::refract(incomingRayDirection, normal, eta));
+            pathSegment.color *= m.color;
+
+            pathSegment.ray.origin = intersect - 0.001f * normal;
+        }
     }
     else
     {
