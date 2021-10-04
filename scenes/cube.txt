@@ -54,27 +54,13 @@ EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
 ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
 NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
 
-// Specular white
-MATERIAL 4
-RGB         .98 .98 .98
-SPECEX      0
-SPECRGB     .98 .98 .98
-REFL        0
-REFR        1
-REFRIOR     1.5
-EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
-
 // Camera
 CAMERA
 RES         480 480
 FOVY        45
 ITERATIONS  1000
 DEPTH       8
-FILE        cornell_smaller
+FILE        cow
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
@@ -128,10 +114,10 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// Cow, emissive
 OBJECT 6
-sphere
-material 4
-TRANS       -1 4 -1
+mesh ../scenes/cube.obj
+material 2
+TRANS       0 5 0
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       0.5 0.5 0.5

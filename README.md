@@ -46,4 +46,8 @@ skylight???
 4 subsurface scattering
 6 Wavefront pathtracing
 
+// https://www.iquilezles.org/www/articles/intersectors/intersectors.htm
+Scenes & Ray Intersection 
+Steve Rotenberg CSE168: Rendering Algorithms 
+UCSD, Winter 2017
 
