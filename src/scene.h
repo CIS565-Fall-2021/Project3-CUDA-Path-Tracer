@@ -20,6 +20,8 @@ private:
 public:
     Scene(string filename);
     ~Scene();
+   
+    std::vector<TriangleGeom> triangles;
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;

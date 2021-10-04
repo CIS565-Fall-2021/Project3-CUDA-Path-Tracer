@@ -77,9 +77,9 @@ static Geom* dev_geoms = NULL;
 static Material* dev_materials = NULL;
 static PathSegment* dev_paths = NULL;
 static ShadeableIntersection* dev_intersections = NULL;
-// TODO: static variables for device memory, any extra info you need, etc
-// ...
 static ShadeableIntersection* dev_cache_intersections = NULL;
+//Triangles for testing arbitrary obj file intersection
+static TriangleGeom* dev_triangles = NULL;
 
 void pathtraceInit(Scene* scene) {
     hst_scene = scene;
@@ -100,10 +100,11 @@ void pathtraceInit(Scene* scene) {
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    // TODO: initialize any extra device memeory you need
-
     cudaMalloc(&dev_cache_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_cache_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+
+    cudaMalloc(&dev_triangles, scene->triangles.size() * sizeof(TriangleGeom));
+    cudaMemcpy(dev_triangles, scene->triangles.data(), scene->triangles.size() * sizeof(TriangleGeom), cudaMemcpyHostToDevice);
 
     checkCUDAError("pathtraceInit");
 }
@@ -116,7 +117,7 @@ void pathtraceFree() {
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
     cudaFree(dev_cache_intersections);
-
+    cudaFree(dev_triangles);
     checkCUDAError("pathtraceFree");
 }
 
@@ -161,6 +162,8 @@ __global__ void computeIntersections(
     , PathSegment* pathSegments
     , Geom* geoms
     , int geoms_size
+    , TriangleGeom* triangles
+    , int triangles_size
     , ShadeableIntersection* intersections
 )
 {
@@ -185,6 +188,7 @@ __global__ void computeIntersections(
         for (int i = 0; i < geoms_size; i++)
         {
             Geom& geom = geoms[i];
+            // TODO: add more intersection tests here... triangle? metaball? CSG?
 
             if (geom.type == CUBE)
             {
@@ -195,9 +199,15 @@ __global__ void computeIntersections(
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             else if (geom.type == CUSTOM_OBJ) {
-                t = customObjIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                //Compute the minimum t (a ray might intersect multiple triangle (front and back) in a custom obj
+                for (int i = 0; i < triangles_size; i++) {
+                    TriangleGeom& triangle = triangles[i];
+
+                    float triangle_inter = customObjIntersectionTest(geom, pathSegment.ray,
+                        tmp_intersect, triangle.vertex1, triangle.vertex2, triangle.vertex3, triangles_size, tmp_normal, outside);
+                    t = glm::min(t, triangle_inter);
+                }
             }
-            // TODO: add more intersection tests here... triangle? metaball? CSG?
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -374,6 +384,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
        
 #if CACHE_INTERSECTION
+
         
     if (iter == 1 || depth != 0) {
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
@@ -385,6 +396,8 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             , dev_paths
             , dev_geoms
             , hst_scene->geoms.size()
+            , dev_triangles
+            , hst_scene->triangles.size()
             , dev_intersections
             );
         checkCUDAError("trace one bounce");
@@ -406,11 +419,12 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
         // tracing
         computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
-            depth
             , num_paths
             , dev_paths
             , dev_geoms
             , hst_scene->geoms.size()
+            , dev_triangles,
+            , hst_scene->triangles.size()
             , dev_intersections
             );
         checkCUDAError("trace one bounce");

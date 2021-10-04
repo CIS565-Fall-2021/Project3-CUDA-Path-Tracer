@@ -100,9 +100,9 @@ int Scene::loadGeom(string objectid) {
 
 int Scene::loadObjFile() {
 
-    std::string inputfile = "../scenes/cornell_box.obj";
+    std::string inputfile = "../scenes/cow.obj";
     tinyobj::ObjReaderConfig reader_config;
-    reader_config.mtl_search_path = "../scenes/"; // Path to material files
+    //reader_config.mtl_search_path = "../scenes/"; // Path to material files
 
     tinyobj::ObjReader reader;
 
@@ -119,15 +119,18 @@ int Scene::loadObjFile() {
 
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
-    auto& materials = reader.GetMaterials();
-
+    //Don't need materials for now
+    //auto& materials = reader.GetMaterials();
+    
     // Loop over shapes
     for (size_t s = 0; s < shapes.size(); s++) {
         // Loop over faces(polygon)
         size_t index_offset = 0;
+        TriangleGeom current_face;
         for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
+            glm::vec3 current_ver{ 0 };
             // Loop over vertices in the face.
             for (size_t v = 0; v < fv; v++) {
                 // access to vertex
@@ -136,6 +139,8 @@ int Scene::loadObjFile() {
                 tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
                 tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
 
+                current_ver = glm::vec3(vx, vy, vz);
+                
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
                     tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
@@ -148,17 +153,24 @@ int Scene::loadObjFile() {
                     tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
                     tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
                 }
-
-                // Optional: vertex colors
-                // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
-                // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
-                // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+                if (v == 0) {
+                    current_face.vertex1 = current_ver;
+                }
+                else if (v == 1) {
+                    current_face.vertex2 = current_ver;
+                }
+                else {
+                    current_face.vertex3 = current_ver;
+                }
             }
-            index_offset += fv;
 
+            index_offset += fv;
+            triangles.push_back(current_face);
             // per-face material
             shapes[s].mesh.material_ids[f];
         }
+        
+        
     }
     return 1;
 }
