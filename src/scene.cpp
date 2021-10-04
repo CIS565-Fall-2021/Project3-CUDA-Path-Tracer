@@ -101,15 +101,20 @@ bool Scene::LoadObj(string filename, Transform transform, int materialId)
 
     std::cout << "Number of triangles: " << triangles.size() << std::endl;
 
-    // build a kdtree
-    std::vector< std::array<glm::vec3, 3>*> trianglesPtrs;
+    // transform each vertex
     for (auto& triangle : triangles)
     {
-        trianglesPtrs.push_back(&triangle);
-    }
-    KDTree tree;
+        glm::mat4 transformMtx = utilityCore::buildTransformationMatrix(
+            transform.translate, transform.rotate, transform.scale);
 
-    tree.build(trianglesPtrs);
+        triangle[0] = glm::vec3(transformMtx * glm::vec4(triangle[0], 1.f));
+        triangle[1] = glm::vec3(transformMtx * glm::vec4(triangle[1], 1.f));
+        triangle[2] = glm::vec3(transformMtx * glm::vec4(triangle[2], 1.f));
+    }
+
+    // build a kdtree
+    KDTree* tree = new KDTree();
+    tree->build(triangles);
 
     // load the triangles
     for (auto& triangle : triangles)

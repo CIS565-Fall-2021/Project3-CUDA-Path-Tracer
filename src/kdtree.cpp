@@ -1,12 +1,12 @@
 #include "sceneStructs.h"
 
-glm::vec3 getCenter(std::array<glm::vec3, 3>* triangle, int axis)
+glm::vec3 getCenter(std::array<glm::vec3, 3>& triangle, int axis)
 {
     glm::vec3 v = glm::vec3(0);
 
     if (axis == 0)
     {
-        for (auto& vertex : *triangle)
+        for (auto& vertex : triangle)
         {
             v += glm::vec3(vertex.x, 0, 0);
         }
@@ -14,7 +14,7 @@ glm::vec3 getCenter(std::array<glm::vec3, 3>* triangle, int axis)
     }
     else if (axis == 1)
     {
-        for (auto& vertex : *triangle)
+        for (auto& vertex : triangle)
         {
             v += glm::vec3(0,vertex.y, 0);
         }
@@ -22,7 +22,7 @@ glm::vec3 getCenter(std::array<glm::vec3, 3>* triangle, int axis)
     }
     else if (axis == 2)
     {
-        for (auto& vertex : *triangle)
+        for (auto& vertex : triangle)
         {
             v += glm::vec3(0,0,vertex.z);
         }
@@ -32,34 +32,34 @@ glm::vec3 getCenter(std::array<glm::vec3, 3>* triangle, int axis)
 }
 
 // TODO: use getMinVertex to clean up code
-bool xSort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b) {
+bool xSort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b) {
     glm::vec3 centerA = getCenter(a, 0);
     glm::vec3 centerB = getCenter(b, 0);
 
     return centerA.x < centerB.x;
 }
-bool ySort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b) {
+bool ySort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b) {
     glm::vec3 centerA = getCenter(a, 1);
     glm::vec3 centerB = getCenter(b, 1);
 
     return centerA.x < centerB.x;
 }
-bool zSort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b) {
+bool zSort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b) {
     glm::vec3 centerA = getCenter(a, 2);
     glm::vec3 centerB = getCenter(b, 2);
 
     return centerA.x < centerB.x;
 }
 
-void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
+void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, std::vector<std::unique_ptr<KDNode>>* kdNodes)
 {
     // update the min and max corner of parent node
     // update the min and max corners
     float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX;
     float maxX = FLT_MIN, maxY = FLT_MIN, maxZ = FLT_MIN;
-    for (auto* triangle : triangles)
+    for (auto& triangle : triangles)
     {
-        for (const glm::vec3& vertex : *triangle)
+        for (const glm::vec3& vertex : triangle)
         {
             if (vertex.x < minX)
                 minX = vertex.x;
@@ -102,9 +102,9 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
     }
 
     // split the triangles by the axis-median
-    std::vector<std::array<glm::vec3, 3>*> ltriangles;
-    std::vector<std::array<glm::vec3, 3>*> rtriangles;
-    for (auto* triangle : triangles)
+    std::vector<std::array<glm::vec3, 3>> ltriangles;
+    std::vector<std::array<glm::vec3, 3>> rtriangles;
+    for (auto& triangle : triangles)
     {
         float comparison = FLT_MAX;
         if (node->axis == 0)
@@ -121,8 +121,10 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
     }
 
     // create the two children nodes
-    node->leftChild = new KDNode();
-    node->rightChild = new KDNode();
+    kdNodes->push_back(std::make_unique<KDNode>());
+    node->leftChild = kdNodes->back().get();
+    kdNodes->push_back(std::make_unique<KDNode>());
+    node->rightChild = kdNodes->back().get();
 
     // update children node axis
     if (node->axis < 2)
@@ -145,7 +147,7 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
             insert(node->leftChild->particles.end(), ltriangles.begin(), ltriangles.end());
     }
     else
-        buildTree(node->leftChild, ltriangles);
+        buildTree(node->leftChild, ltriangles, kdNodes);
 
     if (rsize <= 1)
     {
@@ -154,7 +156,7 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles)
             insert(node->rightChild->particles.end(), rtriangles.begin(), rtriangles.end());
     }
     else
-        buildTree(node->rightChild, rtriangles);
+        buildTree(node->rightChild, rtriangles, kdNodes);
 }
 
 // TODO: make accessable to both device and host

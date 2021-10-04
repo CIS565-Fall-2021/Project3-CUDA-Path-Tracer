@@ -33,6 +33,7 @@ public:
     bool LoadObj(string filename, Transform transform, int materialId);
 
     std::vector<Geom> geoms;
+    std::vector<KDTree> kdTrees;
     std::vector<Material> materials;
     RenderState state;
 };
