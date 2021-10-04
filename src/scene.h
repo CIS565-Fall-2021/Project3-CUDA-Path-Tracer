@@ -7,6 +7,7 @@
 
 #include "glm/glm.hpp"
 #include "sceneStructs.h"
+#include "static_config.h"
 #include "utilities.h"
 
 class Scene {
