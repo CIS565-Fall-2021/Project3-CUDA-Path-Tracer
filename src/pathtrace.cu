@@ -238,11 +238,52 @@ __global__ void computeIntersections(
           }
       }
 
+      // iterate through all kdTrees
       for (int i = 0; i < kdTrees_size; i++)
       {
-          KDTree& kdTree = kdTrees[i];
-          while
-          // TODO: implement
+          KDNode* kdNode = kdTrees[i].root;
+          float intersection = 0.0f;
+          while (kdNode != nullptr)
+          {
+              float t = boxIntersectionTest(kdNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              if (t > 0.0)
+              {
+                  // intersection
+                  KDNode* leftNode = kdNode->leftChild, *rightNode = kdNode->rightChild;
+                  kdNode = nullptr; 
+                  if (leftNode == nullptr && rightNode == nullptr)
+                  {
+                      // primitive found
+                      //if (kdNode->triangle.type == GeomType::TRIANGLE) 
+                        //intersection = triangleIntersectionTest(kdNode->triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                  }
+                  else if (leftNode != nullptr)
+                  {
+                      t = boxIntersectionTest(leftNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                      if (t > 0.0)
+                          kdNode = leftNode;
+                  }
+                  else if (rightNode != nullptr)
+                  {
+                      t = boxIntersectionTest(rightNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                      if (t > 0.0)
+                          kdNode = rightNode;
+                  }
+              }
+              else
+              {
+                  // did not intersect, skip
+                  kdNode = nullptr;
+              }
+          }
+
+          /*if (intersection > 0.0f && t_min > intersection)
+          {
+              t_min = t;
+              hit_geom_index = -2;
+              intersect_point = tmp_intersect;
+              normal = tmp_normal;
+          }*/
       }
 
       if (hit_geom_index == -1)
@@ -253,7 +294,7 @@ __global__ void computeIntersections(
       {
           //The ray hits something
           intersections[path_index].t = t_min;
-          intersections[path_index].materialId = geoms[hit_geom_index].materialid;
+          intersections[path_index].materialId = (hit_geom_index == -2) ? 4 : geoms[hit_geom_index].materialid;
           intersections[path_index].surfaceNormal = normal;
       }
   }

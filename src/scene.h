@@ -24,11 +24,12 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    Geom createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
 public:
     Scene(string filename);
     ~Scene();
 
-    int loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
+    int loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId); // TODO: make private
 
     bool LoadObj(string filename, Transform transform, int materialId, bool kdTree);
 

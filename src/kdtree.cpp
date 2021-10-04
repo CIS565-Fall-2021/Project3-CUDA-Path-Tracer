@@ -1,4 +1,6 @@
 #include "sceneStructs.h"
+#include "utilities.h"
+#include <glm/gtc/matrix_inverse.hpp>
 
 glm::vec3 getCenter(std::array<glm::vec3, 3>& triangle, int axis)
 {
@@ -76,8 +78,18 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
         }
 
     }
-    node->minCorner = glm::vec3(minX, minY, minZ);
-    node->maxCorner = glm::vec3(maxX, maxY, maxZ);
+    glm::vec3 minCorner = glm::vec3(minX, minY, minZ);
+    glm::vec3 maxCorner = glm::vec3(maxX, maxY, maxZ);
+
+    // create box geom
+    node->boundingBox.type = GeomType::CUBE;
+    node->boundingBox.translation = (maxCorner - minCorner) / 2.f;
+    node->boundingBox.scale = maxCorner / 0.5f;
+    node->boundingBox.rotation = glm::vec3(0);
+    node->boundingBox.transform = utilityCore::buildTransformationMatrix(
+        node->boundingBox.translation, node->boundingBox.rotation, node->boundingBox.scale);
+    node->boundingBox.inverseTransform = glm::inverse(node->boundingBox.transform);
+    node->boundingBox.invTranspose = glm::inverseTranspose(node->boundingBox.transform);
 
     // sort triangles
     std::sort(triangles.begin(), triangles.end(), node->axis == 0 ? xSort : node->axis == 1 ? ySort : zSort);
@@ -143,8 +155,12 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
     if (lsize <= 1)
     {
         if (lsize == 1)
+        {
+            // leaf node 
             node->leftChild->particles.
-            insert(node->leftChild->particles.end(), ltriangles.begin(), ltriangles.end());
+                insert(node->leftChild->particles.end(), ltriangles.begin(), ltriangles.end());
+        }
+            
     }
     else
         buildTree(node->leftChild, ltriangles, kdNodes);
@@ -152,33 +168,13 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
     if (rsize <= 1)
     {
         if (rsize == 1)
+        {
+            // leaf node 
             node->rightChild->particles.
-            insert(node->rightChild->particles.end(), rtriangles.begin(), rtriangles.end());
+                insert(node->rightChild->particles.end(), rtriangles.begin(), rtriangles.end());
+        }
+            
     }
     else
         buildTree(node->rightChild, rtriangles, kdNodes);
-}
-
-// TODO: make accessable to both device and host
-bool withinBounds(KDNode* node, glm::vec3 boundingMin, glm::vec3 boundingMax)
-{
-    return node->minCorner.x < boundingMin.x&&
-        node->minCorner.y < boundingMin.y&&
-        node->minCorner.z < boundingMin.z&&
-        node->maxCorner.x > boundingMax.x&&
-        node->maxCorner.y > boundingMax.y&&
-        node->maxCorner.z > boundingMax.z;
-}
-
-KDNode* depthSearch(KDNode* node, glm::vec3 boundingMin, glm::vec3 boundingMax)
-{
-    if (withinBounds(node, boundingMin, boundingMax))
-    {
-        if (node->leftChild != nullptr && withinBounds(node->leftChild, boundingMin, boundingMax))
-            return depthSearch(node->leftChild, boundingMin, boundingMax);
-        if (node->rightChild != nullptr && withinBounds(node->rightChild, boundingMin, boundingMax))
-            return depthSearch(node->rightChild, boundingMin, boundingMax);
-        return node;
-    }
-    return nullptr;
 }

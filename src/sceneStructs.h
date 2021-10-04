@@ -86,16 +86,17 @@ struct ShadeableIntersection {
 
 struct KDNode
 {
-    KDNode() : leftChild(nullptr), rightChild(nullptr), axis(0), minCorner(), maxCorner(), particles() {}
+    KDNode() : leftChild(nullptr), rightChild(nullptr), axis(0), particles() {}
     ~KDNode() {
         delete leftChild;
         delete rightChild;
     }
 
-    KDNode* leftChild;
-    KDNode* rightChild;
+    KDNode* leftChild; // TODO: remove pointer and replace with index
+    KDNode* rightChild; // TODO: remove pointer and replace with index
     unsigned int axis; // Which axis split this node represents
-    glm::vec3 minCorner, maxCorner; // The world-space bounds of this node
+    Geom boundingBox;
+    Geom triangle; // only initialized if this is a leaf node
     std::vector<std::array<glm::vec3, 3>> particles; // A collection of pointers to the particles contained in this node.
 };
 
@@ -122,8 +123,6 @@ struct KDTree
         root->axis = 0;
 
         buildTree(root, triangles, &kdNodes);
-        minCorner = root->minCorner;
-        maxCorner = root->maxCorner;
     }
     void clear()
     {
@@ -131,8 +130,7 @@ struct KDTree
         root = nullptr;
     }
 
-    KDNode* root;
-    glm::vec3 minCorner, maxCorner; // For visualization purposes
+    KDNode* root; // TODO: remove pointer and replace with index
     std::vector<std::unique_ptr<KDNode>> kdNodes;
 };
 

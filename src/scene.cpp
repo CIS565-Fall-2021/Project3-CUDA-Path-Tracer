@@ -117,6 +117,16 @@ bool Scene::LoadObj(string filename, Transform transform, int materialId, bool k
         // build a kdtree
         kdTrees.push_back(std::make_unique<KDTree>());
         kdTrees.back().get()->build(triangles);
+
+        // update all leaf nodes
+        for (auto& kdNode : kdTrees.back().get()->kdNodes)
+        {
+            if (kdNode->leftChild == nullptr && kdNode->rightChild == nullptr)
+            {
+                if (kdNode->particles.size() != 0) // TODO: why does this sometimes NOT happen?
+                    kdNode->triangle = createTriangle(kdNode->particles.at(0), transform, materialId);
+            }
+        }
     }
     else
     {
@@ -186,7 +196,7 @@ int Scene::loadGeom(string objectid) {
     }
 }
 
-int Scene::loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
+Geom Scene::createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
 {
     Geom geom;
     geom.type = GeomType::TRIANGLE;
@@ -202,6 +212,13 @@ int Scene::loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transfor
     geom.pos1 = glm::vec3(geom.transform * glm::vec4(triangle[0], 1.f));
     geom.pos2 = glm::vec3(geom.transform * glm::vec4(triangle[1], 1.f));
     geom.pos3 = glm::vec3(geom.transform * glm::vec4(triangle[2], 1.f));
+
+    return geom;
+}
+
+int Scene::loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
+{
+    Geom geom = createTriangle(triangle, transform, materialId);
     
     geoms.push_back(geom);
 
