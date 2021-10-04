@@ -84,6 +84,7 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
+    src/kdtree.cpp
     )
 
 list(SORT headers)

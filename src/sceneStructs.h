@@ -1,8 +1,10 @@
 #pragma once
 
 #include <string>
+#include <array>
 #include <vector>
 #include <cuda_runtime.h>
+#include <algorithm>
 #include "glm/glm.hpp"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
@@ -79,3 +81,58 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   int materialId;
 };
+
+
+struct KDNode
+{
+    KDNode() : leftChild(nullptr), rightChild(nullptr), axis(0), minCorner(), maxCorner(), particles() {}
+    ~KDNode() {
+        delete leftChild;
+        delete rightChild;
+    }
+
+    KDNode* leftChild;
+    KDNode* rightChild;
+    unsigned int axis; // Which axis split this node represents
+    glm::vec3 minCorner, maxCorner; // The world-space bounds of this node
+    std::vector<std::array<glm::vec3, 3>*> particles; // A collection of pointers to the particles contained in this node.
+};
+
+glm::vec3* getMinVertex(std::array<glm::vec3, 3>* triangle, int axis);
+
+// TODO: use getMinVertex to clean up code
+bool xSort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b);
+bool ySort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b);
+bool zSort(std::array<glm::vec3, 3>* a, std::array<glm::vec3, 3>* b);
+
+void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>*>& triangles);
+
+struct KDTree
+{
+    KDTree() : root(nullptr) {}
+    ~KDTree() {
+        delete root;
+    }
+
+    void build(std::vector<std::array<glm::vec3, 3>*> &triangles)
+    {
+        root = new KDNode();
+        root->axis = 0;
+
+        std::vector<std::array<glm::vec3, 3>*> _triangles = triangles;
+
+        // increase stack size
+        buildTree(root, _triangles);
+        minCorner = root->minCorner;
+        maxCorner = root->maxCorner;
+    }
+    void clear()
+    {
+        delete root;
+        root = nullptr;
+    }
+
+    KDNode* root;
+    glm::vec3 minCorner, maxCorner; // For visualization purposes
+};
+

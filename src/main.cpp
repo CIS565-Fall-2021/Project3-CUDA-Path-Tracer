@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     transform.rotate = glm::vec3(0);
     transform.scale = glm::vec3(30.f);
     transform.translate = glm::vec3(0);
-    scene->LoadObj("../objs/bunny.obj", transform, 2);
+    scene->LoadObj("../objs/cube.obj", transform, 4);
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;
