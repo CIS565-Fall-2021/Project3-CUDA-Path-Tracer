@@ -105,8 +105,14 @@ int Scene::loadCamera() {
   Camera &camera     = state.camera;
   float fovy;
 
+#ifdef DEPTH_OF_FIELD
+  int num_static_prop = 7;
+#else
+  int num_static_prop = 5;
+#endif
+
   // load static properties
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < num_static_prop; i++) {
     string line;
     utilityCore::safeGetline(fp_in, line);
     vector<string> tokens = utilityCore::tokenizeString(line);
@@ -121,6 +127,10 @@ int Scene::loadCamera() {
       state.traceDepth = atoi(tokens[1].c_str());
     } else if (strcmp(tokens[0].c_str(), "FILE") == 0) {
       state.imageName = tokens[1];
+    } else if (strcmp(tokens[0].c_str(), "FOCALDIST") == 0) {
+      camera.focalDistance = atof(tokens[1].c_str());
+    } else if (strcmp(tokens[0].c_str(), "LENRADIUS") == 0) {
+      camera.lensRadius = atof(tokens[1].c_str());
     }
   }
 

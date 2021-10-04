@@ -5,6 +5,7 @@
 #include <device_launch_parameters.h>
 
 #define CACHE_INTERSECTIONS
+#define DEPTH_OF_FIELD
 #define EPS              0.0001f
 #define ANTIALIAS_FACTOR 4
 
