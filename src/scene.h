@@ -30,10 +30,10 @@ public:
 
     int loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
 
-    bool LoadObj(string filename, Transform transform, int materialId);
+    bool LoadObj(string filename, Transform transform, int materialId, bool kdTree);
 
     std::vector<Geom> geoms;
-    std::vector<KDTree> kdTrees;
+    std::vector<std::unique_ptr<KDTree>> kdTrees;
     std::vector<Material> materials;
     RenderState state;
 };

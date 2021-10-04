@@ -78,6 +78,7 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
+static KDTree* dev_kdTrees = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
@@ -100,6 +101,9 @@ void pathtraceInit(Scene *scene) {
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
+  cudaMalloc(&dev_kdTrees, scene->kdTrees.size() * sizeof(KDTree));
+  cudaMemcpy(dev_kdTrees, scene->kdTrees.data(), scene->kdTrees.size() * sizeof(KDTree), cudaMemcpyHostToDevice);
+
   cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
@@ -118,6 +122,7 @@ void pathtraceInit(Scene *scene) {
 void pathtraceFree() {
   cudaFree(dev_image);  // no-op if dev_image is null
   cudaFree(dev_paths);
+  cudaFree(dev_kdTrees);
   cudaFree(dev_geoms);
   cudaFree(dev_materials);
   cudaFree(dev_intersections);
@@ -181,6 +186,8 @@ __global__ void computeIntersections(
   , PathSegment * pathSegments
   , Geom * geoms
   , int geoms_size
+  , KDTree* kdTrees
+  , int kdTrees_size
   , ShadeableIntersection * intersections
   )
 {
@@ -229,6 +236,13 @@ __global__ void computeIntersections(
               intersect_point = tmp_intersect;
               normal = tmp_normal;
           }
+      }
+
+      for (int i = 0; i < kdTrees_size; i++)
+      {
+          KDTree& kdTree = kdTrees[i];
+          while
+          // TODO: implement
       }
 
       if (hit_geom_index == -1)
@@ -450,6 +464,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       dev_paths, 
       dev_geoms, 
       hst_scene->geoms.size(),
+      dev_kdTrees,
+      hst_scene->kdTrees.size(),
 #ifdef CACHE_FIRST_INTERSECTION
       intersectionPtr
 #else

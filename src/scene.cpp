@@ -34,7 +34,7 @@ Scene::Scene(string filename) {
     }
 }
 
-bool Scene::LoadObj(string filename, Transform transform, int materialId)
+bool Scene::LoadObj(string filename, Transform transform, int materialId, bool kdTree)
 {
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig reader_config;
@@ -101,27 +101,31 @@ bool Scene::LoadObj(string filename, Transform transform, int materialId)
 
     std::cout << "Number of triangles: " << triangles.size() << std::endl;
 
-    // transform each vertex
-    for (auto& triangle : triangles)
+    if (kdTree)
     {
-        glm::mat4 transformMtx = utilityCore::buildTransformationMatrix(
-            transform.translate, transform.rotate, transform.scale);
+        // transform each vertex
+        for (auto& triangle : triangles)
+        {
+            glm::mat4 transformMtx = utilityCore::buildTransformationMatrix(
+                transform.translate, transform.rotate, transform.scale);
 
-        triangle[0] = glm::vec3(transformMtx * glm::vec4(triangle[0], 1.f));
-        triangle[1] = glm::vec3(transformMtx * glm::vec4(triangle[1], 1.f));
-        triangle[2] = glm::vec3(transformMtx * glm::vec4(triangle[2], 1.f));
+            triangle[0] = glm::vec3(transformMtx * glm::vec4(triangle[0], 1.f));
+            triangle[1] = glm::vec3(transformMtx * glm::vec4(triangle[1], 1.f));
+            triangle[2] = glm::vec3(transformMtx * glm::vec4(triangle[2], 1.f));
+        }
+
+        // build a kdtree
+        kdTrees.push_back(std::make_unique<KDTree>());
+        kdTrees.back().get()->build(triangles);
     }
-
-    // build a kdtree
-    KDTree* tree = new KDTree();
-    tree->build(triangles);
-
-    // load the triangles
-    for (auto& triangle : triangles)
+    else
     {
-        loadTriangle(triangle, transform, materialId);
+        // load the triangles
+        for (auto& triangle : triangles)
+        {
+            loadTriangle(triangle, transform, materialId);
+        }
     }
-
     return true;
 }
 
