@@ -165,12 +165,13 @@ __host__ __device__ float triangleIntersectionTest(Geom geom, Ray r,
     //else if (hit_reverse) {
     //    normal = -1.0f * (tri.normals[0] * (1.0f - bary_position_reverse.x - bary_position_reverse.y)) +
     //        (tri.normals[1] * bary_position_reverse.x) + (tri.normals[2] * bary_position_reverse.y);
+    //    outside = true;
     //}
     else {
         return -1;
     }
     float t = bary_position.z;
-    intersectionPoint = r.origin + (t - EPSILON) * glm::normalize(r.direction);
+    intersectionPoint = getPointOnRay(r, t);
     
     return t;
 }

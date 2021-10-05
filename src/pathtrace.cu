@@ -20,8 +20,9 @@
 
 #define ERRORCHECK 1
 #define SUB_PIXEL_SAMPLE 10
-#define USE_ANTIALIASING 1
+#define USE_ANTIALIASING 0
 #define USE_MATERIAL_SORT 0
+#define USE_DEPTH_OF_FIELD 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -144,7 +145,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         int index_sub = x + (y * cam.resolution.x) + z * cam.resolution.x * cam.resolution.y;
         PathSegment & segment = pathSegments[index_sub];
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, index_sub, 0);
-        thrust::uniform_real_distribution<float> u01(0, 1);
+        thrust::uniform_real_distribution<float> u01(-1, 1);
+
+        // defouce blur
+        float focus_dist = cam.focus_dist;
+        float aperture_radius = cam.aperture;
+        glm::vec2 random_vec = glm::normalize(glm::vec2(u01(rng), u01(rng)));
+        glm::vec3 offset = cam.right * random_vec.x * aperture_radius + cam.up * random_vec.y * aperture_radius;
 
         segment.ray.origin = cam.position;
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -162,6 +169,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             );
         #endif
 
+        #if USE_DEPTH_OF_FIELD
+            segment.ray.direction = glm::normalize(segment.ray.direction * focus_dist - offset);
+            segment.ray.origin += offset;
+            
+        #endif
+
+        // TODO: implement antialiasing by jittering the ray
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
