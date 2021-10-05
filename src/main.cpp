@@ -28,6 +28,14 @@ int width;
 int height;
 
 
+void BuildBVH(Geom& objGeom)
+{
+	objGeom.Host_BVH = new float[14];
+	BVH a(objGeom.triangleCount, objGeom.Host_Triangle_points_normals);
+	a.GetBounds(objGeom.Host_BVH);
+}
+
+
 Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 {
 	Polygon p(polyName);
@@ -95,15 +103,10 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 			objGeom.Host_Triangle_points_normals[(6 * i ) + 2 * j + 1] = vertNormal;
 		}
 	}
+	BuildBVH(objGeom);
 	return p;
 }
 
-void BuildBVH(Geom& objGeom)
-{
-	objGeom.Host_BVH = new float[14];
-	BVH a(objGeom.triangleCount, objGeom.Host_Triangle_points_normals);
-	a.GetBounds(objGeom.Host_BVH);
-}
 
 
 //-------------------------------
@@ -156,7 +159,7 @@ int main(int argc, char** argv) {
 	{
 		if ((int)scene->geoms[i].type == 2)
 		{
-			p = LoadOBJ(filepathWahoo, filename, scene->geoms[i]);
+			p = LoadOBJ(filepathCube, filename, scene->geoms[i]);
 
 		}
 	}
