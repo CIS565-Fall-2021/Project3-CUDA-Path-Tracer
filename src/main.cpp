@@ -16,7 +16,7 @@ static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
 
 static double aperture = 0.2;
-static double focus_dist = 10.0;
+static double focus_dist = 3.0;
 float zoom, theta, phi;
 glm::vec3 cameraPosition;
 glm::vec3 ogLookAt; // for recentering the camera
@@ -201,15 +201,17 @@ void runCuda() {
 		glm::vec3 r = glm::cross(v, u);
 		cam.up = glm::cross(r, v);
 		cam.right = r;
-		cam.focus_dist = (cam.position - cam.lookAt).length();
+		//cam.focus_dist = (cam.position - cam.lookAt).length();
+		cam.focus_dist = focus_dist;
 
 		cam.position = cameraPosition;
 		cameraPosition += cam.lookAt;
 		cam.position = cameraPosition;
 		camchanged = false;
 		SetCacheState(false);
-	}
 
+		std::cout << cam.focus_dist;
+	}
 	// Map OpenGL buffer object for writing from CUDA on a single GPU
 	// No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
 

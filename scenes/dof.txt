@@ -123,23 +123,34 @@ SCALE       .01 10 10
 OBJECT 6
 sphere
 material 4
-TRANS       -1 4 -1
+TRANS       0 3 -1
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       1 1 1
 
 
 // Sphere2
 OBJECT 7
 sphere
 material 5
-TRANS       -1 7 0
+TRANS       0 3 2
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       1 1 1
 
 // Sphere3
 OBJECT 8
 sphere
 material 1
-TRANS       2 7 0
+TRANS       0 3 5
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       1 1 1
+
+
+
+// Sphere4
+OBJECT 9
+sphere
+material 1
+TRANS       0 3 8
+ROTAT       0 0 0
+SCALE       1 1 1
+
