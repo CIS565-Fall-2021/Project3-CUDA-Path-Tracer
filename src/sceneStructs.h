@@ -31,6 +31,9 @@ struct Geom {
     glm::mat4 invTranspose;
     glm::vec4 * Host_Triangle_points_normals;
     glm::vec4 * Device_Triangle_points_normals;
+
+    float *Host_BVH;
+    float *Device_BVH;
     int triangleCount;
    // glm::vec3* points;
 };

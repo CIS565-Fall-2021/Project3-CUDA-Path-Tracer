@@ -22,6 +22,8 @@
 #include "..\src\MeshLoading\polygon.h"
 #include "..\src\MeshLoading\tiny_obj_loader.h"
 
+#include "..\src\MeshLoading\BVH.h"
+
 using namespace std;
 
 //-------------------------------

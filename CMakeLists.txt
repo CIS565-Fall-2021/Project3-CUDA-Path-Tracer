@@ -75,6 +75,7 @@ set(headers
     src/utilities.h
     src/MeshLoading/tiny_obj_loader.h
     src/MeshLoading/polygon.h
+    src/MeshLoading/BVH.h
     )
 
 set(sources

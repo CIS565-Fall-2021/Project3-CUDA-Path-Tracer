@@ -1,6 +1,5 @@
 #pragma once
 
-#pragma once
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
 #include "../sceneStructs.h"
@@ -8,7 +7,9 @@
 
 class BVH
 {
+
     static const int kNumPlaneSetNormals = 7;
+
     static const glm::vec3 planeSetNormals[kNumPlaneSetNormals];
     struct Extents
     {
@@ -42,6 +43,22 @@ const glm::vec3 BVH::planeSetNormals[BVH::kNumPlaneSetNormals] = {
     glm::vec3(-sqrtf(3) / 3.f, -sqrtf(3) / 3.f, sqrtf(3) / 3.f),
     glm::vec3(sqrtf(3) / 3.f, -sqrtf(3) / 3.f, sqrtf(3) / 3.f) };
 
+
+
+void computeBounds(int triangleCount, glm::vec4* Triangle_Point_Normals, const glm::vec3& planeNormal, float& dnear, float& dfar)
+{
+
+    float d;
+    for (uint32_t i = 0; i < triangleCount; ++i) {
+        for (int j = 0; j < 3; j++)
+        {
+            d = glm::dot(planeNormal, glm::vec3(Triangle_Point_Normals[6 * i + 2 * j]));
+            if (d < dnear) dnear = d;
+            if (d > dfar) dfar = d;
+        }
+    }
+}
+
 void BVH::GetBounds(float* getBounds)
 {
     for (uint8_t j = 0; j < this->kNumPlaneSetNormals; ++j) {
@@ -55,17 +72,3 @@ void BVH::GetBounds(float* getBounds)
     }
 }
 
-
-void computeBounds(int triangleCount, glm::vec4 *Triangle_Point_Normals, const glm::vec3 &planeNormal, float& dnear, float& dfar)
-{
-
-    float d;
-    for (uint32_t i = 0; i < triangleCount; ++i) {
-        for (int j = 0; j < 3; j++)
-        {
-            d = glm::dot(planeNormal, glm::vec3(Triangle_Point_Normals[6 * i + 2 * j]));
-            if (d < dnear) dnear = d;
-            if (d > dfar) dfar = d;
-        }
-    }
-}

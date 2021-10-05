@@ -1,7 +1,6 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
-
 static std::string startTimeString;
 
 // For camera controls
@@ -99,6 +98,13 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 	return p;
 }
 
+void BuildBVH(Geom& objGeom)
+{
+	objGeom.Host_BVH = new float[14];
+	BVH a(objGeom.triangleCount, objGeom.Host_Triangle_points_normals);
+	a.GetBounds(objGeom.Host_BVH);
+}
+
 
 //-------------------------------
 //-------------MAIN--------------
@@ -151,6 +157,7 @@ int main(int argc, char** argv) {
 		if ((int)scene->geoms[i].type == 2)
 		{
 			p = LoadOBJ(filepathWahoo, filename, scene->geoms[i]);
+
 		}
 	}
 
