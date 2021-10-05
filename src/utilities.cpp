@@ -110,3 +110,23 @@ std::istream& utilityCore::safeGetline(std::istream& is, std::string& t) {
         }
     }
 }
+
+std::string utilityCore::getBaseDirectory(const std::string& filename) {
+    long long index = filename.size() - 1;
+    while (index >= 0 && filename[index] != '/' && filename[index] != '\\') {
+        --index;
+    }
+    return filename.substr(0, index + 1);
+}
+
+i64 utilityCore::getAddrOffsetInStruct(const void* struct_ptr, const void* var_ptr) {
+    return reinterpret_cast<i64>(var_ptr) - reinterpret_cast<i64>(struct_ptr);
+}
+
+std::string utilityCore::getFileExtension(const std::string& filename) {
+    long long index = filename.size() - 1;
+    while (index >= 0 && filename[index] != '.') {
+        --index;
+    }
+    return index >= 0 ? filename.substr(index + 1) : "";
+}

@@ -4,41 +4,8 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
-
-#define BACKGROUND_COLOR (glm::vec3(0.0f))
-
-enum GeomType {
-    SPHERE,
-    CUBE,
-};
-
-struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction;
-};
-
-struct Geom {
-    enum GeomType type;
-    int materialid;
-    glm::vec3 translation;
-    glm::vec3 rotation;
-    glm::vec3 scale;
-    glm::mat4 transform;
-    glm::mat4 inverseTransform;
-    glm::mat4 invTranspose;
-};
-
-struct Material {
-    glm::vec3 color;
-    struct {
-        float exponent;
-        glm::vec3 color;
-    } specular;
-    float hasReflective;
-    float hasRefractive;
-    float indexOfRefraction;
-    float emittance;
-};
+#include "scenestruct/material.h"
+#include "scenestruct/geometry.h"
 
 struct Camera {
     glm::ivec2 resolution;
@@ -57,6 +24,16 @@ struct RenderState {
     int traceDepth;
     std::vector<glm::vec3> image;
     std::string imageName;
+
+    int recordDepth = -1;
+};
+
+struct GBufferData {
+    i32 geometryId = -1;
+    i32 materialId = -1;
+    i32 stencilId = -1;
+    glm::vec3 baseColor;
+    glm::vec3 normal;
 };
 
 struct PathSegment {
@@ -64,13 +41,23 @@ struct PathSegment {
     glm::vec3 color;
     int pixelIndex;
     int remainingBounces;
+
+    GBufferData gBufferData;
 };
 
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+    __host__ __device__ bool operator<(const ShadeableIntersection& s) const {
+        return materialId < s.materialId;
+    }
+
+    float t;
+    glm::vec3 surfaceNormal;
+    glm::vec2 uv;
+    //glm::vec3 barycentric;
+    int geometryId = -1;
+    int materialId = -1;
+    int stencilId = -1;
 };
