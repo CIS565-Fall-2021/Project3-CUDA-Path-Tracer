@@ -49,7 +49,7 @@ float reflectance(float indexRefract, float cosTheta)
     float r0 = (1.f - indexRefract) / (1.f + indexRefract);
     r0 = r0 * r0;
 
-    return r0 + (1.f - r0) * glm::pow(1 - glm::abs(cosTheta), 5.f);
+    return r0 + (1.f - r0) * glm::pow(1 - cosTheta, 5.f);
 }
 
 /**
@@ -114,24 +114,24 @@ void scatterRay(
         float cosTheta = glm::min(1.f, glm::dot(-incomingRayDirection, normal));
         float sinTheta = glm::sqrt(1.f - cosTheta * cosTheta);
 
-        float refractiveProbability = reflectance(m.indexOfRefraction, cosTheta);
-        bool cannotRefract = m.indexOfRefraction * sinTheta > 1.f;
+        float refractiveProbability = reflectance(eta, cosTheta);
+        bool cannotRefract = eta * sinTheta > 1.f;
 
         if (cannotRefract || refractiveProbability > uniformSample)
         {
             // Reflect the ray back
-            pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal));
+            pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal * (isOutside ? 1.f : -1.f)));
             pathSegment.color *= m.color;
 
-            pathSegment.ray.origin = intersect + 0.001f * normal;
+            pathSegment.ray.origin = intersect + 0.001f * normal * (isOutside ? 1.f : -1.f);
         }
         else
         {
             // Refract the ray about the surface normal
-            pathSegment.ray.direction = glm::normalize(glm::refract(incomingRayDirection, normal, eta));
-            pathSegment.color *= m.color;
+            pathSegment.ray.direction = glm::normalize(glm::refract(incomingRayDirection, normal * (isOutside ? 1.f : -1.f), eta));
+            pathSegment.color *= glm::vec3(1.f); // *= m.color;
 
-            pathSegment.ray.origin = intersect - 0.001f * normal;
+            pathSegment.ray.origin = intersect - 0.001f * normal * (isOutside ? 1.f : -1.f);
         }
     }
     else
