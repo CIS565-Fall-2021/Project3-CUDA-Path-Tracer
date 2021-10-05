@@ -65,6 +65,6 @@ Anti-Aliasing is implement with sub-pixel sampling.
 
 ### Other Features
 1. .obj Mesh Import
-2. Toggleable option to cache the first bounce intersections for re-use across all subsequent iterations, when not using anti-aliasing.
-3. Elimiating terminated rays with Stream Compaction.
+2. Toggleable option to cache the first bounce intersections for re-use across all subsequent iterations, when not using anti-aliasing. Is is not used because AA is a must.
+3. Elimiating terminated rays with Stream Compaction. This method definitely reduces empty thread launches and improves performance.
 4. Efficient attempt to sort the ray by the material type before shading. No efficient improvement is seen with this method.
