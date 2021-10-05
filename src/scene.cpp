@@ -34,17 +34,17 @@ Scene::Scene(string filename) {
     }
 }
 
-bool Scene::loadObj(string filename, Geom& geom) {
+/*bool Scene::loadObj(string filename, Geom& geom) {
 
     // bounding box 
-    geom.boundingBox.minX = 10000000.f;
-    geom.boundingBox.maxX = 0.f;
-    geom.boundingBox.minY = 10000000.f;
-    geom.boundingBox.maxY = 0.f;
-    geom.boundingBox.minZ = 10000000.f;
-    geom.boundingBox.maxZ = 0.f;
+   // geom.boundingBox.minX = 10000000.f;
+   // geom.boundingBox.maxX = 0.f;
+   // geom.boundingBox.minY = 10000000.f;
+   // geom.boundingBox.maxY = 0.f;
+   // geom.boundingBox.minZ = 10000000.f;
+   // geom.boundingBox.maxZ = 0.f;
 
-    geom.triangles = std::vector<Triangle>();
+    geom.triangles = NULL;
 
     // read in mesh and construct bounding box
 
@@ -66,6 +66,16 @@ bool Scene::loadObj(string filename, Geom& geom) {
     
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
+
+    // find num faces total
+    int numFaces = 0;
+    for (size_t s = 0; s < shapes.size(); s++) {
+        numFaces += shapes[s].mesh.num_face_vertices.size();
+    }
+
+    // allocate memory on CPU
+    geom.triangles = new Triangle[1];
+    geom.numTriangles = 1;
 
     // loop over shapes
     for (size_t s = 0; s < shapes.size(); s++) {
@@ -93,24 +103,26 @@ bool Scene::loadObj(string filename, Geom& geom) {
                 }
 
                 // check against bounding box bounds
-                geom.boundingBox.minX = min(geom.boundingBox.minX, vx);
-                geom.boundingBox.maxX = max(geom.boundingBox.maxX, vx);
-                geom.boundingBox.minY = min(geom.boundingBox.minY, vy);
-                geom.boundingBox.maxY = max(geom.boundingBox.maxY, vy);
-                geom.boundingBox.minZ = min(geom.boundingBox.minZ, vz);
-                geom.boundingBox.maxZ = max(geom.boundingBox.maxZ, vz);
+                //geom.boundingBox.minX = min(geom.boundingBox.minX, vx);
+                //geom.boundingBox.maxX = max(geom.boundingBox.maxX, vx);
+                //geom.boundingBox.minY = min(geom.boundingBox.minY, vy);
+                //geom.boundingBox.maxY = max(geom.boundingBox.maxY, vy);
+                //geom.boundingBox.minZ = min(geom.boundingBox.minZ, vz);
+               // geom.boundingBox.maxZ = max(geom.boundingBox.maxZ, vz);
 
                 t.pts[v] = glm::vec3(vx, vy, vz);
             }
-            geom.triangles.push_back(t);
+            if (s == 0 && f == 0) {
+                geom.triangles[f] = t;
+            }
         }
     }
 
-    std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
+    //std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
     return true;
-}
+}*/
 
-void calcBoundingBox(Geom& geom) {
+/*void calcBoundingBox(Geom& geom) {
     // calc scale of bounding box in mesh's untransformed space
     glm::vec3 bbScale(geom.boundingBox.maxX - geom.boundingBox.minX,
                       geom.boundingBox.maxY - geom.boundingBox.minY,
@@ -128,7 +140,7 @@ void calcBoundingBox(Geom& geom) {
         bbTrans, geom.rotation, bbScale);
     geom.boundingBox.inverseTransform = glm::inverse(geom.boundingBox.transform);
     geom.boundingBox.invTranspose = glm::inverseTranspose(geom.boundingBox.transform);
-}
+}*/
 
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
@@ -176,7 +188,7 @@ int Scene::loadGeom(string objectid) {
                     string filename = tokens[1].c_str();
                     std::cout << "Reading obj file from " << filename << " ..." << endl;
 
-                    if (!loadObj(filename, newGeom)) return -1;
+                   // if (!loadObj(filename, newGeom)) return -1;
                 }
             }
         }
@@ -206,12 +218,14 @@ int Scene::loadGeom(string objectid) {
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
         // if mesh, set bounding box transformations
-        if (newGeom.type == MESH) {
+       /* if (newGeom.type == MESH) {
             calcBoundingBox(newGeom);
-        }
+        }*/
         
-        geoms.push_back(newGeom);
-
+       // if (newGeom.type != MESH) {
+            geoms.push_back(newGeom);
+        //}
+        
         return 1;
     }
 }

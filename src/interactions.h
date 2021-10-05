@@ -53,12 +53,16 @@ __host__ __device__ float getFresnelCoefficient(float eta, float cosTheta, float
         float R0 = ((1.f - matIOF) / (1.f + matIOF));
         R0 = R0 * R0;
 
-        fresnelCoeff = R0 + (1.f - R0) * (1.f - cosTheta);
+        float oneMinTheta = (1.f - cosTheta);
+        oneMinTheta *= oneMinTheta;
+        oneMinTheta *= oneMinTheta;
+        oneMinTheta *= oneMinTheta;
+        fresnelCoeff = R0 + (1.f - R0) * oneMinTheta;
 
         /*float cosThetaT = sqrt(max(0.f, 1.f - sinThetaT * sinThetaT));
 
-        float rparl = ((m.indexOfRefraction * cosTheta) - (cosThetaT)) / ((m.indexOfRefraction * cosTheta) + (cosThetaT));
-        float rperp = ((cosTheta) - (m.indexOfRefraction * cosThetaT)) / ((cosTheta) + (m.indexOfRefraction * cosThetaT));
+        float rparl = ((matIOF * cosTheta) - (cosThetaT)) / ((matIOF * cosTheta) + (cosThetaT));
+        float rperp = ((cosTheta) - (matIOF * cosThetaT)) / ((cosTheta) + (matIOF * cosThetaT));
         fresnelCoeff = (rparl * rparl + rperp * rperp) / 2.0;*/
     }
     return fresnelCoeff;
@@ -117,24 +121,13 @@ void scatterRay(
 
         thrust::uniform_real_distribution<float> u01(0, 1);
         if (u01(rng) < fresnelCoeff) {
-            newDir = glm::reflect(pathSegment.ray.direction, normal);
+            newDir = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
         }
         else {
-            // book refract function
-            /*float cosThetaI = dot(faceForwardN, wi);
-            float sin2ThetaI = max(0.f, 1.f - cosThetaI * cosThetaI);
-            float sin2ThetaT = eta * eta * sin2ThetaI;
-            float cosThetaT = sqrt(max(0.f, 1.f - sin2ThetaT));
-
-            newDir = eta * wi + (eta * cosThetaI - cosThetaT) * faceForwardN;*/
-
-            /*if (sin2ThetaT >= 1) {
-                newDir = glm::reflect(pathSegment.ray.direction, normal);
-            }*/
-            newDir = glm::refract(wi, faceForwardN, eta);
+            newDir = glm::normalize(glm::refract(wi, faceForwardN, eta));
         }
 
-        pathSegment.ray.origin = intersect + (entering ? 0.0002f : 0.0f) * pathSegment.ray.direction;
+        pathSegment.ray.origin = intersect + 0.001f * pathSegment.ray.direction;
         pathSegment.ray.direction = newDir;
         return;
         
