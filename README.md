@@ -30,4 +30,14 @@ Here shows different surface with colors.
      width="400"/>
 </p>
 
-### Surface Scattering 
+### Features
+
+## Anti-Aliasing
+
+| with Anti-Aliasing | without Anti-Aliasing |
+| ------------- | ----------- |
+| ![](img/aa1.png)  | ![](img/aa0.png) |
+
+## Other Features
+1. .obj Mesh Import
+2.  
