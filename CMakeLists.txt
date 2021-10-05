@@ -36,6 +36,13 @@ if(WIN32)
 endif(WIN32)
 ########################################
 
+########################################
+# TinyGLTF 2.0 loader
+set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
+add_subdirectory(external/include/tinygltf-2.5.0)
+########################################
+
 set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
