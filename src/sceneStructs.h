@@ -36,7 +36,6 @@ struct Geom {
 };
 
 
-
 struct Material {
     glm::vec3 color;
     struct {
