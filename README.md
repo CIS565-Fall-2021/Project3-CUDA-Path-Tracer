@@ -31,7 +31,7 @@ Below list the 3 separate scattering surfaces implemented in this renderer. To m
 | ------------- | ----------- |----------- |
 | ![](scenes/cornell.2021-10-03_23-27-37z.3488samp.png)  | ![](scenes/cornell.2021-10-03_23-34-37z.4309samp.png) | ![](scenes/cornell.2021-10-03_23-43-33z.1964samp.png) |
 
-Here shows different surface with colors.
+Here shows different surfaces with colors.
 
 <p align="center">
 <img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
@@ -67,3 +67,4 @@ Anti-Aliasing is implement with sub-pixel sampling.
 1. .obj Mesh Import
 2. Toggleable option to cache the first bounce intersections for re-use across all subsequent iterations, when not using anti-aliasing.
 3. Elimiating terminated rays with Stream Compaction.
+4. Efficient attempt to sort the ray by the material type before shading. No efficient improvement is seen with this method.
