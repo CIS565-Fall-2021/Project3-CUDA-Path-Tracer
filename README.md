@@ -14,13 +14,13 @@ In real life, rays come from light source, bounce between object surfaces before
 <p align="center">
 <img src="img/cornell.2021-10-05_17-10-50z.5000samp.png"
      alt="wolf"
-     width="800"/>
+     width="900"/>
 </p>
 
 <p align="center">
 <img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
      alt="deer"
-     width="800"/>
+     width="900"/>
 </p>
 
 ### Surface Scattering 
