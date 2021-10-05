@@ -146,6 +146,10 @@ void scatterRay(
         else {
             // Shade rays
             pathSegment.color *= m.color;
+
+            // Use this to test normal
+            //pathSegment.color = (normal + 1.f) / 2.f;
+            
             // Shoot new ray
             bounce_ray = calculateRandomDirectionInHemisphere(normal, rng);
         }

@@ -29,7 +29,10 @@
 #define ANTIALIASING 0
 
 // Direct lighting by taking a final ray directly to a random point on an emissive object
-#define DIRECT_LIGHT 1
+#define DIRECT_LIGHT 0
+
+// Toggle for bounding volume intersection culling to reduce number of rays to be checked
+#define BOUND_BOX 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -90,6 +93,8 @@ static PathSegment *dev_paths = NULL;
 static ShadeableIntersection *dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
+static Triangle *dev_meshes = NULL;
+
 #if CACHE_FIRST_BOUNCE
 static ShadeableIntersection *dev_first_intersections = NULL;
 static PathSegment *dev_first_paths = NULL;
@@ -132,6 +137,9 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+    cudaMalloc(&dev_meshes, scene->meshes.size() * sizeof(Triangle));
+    cudaMemcpy(dev_meshes, scene->meshes.data(), scene->meshes.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
+
 #if CACHE_FIRST_BOUNCE
     cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMalloc(&dev_first_paths, pixelcount * sizeof(PathSegment));
@@ -162,6 +170,8 @@ void pathtraceFree() {
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    cudaFree(dev_meshes);
+
 #if CACHE_FIRST_BOUNCE
     cudaFree(dev_first_intersections);
     cudaFree(dev_first_paths);
@@ -316,6 +326,7 @@ __global__ void computeIntersections(
     , PathSegment *pathSegments
     , Geom *geoms
     , int geoms_size
+    , Triangle *meshes
     , ShadeableIntersection *intersections
     , float time
 )
@@ -364,6 +375,14 @@ __global__ void computeIntersections(
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
+            else if (geom.type == MESH)
+            {
+#if BOUND_BOX
+                t = mesh_triangle_intersection_test(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, meshes, true);
+#else
+                t = mesh_triangle_intersection_test(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, meshes, false);
+#endif                
+            }
 
             // Set original translation back
             if (geom.end_translation != geom.translation) {
@@ -715,6 +734,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 , dev_paths
                 , dev_geoms
                 , hst_scene->geoms.size()
+                , dev_meshes
                 , dev_intersections
                 , time
                 );
@@ -738,6 +758,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , dev_paths
             , dev_geoms
             , hst_scene->geoms.size()
+            , dev_meshes
             , dev_intersections
             , time
             );

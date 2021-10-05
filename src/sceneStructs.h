@@ -10,11 +10,23 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH
 };
 
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+};
+
+struct AABB {
+    glm::vec3 bottom_left;
+    glm::vec3 upper_right;
+};
+
+struct Triangle {
+    glm::vec3 pos[3];
+    glm::vec3 normal[3];
+    glm::vec2 uv[3];
 };
 
 struct Geom {
@@ -30,6 +42,9 @@ struct Geom {
     glm::mat4 old_transform;
     glm::mat4 old_inverseTransform;
     glm::mat4 old_invTranspose;
+    int mesh_offset;
+    int mesh_num;
+    AABB bound_box;
 };
 
 struct Material {
