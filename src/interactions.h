@@ -2,6 +2,9 @@
 
 #include "intersections.h"
 
+
+#define EPSILON_SCALE 10.0f
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -83,16 +86,16 @@ void scatterRay(
     glm::vec3 norVec = glm::normalize(normal); 
 
     if (prob < m.hasReflective) {
-        pathSegment.ray.origin = intersect + (float) EPSILON * norVec;
+        pathSegment.ray.origin = intersect + (float) EPSILON * EPSILON_SCALE * norVec;
         pathSegment.ray.direction = glm::normalize(glm::reflect(rayVec, norVec)); // Reflection  
     } 
     else if (prob < (m.hasReflective + m.hasRefractive)) {
-        pathSegment.ray.origin = intersect + (float) EPSILON * norVec;
+        pathSegment.ray.origin = intersect - (float) EPSILON * EPSILON_SCALE * norVec;
         pathSegment.ray.direction = glm::normalize(glm::refract(rayVec, norVec, m.indexOfRefraction)); // Refraction 
     } 
     else {
-        pathSegment.ray.origin = intersect + (float) EPSILON * norVec;
-        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng)); // Diffuse
+        pathSegment.ray.origin = intersect + (float) EPSILON * EPSILON_SCALE * norVec; 
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(norVec, rng)); // Diffuse
     }
     pathSegment.color *= m.color;
 }

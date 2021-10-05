@@ -19,8 +19,8 @@
 #include "interactions.h"
 
 #define USE_CACHE       1
-#define USE_SORT        1
-#define USE_PARTITION   1
+#define USE_SORT        0
+#define USE_PARTITION   0
 #define USE_REMOVE_IF   0
 #define PRINT           0
 #define ERRORCHECK      1
@@ -138,7 +138,6 @@ void pathtraceInit(Scene* scene) {
     // TODO: initialize any extra device memeory you need
 #if USE_CACHE
     cudaMalloc(&dev_intersectionsCache, pixelcount * sizeof(ShadeableIntersection));
-    cudaMemset(dev_intersectionsCache, 0, pixelcount * sizeof(ShadeableIntersection));
 #endif // USE_CACHE
 #if USE_PARTITION
     cudaMalloc(&dev_stencil, pixelcount * sizeof(int));
@@ -355,12 +354,11 @@ __global__ void shadeMaterialCore(
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
 
         Material material = materials[intersection.materialId];
-        glm::vec3 materialColor = material.color;
 
         // If the material indicates that the object was a light, "light" the ray
         if (material.emittance > 0.0f) {
             pathSegments[idx].remainingBounces = 0;
-            pathSegments[idx].color *= (materialColor * material.emittance);
+            pathSegments[idx].color *= (material.color * material.emittance);
         }
         // Otherwise, do some pseudo-lighting computation. This is actually more
         // like what you would expect from shading in a rasterizer like OpenGL.
@@ -468,6 +466,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 #if USE_CACHE
         if (iter == 1 & depth == 0) {
+            cudaMemset(dev_intersectionsCache, 0, num_paths * sizeof(ShadeableIntersection));
             computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
                 depth,
                 num_paths,
