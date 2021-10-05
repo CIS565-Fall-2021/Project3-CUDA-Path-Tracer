@@ -16,6 +16,7 @@ enum GeomType {
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+    int is_shadow_ray;
 };
 
 struct AABB {

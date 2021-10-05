@@ -32,7 +32,7 @@
 #define DIRECT_LIGHT 0
 
 // Toggle for bounding volume intersection culling to reduce number of rays to be checked
-#define BOUND_BOX 1
+#define BOUND_BOX 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -474,7 +474,7 @@ __global__ void shadeFakeMaterial(
     }
 }
 
-__host__ __device__ glm::vec3 sample_cube(Geom cube, thrust::default_random_engine &rng, float* pdf) {
+__host__ __device__ glm::vec3 sample_cube(Geom cube, thrust::default_random_engine &rng) {
     // Sample in unit cube
     thrust::uniform_real_distribution<float> u01(0, 1);
     thrust::uniform_real_distribution<float> u02(0, 1);
@@ -482,8 +482,7 @@ __host__ __device__ glm::vec3 sample_cube(Geom cube, thrust::default_random_engi
 
     // Convert to world space
     glm::vec3 sample_point = multiplyMV(cube.transform, glm::vec4(u01(rng) - .5f, u02(rng) - .5f, u03(rng) - .5f, 1.f));
-    // Inverse of volume
-    *pdf = 1.f / (cube.scale.x * cube.scale.y * cube.scale.z);
+
     return sample_point;
 }
 
@@ -527,32 +526,33 @@ __global__ void shade_direct_light(
                 scatterRay(pathSegment, intersection_pos, intersection.surfaceNormal, material, rng);
             }
             // For diffuse surface, take a final ray directly to a random point on an emissive object
-            else {
+            else if (pathSegment.remainingBounces == 1) {
                 // Shadow ray does not reach lights
-                if (pathSegment.remainingBounces == 1) {
+                if (pathSegment.ray.is_shadow_ray) {
                     pathSegment.remainingBounces--;
-                    pathSegment.color *= glm::vec3(0.f, 0.f, 0.f);
-                    return;
+                    pathSegment.color = glm::vec3(0.f, 0.f, 0.f);
                 }
                 // Shoot final ray to light when hitting a diffuse surface
-                pathSegment.remainingBounces = 1;
+                else {
+                    // Choose a light randomly
+                    int light_index = int(u01(rng) * light_num);
+                    Geom &light = geoms[lights[light_index]];
 
-                // Choose a light randomly
-                int light_index = int(u01(rng) * light_num);
-                Geom &light = geoms[lights[light_index]];
+                    // Sample on light
+                    glm::vec3 sample_light = sample_cube(light, rng);
 
-                // Sample on light
-                float pdf;
-                glm::vec3 sample_light = sample_cube(light, rng, &pdf);
-                // Attenuate light by square of distance
-                float distance = glm::length2(sample_light - intersection_pos);
+                    // Shoot shadow ray
+                    pathSegment.ray.origin = intersection_pos;
+                    pathSegment.ray.direction = glm::normalize(sample_light - intersection_pos);
+                    pathSegment.ray.is_shadow_ray = 1;
 
-                // Shoot shadow ray
-                pathSegment.ray.origin = intersection_pos;
-                pathSegment.ray.direction = glm::normalize(sample_light - intersection_pos);   
-
-                // Shade by incident angle
-                pathSegment.color *= (materialColor * abs(glm::dot(pathSegment.ray.direction, intersection.surfaceNormal)) / (distance * pdf));
+                    // Shade by incident angle
+                    pathSegment.color *= materialColor * abs(glm::dot(pathSegment.ray.direction, intersection.surfaceNormal));
+                }
+            }
+            else {
+                // Accumulate current color and generate bounce ray
+                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
             }
             // If there was no intersection, color the ray black.
             // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
