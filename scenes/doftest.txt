@@ -3,7 +3,6 @@ SETTINGS
 SORT_MATERIALS 1
 CACHE_BOUNCE 0
 USE_DOF 0
-SAMPLES_PER_PIX 3
 
 // Emissive material (light)
 MATERIAL 0
@@ -166,7 +165,7 @@ sphere
 material 5
 TRANS       7 4 -11
 ROTAT       0 0 0
-SCALE       80 80 80
+SCALE       8 8 8
 
 // Sphere
 OBJECT 6

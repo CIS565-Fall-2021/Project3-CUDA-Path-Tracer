@@ -61,12 +61,9 @@ struct RenderState {
     int traceDepth;
     std::vector<glm::vec3> image;
     std::string imageName;
-    // set defaults for these attrs to 
-    // support scenes that don't have them
     bool sortMaterials = false;
     bool cacheFirstBounce = false;
     bool useDOF = false;
-    int pixSamples = 1;
 };
 
 struct PathSegment {
