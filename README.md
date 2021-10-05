@@ -3,11 +3,31 @@ CUDA Path Tracer
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Zirui Zang
+  * [LinkedIn](https://www.linkedin.com/in/zirui-zang/)
+* Tested on: Windows 10, AMD Ryzen 7 3700X @ 3.60GHz 32GB, RTX2070 SUPER 8GB (Personal)
 
-### (TODO: Your README)
+### Photorealistic Rendering by Tracing Rays
 
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
+<p align="center">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Ray_trace_diagram.png/320px-Ray_trace_diagram.png"
+     alt="ray tracing" />
+</p>
 
+### Surface Scattering 
+
+Below list the 3 separate scattering surfaces implemented in this renderer. To make refracgive surface seen more realistic, schlicks approximation is used to make the surface the effect of Frenel reflections. Objects in the seen can use a combination of these 3 properties based on the bidirectional scattering distribution function (BSDF) of the surface. 
+
+| Lambertian | Reflective | Refractive |
+| ------------- | ----------- |----------- |
+| ![](scenes/cornell.2021-10-03_23-27-37z.3488samp.png)  | ![](scenes/cornell.2021-10-03_23-34-37z.4309samp.png) | ![](scenes/cornell.2021-10-03_23-43-33z.1964samp.png) |
+
+Here shows different surface with colors.
+
+<p align="center">
+<img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
+     alt="balls"
+     width="400"/>
+</p>
+
+### Surface Scattering 
