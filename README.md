@@ -7,7 +7,7 @@ CUDA Path Tracer
   * [LinkedIn](https://www.linkedin.com/in/zirui-zang/)
 * Tested on: Windows 10, AMD Ryzen 7 3700X @ 3.60GHz 32GB, RTX2070 SUPER 8GB (Personal)
 
-### Photorealistic Rendering by Tracing Rays
+## Photorealistic Rendering by Tracing Rays
 
 In real life, rays come from light source, bounce between object surfaces before entering our eyes. Each bounce off an object surface carries information of that surface. In ray-tracing rendering, we can start from the eye (image plane), trace backwards through each pixel to the world and eventually to the light source. Such ray-tracing is repeated thousands of times and color information is averaged to give photorealistic effects.
 
@@ -39,9 +39,9 @@ Here shows different surface with colors.
      width="400"/>
 </p>
 
-### Features
+## Features
 
-## Depth of Field
+### Depth of Field
 Depth of Field is created by sampling with a non-zero aperture size.
 
 <p align="center">
@@ -56,14 +56,14 @@ Depth of Field is created by sampling with a non-zero aperture size.
      width="400"/>
 </p>
 
-## Anti-Aliasing
+### Anti-Aliasing
 Anti-Aliasing is implement with sub-pixel sampling.
 
 | with Anti-Aliasing | without Anti-Aliasing |
 | ------------- | ----------- |
 | ![](img/aa1.png)  | ![](img/aa0.png) |
 
-## Other Features
+### Other Features
 1. .obj Mesh Import
 2. Toggleable option to cache the first bounce intersections for re-use across all subsequent iterations, when not using anti-aliasing.
 3. Elimiating terminated rays with Stream Compaction.
