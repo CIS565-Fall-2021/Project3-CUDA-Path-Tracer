@@ -23,5 +23,7 @@ public:
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+    // just need scene to own the unique ptrs
+    std::vector<unique_ptr<std::vector<Triangle>>> trianglePtrs;
     RenderState state;
 };

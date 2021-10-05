@@ -19,8 +19,12 @@ struct Ray {
 };
 
 struct Triangle {
-    glm::vec3 pts[3];
-    glm::vec3 nors[3];
+    glm::vec3 p1;
+    glm::vec3 p2;
+    glm::vec3 p3;
+    glm::vec3 n1;
+    glm::vec3 n2;
+    glm::vec3 n3;
 };
 
 struct Geom {
@@ -43,8 +47,8 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-    //Triangle* triangles;
-    //int numTriangles;
+    Triangle* triangles;
+    int numTriangles;
 };
 
 struct Material {

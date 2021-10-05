@@ -143,10 +143,10 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
-/*__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
-                                               glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
     // NOTE: try first w/o bounding box?
-    // create bounding box and test for intersection*/
+    // create bounding box and test for intersection
    /* Geom box;
     box.type = CUBE;
     box.transform = mesh.boundingBox.transform;
@@ -161,28 +161,32 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
         // transform ray
         // NOTE: get working w/o transformation first
-       /* Ray q;
-        q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
-        q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    Ray q;
+    q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-        glm::vec3 tmp_isect_pt;
-        float tmin = -1.f;
-        glm::vec3 tmin_n;
-        for (int i = 0; i < mesh.numTriangles; i++) {
-            
-            Triangle &t = mesh.triangles[i];
-            glm::intersectRayTriangle(r.origin, r.direction, t.pts[0], t.pts[1], t.pts[2], tmp_isect_pt);
-            float tri_tmin = glm::length(r.origin - tmp_isect_pt);
+    glm::vec3 tmp_isect_pt;
+    float tmin = -1.f;
+    glm::vec3 tmin_n;
+    for (int i = 0; i < mesh.numTriangles; i++) {
 
-            if (tmin == -1 || (tri_tmin < tmin && tri_tmin >= 0.0)) {
-                tmin = tri_tmin;
-                tmin_n = t.nors[0];
-            }
+        Triangle t = mesh.triangles[i];
+        //float3 tris = make_float3(t.p1.x, t.p1.y, t.p1.z);
+
+        //glm::intersectRayTriangle(r.origin, r.direction, t.p1, t.p2, t.p3, tmp_isect_pt);
+        glm::intersectRayTriangle(r.origin, r.direction, glm::vec3(-1.f, -1.f, 1.f), glm::vec3(1.f, -1.f, 1.f), glm::vec3(-1.f, 1.f, 1.f), tmp_isect_pt);
+
+        float tri_tmin = glm::length(r.origin - tmp_isect_pt);
+
+        if (tmin == -1 || (tri_tmin < tmin && tri_tmin >= 0.0)) {
+            tmin = tri_tmin;
+            tmin_n = t.n1;
         }
+    }
 
-        intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
-        normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmin_n, 0.0f)));
-        return glm::length(r.origin - intersectionPoint);
+    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
+    normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmin_n, 0.0f)));
+    return glm::length(r.origin - intersectionPoint);
     //}
     return -1;
-}*/
+}

@@ -9,6 +9,10 @@
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
+
+    // initialize triangle ptr list
+    this->trianglePtrs = std::vector<std::unique_ptr<std::vector<Triangle>>>();
+
     char* fname = (char*)filename.c_str();
     fp_in.open(fname);
     if (!fp_in.is_open()) {
@@ -34,7 +38,7 @@ Scene::Scene(string filename) {
     }
 }
 
-/*bool Scene::loadObj(string filename, Geom& geom) {
+bool Scene::loadObj(string filename, Geom& geom) {
 
     // bounding box 
    // geom.boundingBox.minX = 10000000.f;
@@ -45,6 +49,7 @@ Scene::Scene(string filename) {
    // geom.boundingBox.maxZ = 0.f;
 
     geom.triangles = NULL;
+    std::vector<Triangle> triangles;
 
     // read in mesh and construct bounding box
 
@@ -86,6 +91,8 @@ Scene::Scene(string filename) {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
             Triangle t;
+            std::vector<glm::vec3> pts;
+            std::vector<glm::vec3> nors;
             //loop over verts
             for (size_t v = 0; v < fv; v++) {
                 tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
@@ -99,7 +106,7 @@ Scene::Scene(string filename) {
                     tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                     tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
 
-                    t.nors[v] = glm::vec3(nx, ny, nz);
+                    nors.push_back(glm::vec3(nx, ny, nz));
                 }
 
                 // check against bounding box bounds
@@ -110,17 +117,29 @@ Scene::Scene(string filename) {
                 //geom.boundingBox.minZ = min(geom.boundingBox.minZ, vz);
                // geom.boundingBox.maxZ = max(geom.boundingBox.maxZ, vz);
 
-                t.pts[v] = glm::vec3(vx, vy, vz);
+                pts.push_back(glm::vec3(vx, vy, vz));
             }
             if (s == 0 && f == 0) {
-                geom.triangles[f] = t;
+                t.p1 = glm::vec3(pts[0].x, pts[0].y, pts[0].z);
+                t.p2 = glm::vec3(pts[1].x, pts[1].y, pts[1].z);
+                t.p3 = glm::vec3(pts[2].x, pts[2].y, pts[2].z);
+                t.n1 = glm::vec3(nors[0].x, nors[0].y, nors[0].z);
+                t.n2 = glm::vec3(nors[1].x, nors[1].y, nors[1].z);
+                t.n3 = glm::vec3(nors[2].x, nors[2].y, nors[2].z);
+                triangles.push_back(t);
             }
         }
     }
 
+    // save unique ptr to triangle vector in scene
+    this->trianglePtrs.push_back(make_unique<vector<Triangle>> (triangles));
+
+    // get raw ptr and save to geom
+    geom.triangles = &this->trianglePtrs[this->trianglePtrs.size() - 1].get()->front();
+    geom.numTriangles = triangles.size();
     //std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
     return true;
-}*/
+}
 
 /*void calcBoundingBox(Geom& geom) {
     // calc scale of bounding box in mesh's untransformed space
@@ -188,7 +207,7 @@ int Scene::loadGeom(string objectid) {
                     string filename = tokens[1].c_str();
                     std::cout << "Reading obj file from " << filename << " ..." << endl;
 
-                   // if (!loadObj(filename, newGeom)) return -1;
+                    if (!loadObj(filename, newGeom)) return -1;
                 }
             }
         }
@@ -222,7 +241,7 @@ int Scene::loadGeom(string objectid) {
             calcBoundingBox(newGeom);
         }*/
         
-       // if (newGeom.type != MESH) {
+        //if (newGeom.type != MESH) {
             geoms.push_back(newGeom);
         //}
         
