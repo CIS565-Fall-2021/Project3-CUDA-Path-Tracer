@@ -64,6 +64,7 @@ struct RenderState {
     bool sortMaterials = false;
     bool cacheFirstBounce = false;
     bool useDOF = false;
+    bool antialias = false;
 };
 
 struct PathSegment {

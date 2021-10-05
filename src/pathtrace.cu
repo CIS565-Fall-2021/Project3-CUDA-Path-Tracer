@@ -183,7 +183,12 @@ __device__ void samplePointOnLens(thrust::default_random_engine rng,
     *lensV *= lensRadius;
 }
 
-__global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+__global__ void generateRayFromCamera(Camera cam, 
+    int iter, 
+    int traceDepth, 
+    PathSegment* pathSegments, 
+    bool useDOF,
+    bool antialias)
 {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
@@ -191,27 +196,39 @@ __global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, P
     if (x < cam.resolution.x && y < cam.resolution.y) {
         int index = x + (y * cam.resolution.x);
         PathSegment & segment = pathSegments[index];
+        segment.ray.origin = cam.position;
 
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+
+        float aaShiftx = 0.0f;
+        float aaShifty = 0.0f;
+        if (antialias) {
+			thrust::uniform_real_distribution<float> u01(-1.0f, 1.0f);
+            aaShiftx = u01(rng);
+            aaShifty = u01(rng);
+        }
+            
         // calculate initial rays based on pin-hole camera
         segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+            - cam.right * cam.pixelLength.x * ((float)x + aaShiftx - (float)cam.resolution.x * 0.5f)
+            - cam.up * cam.pixelLength.y * ((float)y + aaShifty - (float)cam.resolution.y * 0.5f)
             );
 
-        // find the point on plane of focus, i.e. the plane on which all rays bent 
-        // by the lens well converge
-        glm::vec3 pfocus = cam.position + segment.ray.direction * cam.focalDist;
+        if (useDOF) {
+            // find the point on plane of focus, i.e. the plane on which all rays bent 
+            // by the lens well converge
+            glm::vec3 pfocus = cam.position + segment.ray.direction * cam.focalDist;
 
-        // Offset the ray origins. Rather than all being from one point, they are now
-        // effectively cast from an aperture
-        float u, v;
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
-        samplePointOnLens(rng, &u, &v, cam.lensRadius, cam.aperture);
-        segment.ray.origin = cam.position + u*cam.right + v*cam.up;
+            // Offset the ray origins. Rather than all being from one point, they are now
+            // effectively cast from an aperture
+            float u, v;
+            samplePointOnLens(rng, &u, &v, cam.lensRadius, cam.aperture);
+            segment.ray.origin = cam.position + u * cam.right + v * cam.up;
 
-        // recalculate ray direction based on aperture/lens model. Ray now
-        // points to the point of focus
-        segment.ray.direction = glm::normalize(pfocus - segment.ray.origin);
+            // recalculate ray direction based on aperture/lens model. Ray now
+            // points to the point of focus
+            segment.ray.direction = glm::normalize(pfocus - segment.ray.origin);
+        }
 
         // initialixe other aspects of path segment
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -220,41 +237,39 @@ __global__ void generateRayFromCameraDOF(Camera cam, int iter, int traceDepth, P
     }
 }
 
-__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
-{
-    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
-    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
-
-    if (x < cam.resolution.x && y < cam.resolution.y) {
-        int index = x + (y * cam.resolution.x);
-        PathSegment & segment = pathSegments[index];
-
-        segment.ray.origin = cam.position;
-        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
-
-        // TODO: implement antialiasing by jittering the ray
-        segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-            );
-
-        segment.pixelIndex = index;
-        segment.remainingBounces = traceDepth;
-    }
-}
+//__global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
+//{
+//    int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+//    int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+//
+//    if (x < cam.resolution.x && y < cam.resolution.y) {
+//        int index = x + (y * cam.resolution.x);
+//        PathSegment & segment = pathSegments[index];
+//
+//        segment.ray.origin = cam.position;
+//        segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
+//
+//
+//        segment.ray.direction = glm::normalize(cam.view
+//            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+//            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+//            );
+//
+//        segment.pixelIndex = index;
+//        segment.remainingBounces = traceDepth;
+//    }
+//}
 
 // TODO:
 // computeIntersections handles generating ray intersections ONLY.
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
-__global__ void computeIntersections(
-    int depth
-    , int num_paths
-    , PathSegment * pathSegments
-    , Geom * geoms
-    , int geoms_size
-    , ShadeableIntersection * intersections
-    )
+__global__ void computeIntersections(int depth, 
+									 int num_paths, 
+									 PathSegment * pathSegments, 
+									 Geom * geoms, 
+									 int geoms_size, 
+									 ShadeableIntersection * intersections)
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -568,12 +583,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     }
     else {
         // cast camera rays using either the DOF kernel or the pinhole kernel
-        if (hst_scene->state.useDOF) {
-            generateRayFromCameraDOF << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
-        }
-        else {
-            generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
-        }
+		generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(cam, 
+																iter, 
+																traceDepth, 
+																dev_paths,
+																hst_scene->state.useDOF,
+                                                                hst_scene->state.antialias);
         checkCUDAError("generate camera ray");
     }
 
