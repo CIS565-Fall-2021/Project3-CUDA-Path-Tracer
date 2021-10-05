@@ -11,7 +11,7 @@ CUDA Path Tracer
 
 <p align="center">
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Ray_trace_diagram.png/320px-Ray_trace_diagram.png"
-     alt="Pathtrace" />
+     alt="ray tracing" />
 </p>
 
 ### Surface Scattering 
@@ -24,11 +24,10 @@ Below list the 3 separate scattering surfaces implemented in this renderer. To m
 
 Here shows different surface with colors.
 
-| ![](scenes/cornell.2021-10-04_00-14-05z.1925samp.png) |
-
 <p align="center">
 <img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
-     alt="Pathtrace" />
+     alt="balls"
+     width="400"/>
 </p>
 
 ### Surface Scattering 
