@@ -10,6 +10,11 @@
 
 #include "glm/glm.hpp"
 
+// reference:
+// https://www.pbr-book.org/3ed-2018/Utilities/Main_Include_File.html#PiOver4
+#define PI_2 1.57079632679489661923f
+#define PI_4 0.78539816339744830961f
+
 #define PI                3.1415926535897932384626422832795028841971f
 #define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f

@@ -9,6 +9,7 @@
 #include <cstdio>
 
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/norm.hpp"
 #include "interactions.h"
 #include "intersections.h"
@@ -149,6 +150,72 @@ void pathtraceFree() {
   checkCUDAError("pathtraceFree");
 }
 
+#ifdef DEPTH_OF_FIELD
+/**
+ * Given a sampled point at [-1,1]x[-1,1], uniformly map to some values on disk
+ *  in concentric style
+ *
+ * @return  (x,y) point on a unit disk
+ */
+__device__ glm::vec2 concentricSampleDisk(const glm::vec2 &u) {
+  // Map uniform random numbers to [-1, 1]x[-1, 1]
+  glm::vec2 offset = 2.f * u - glm::vec2(1, 1);
+
+  // Handle degeneracy at the origin
+  if (offset.x == 0 && offset.y == 0) return glm::vec2(0, 0);
+
+  // Apply concentric mapping to point
+  float theta, r;
+  if (std::abs(offset.x) > std::abs(offset.y)) {
+    r     = offset.x;
+    theta = PI_4 * (offset.y / offset.x);
+  } else {
+    r     = offset.y;
+    theta = PI_2 - PI_4 * (offset.x / offset.y);
+  }
+  return r * glm::vec2(std::cos(theta), std::sin(theta));
+}
+
+/**
+ * Updates the origin & direction of each generated ray based on thin-lens
+ * camera model Reference:
+ * https://www.pbr-book.org/3ed-2018/Camera_Models/Projective_Camera_Models
+ *
+ * @return  Ray&  ray
+ */
+__device__ void updateRayOnLens(Camera cam, int iter, int ray_index, int depth,
+                                Ray &ray) {
+  glm::mat4 view_mat         = glm::lookAt(cam.position, cam.lookAt, cam.up);
+  glm::mat4 view_mat_inverse = glm::inverse(view_mat);
+
+  // 1. sample point on len disk
+  thrust::default_random_engine rng =
+      makeSeededRandomEngine(iter, ray_index, depth);
+  thrust::uniform_real_distribution<float> u01(0, 1);
+  glm::vec3 pt_on_lens =
+      cam.lensRadius *
+      glm::vec3(concentricSampleDisk(glm::vec2(u01(rng), u01(rng))), 0.0f);
+
+  // 2. compute intersection of pinhole ray with plane of focus (in camera local
+  // coordinates)
+  glm::vec3 origin_local = glm::vec3(view_mat * glm::vec4(ray.origin, 1.0f));
+  glm::vec3 dir_local    = glm::vec3(view_mat * glm::vec4(ray.direction, 0.0f));
+  float ft               = glm::abs(cam.focalDistance / dir_local.z);
+  glm::vec3 pt_on_focus_local = origin_local + ft * dir_local;
+  glm::vec3 pt_on_focus =
+      glm::vec3(view_mat_inverse * glm::vec4(pt_on_focus_local, 1.0f));
+
+  // 3. update ray's origin & direction on point
+  glm::vec3 origin_new =
+      glm::vec3(view_mat_inverse * glm::vec4(pt_on_lens, 1.0f));
+  glm::vec3 dir_new = glm::normalize(pt_on_focus - origin_new);
+
+  // 4. return
+  ray.origin    = origin_new;
+  ray.direction = dir_new;
+}
+#endif
+
 /**
  * Generate PathSegments with rays from the camera through the screen into the
  * scene, which is the first bounce of rays.
@@ -177,6 +244,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth,
                            ((float)x - (float)cam.resolution.x * 0.5f) -
                        cam.up * cam.pixelLength.y *
                            ((float)y - (float)cam.resolution.y * 0.5f));
+#ifdef DEPTH_OF_FIELD
+    if (cam.lensRadius > 0) {
+      updateRayOnLens(cam, iter, index, INT_MAX, segment.ray);
+    }
+#endif
 
     // implement antialiasing by jittering the ray
     // sub-sampled extra rays per pixel
@@ -196,6 +268,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth,
               ((float)x + u01(rng) - (float)cam.resolution.x * 0.5f) -
           cam.up * cam.pixelLength.y *
               ((float)y + u01(rng) - (float)cam.resolution.y * 0.5f));
+#ifdef DEPTH_OF_FIELD
+      if (cam.lensRadius > 0) {
+        updateRayOnLens(cam, iter, index, i, extra_segment.ray);
+      }
+#endif
     }
   }
 }
