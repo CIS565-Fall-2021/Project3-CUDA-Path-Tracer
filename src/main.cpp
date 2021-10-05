@@ -84,7 +84,7 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 	}
 
 	objGeom.triangleCount = p.m_tris.size();
-	objGeom.meshTriangles = new TriangleCustom[objGeom.triangleCount];
+	objGeom.Host_Triangle_points_normals = new glm::vec4[6 * objGeom.triangleCount];
 	for (int i = 0; i < objGeom.triangleCount; i++)
 	{
 		for (int j = 0; j < 3; j++)
@@ -92,8 +92,8 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 			//Geom.Triangle.vertex = Polygon.vertex[triangle[i].index[j]]
 			glm::vec4 vertPos = p.m_verts[p.m_tris[i].m_indices[j]].m_pos;
 			glm::vec4 vertNormal = p.m_verts[p.m_tris[i].m_indices[j]].m_normal;
-			objGeom.meshTriangles[i].points_normals[2 * j] = vertPos;
-			objGeom.meshTriangles[i].points_normals[2 * j + 1] = vertNormal;
+			objGeom.Host_Triangle_points_normals[(6 * i) + 2 * j] = vertPos;
+			objGeom.Host_Triangle_points_normals[(6 * i ) + 2 * j + 1] = vertNormal;
 		}
 	}
 	return p;
@@ -209,8 +209,6 @@ void runCuda() {
 		cam.position = cameraPosition;
 		camchanged = false;
 		SetCacheState(false);
-
-		std::cout << cam.focus_dist;
 	}
 	// Map OpenGL buffer object for writing from CUDA on a single GPU
 	// No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer

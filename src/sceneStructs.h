@@ -20,11 +20,6 @@ struct Ray {
     glm::vec3 direction;
 };
 
-struct TriangleCustom
-{
-    glm::vec4 points_normals[6];
-};
-
 struct Geom {
     enum GeomType type;
     int materialid;
@@ -34,7 +29,8 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-    TriangleCustom *meshTriangles;
+    glm::vec4 * Host_Triangle_points_normals;
+    glm::vec4 * Device_Triangle_points_normals;
     int triangleCount;
    // glm::vec3* points;
 };
