@@ -24,6 +24,8 @@ Below list the 3 separate scattering surfaces implemented in this renderer. To m
 
 Here shows different surface with colors.
 
+| scenes/cornell.2021-10-04_00-14-05z.1925samp.png |
+
 <p align="center">
 <img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
      alt="Pathtrace" />
