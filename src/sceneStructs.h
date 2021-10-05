@@ -56,8 +56,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
-    float aperture;
-    float focus_dist;
+    float aperture = 0.0f;
+    float focus_dist = 1.0f;
 };
 
 struct RenderState {
