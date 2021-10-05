@@ -72,5 +72,12 @@ struct PathSegment {
 struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
+  glm::vec3 intersectionPoint;
   int materialId;
+};
+
+struct SICmp {
+    __host__ __device__ bool operator()(const ShadeableIntersection& p1, const ShadeableIntersection& p2) {
+        return p1.materialId < p2.materialId;
+    }
 };
