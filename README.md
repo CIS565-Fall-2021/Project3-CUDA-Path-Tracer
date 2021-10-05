@@ -14,7 +14,7 @@ In real life, rays come from light source, bounce between object surfaces before
 <p align="center">
 <img src="img/cornell.2021-10-05_17-10-50z.5000samp.png"
      alt="wolf"
-     width="900"/>
+     width="600"/>
 </p>
 
 <p align="center">
