@@ -19,3 +19,5 @@ CUDA Path Tracer
 | Lambertian | Reflective | Refractive |
 | ------------- | ----------- |----------- |
 | ![](scenes/cornell.2021-10-03_23-27-37z.3488samp.png)  | ![](scenes/cornell.2021-10-03_23-34-37z.4309samp.png) | ![](scenes/cornell.2021-10-03_23-43-33z.1964samp.png) |
+
+### Surface Scattering 
