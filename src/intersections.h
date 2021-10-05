@@ -159,31 +159,39 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
     // if intersects the bounding box, check against each triangle
     //if (intersectsBB != -1) {
 
-        // transform ray
-        // NOTE: get working w/o transformation first
+ 
+    // set up new ray that we will inverse transform by the mesh's transform
     Ray q;
     q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
     q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
     glm::vec3 tmp_isect_pt;
     float tmin = -1.f;
-    glm::vec3 tmin_n;
+    glm::vec3 tmin_n;/*
     for (int i = 0; i < mesh.numTriangles; i++) {
 
         Triangle t = mesh.triangles[i];
         //float3 tris = make_float3(t.p1.x, t.p1.y, t.p1.z);
 
-        //glm::intersectRayTriangle(r.origin, r.direction, t.p1, t.p2, t.p3, tmp_isect_pt);
-        glm::intersectRayTriangle(r.origin, r.direction, glm::vec3(-1.f, -1.f, 1.f), glm::vec3(1.f, -1.f, 1.f), glm::vec3(-1.f, 1.f, 1.f), tmp_isect_pt);
+        //glm::intersectRayTriangle(r.origin, r.direction, t.p1, t.p2, t.p3, tmp_isect_pt);*/
 
-        float tri_tmin = glm::length(r.origin - tmp_isect_pt);
-
-        if (tmin == -1 || (tri_tmin < tmin && tri_tmin >= 0.0)) {
-            tmin = tri_tmin;
-            tmin_n = t.n1;
+        // check if ray intersects triangle
+        bool intersects = glm::intersectRayTriangle(q.origin, q.direction, glm::vec3(-1.f, -1.f, 1.f), glm::vec3(1.f, -1.f, 1.f), glm::vec3(-1.f, 1.f, 1.f), tmp_isect_pt);
+         
+        if (!intersects) {
+            return -1;
         }
-    }
 
+        // if this t value is less than tmin, replace
+        float tri_tmin = glm::length(q.origin - tmp_isect_pt);
+        if (tmin == -1 || (tri_tmin < tmin && tri_tmin > 0.0)) {
+            tmin = tri_tmin;
+            tmin_n = glm::vec3(0.f, 0.f, 1.f);
+        }
+
+    //}
+    
+    // transform ray back to find the intersection point
     intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
     normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmin_n, 0.0f)));
     return glm::length(r.origin - intersectionPoint);
