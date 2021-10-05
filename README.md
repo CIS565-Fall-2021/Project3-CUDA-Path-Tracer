@@ -9,7 +9,7 @@ CUDA Path Tracer
 
 ### Photorealistic Rendering by Tracing Rays
 
-In real life, rays come from light source, bounce between object surfaces before entering our eyes. Each bounce off an object surface carries information of that surface. In ray-tracing rendering, we can start from the eye (image plane), trace backwards through each pixel to the world and eventually to the light source. Such ray-tracing is repeat thousands of times and color information is averaged to give photorealistic effects.
+In real life, rays come from light source, bounce between object surfaces before entering our eyes. Each bounce off an object surface carries information of that surface. In ray-tracing rendering, we can start from the eye (image plane), trace backwards through each pixel to the world and eventually to the light source. Such ray-tracing is repeated thousands of times and color information is averaged to give photorealistic effects.
 
 <p align="center">
 <img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
