@@ -169,7 +169,7 @@ __host__ __device__ glm::vec4 GetBarycentricWeightedNormal(glm::vec4 a_p1, glm::
 
 __host__ __device__
 inline bool intersect( Geom &geom,
-    const Ray& ray,
+    const Ray ray,
     float& tNear, float& tFar, uint8_t& planeIndex)
 {
     const int kNumPlaneSetNormals = 7;
@@ -190,7 +190,6 @@ inline bool intersect( Geom &geom,
         precomputeDenominator[i] = glm::dot(planeSetNormals[i], ray.direction);
     }
     for (int i = 0; i < kNumPlaneSetNormals; ++i) {
-        float b = geom.Device_BVH[2 * i];
         float tn = (geom.Device_BVH[2 * i] - precomputedNumerator[i]) / precomputeDenominator[i];
         float tf = (geom.Device_BVH[2 * i + 1] - precomputedNumerator[i]) / precomputeDenominator[i];
         if (precomputeDenominator[i] < 0)
@@ -209,7 +208,7 @@ inline bool intersect( Geom &geom,
 }
 
 __host__ __device__
-const bool intersect(const Ray& ray, Geom &currGeom) 
+const bool intersect(const Ray ray, Geom &currGeom) 
 {
     float tClosest = FLT_MAX_10_EXP;
     bool hit = false;

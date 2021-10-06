@@ -35,7 +35,7 @@ void BVH::GetBounds(float* getBounds, Geom &geom)
 
     for (int i = 0; i < this->kNumPlaneSetNormals; i++)
     {
-        getBounds[i] = this->extents.d[i][0];
-        getBounds[i + 1] = this->extents.d[i][1];
+        getBounds[2 *i] = this->extents.d[i][0];
+        getBounds[2 * i + 1] = this->extents.d[i][1];
     }
 }
