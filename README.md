@@ -3,11 +3,55 @@ CUDA Path Tracer
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Zirui Zang
+  * [LinkedIn](https://www.linkedin.com/in/zirui-zang/)
+* Tested on: Windows 10, AMD Ryzen 7 3700X @ 3.60GHz 32GB, RTX2070 SUPER 8GB (Personal)
 
-### (TODO: Your README)
+## Photorealistic Rendering by Tracing Rays
 
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
+In real life, rays come from light source, bounce between object surfaces before entering our eyes. Each bounce off an object surface carries information of that surface. In ray-tracing rendering, we can start from the eye (image plane), trace backwards through each pixel to the world and eventually to the light source. Such ray-tracing is repeated thousands of times and color information is averaged to give photorealistic effects.
 
+<p align="center">
+<img src="img/cornell.2021-10-05_21-17-44z.5000samp.png"
+     alt="deer"
+     width="600"/>
+</p>
+
+<p align="center">
+<img src="img/cornell.2021-10-05_17-10-50z.5000samp.png"
+     alt="wolf"
+     width="600"/>
+</p>
+
+
+
+### Surface Scattering 
+
+Below list the 3 separate scattering surfaces implemented in this renderer. To make refracgive surface seen more realistic, schlicks approximation is used to make the surface the effect of Frenel reflections. Objects in the seen can use a combination of these 3 properties based on the bidirectional scattering distribution function (BSDF) of the surface. 
+
+| Lambertian | Reflective | Refractive | with Color |
+| ------------ | ----------- | ----------- | ----------- |
+| ![](scenes/cornell.2021-10-03_23-27-37z.3488samp.png)  | ![](scenes/cornell.2021-10-03_23-34-37z.4309samp.png) | ![](scenes/cornell.2021-10-03_23-43-33z.1964samp.png) | ![](scenes/cornell.2021-10-04_00-14-05z.1925samp.png) |
+
+## Features
+
+### Depth of Field
+Depth of Field is created by sampling with a non-zero aperture size.
+
+| Close Focus | Far Focus |
+| ------------- | ----------- |
+| ![](img/cornell.2021-10-05_19-34-14z.1858samp.png) | ![](img/cornell.2021-10-05_21-11-55z.5000samp.png) |
+
+
+### Anti-Aliasing
+Anti-Aliasing is implemented by sub-pixel sampling.
+
+| with Anti-Aliasing | without Anti-Aliasing |
+| ------------- | ----------- |
+| ![](img/aa1.png)  | ![](img/aa0.png) |
+
+### Other Features
+1. .obj Mesh Import
+2. Toggleable option to cache the first bounce intersections for re-use across all subsequent iterations, when not using anti-aliasing. Is is not used because AA is a must.
+3. Elimiating terminated rays with Stream Compaction. This method definitely reduces empty thread launches and improves performance.
+4. Efficient attempt to sort the ray by the material type before shading. No efficient improvement is seen with this method.

@@ -3,6 +3,8 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -32,18 +34,56 @@ Scene::Scene(string filename) {
     }
 }
 
+int Scene::loadObj(string filename, std::vector<Geom>& geom) {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn;
+    std::string err;
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str());
+    for (size_t shape_ind = 0; shape_ind < shapes.size(); shape_ind++) {
+        size_t index = 0;
+        for (size_t face_ind = 0; face_ind < shapes[shape_ind].mesh.num_face_vertices.size(); face_ind++) {
+            Geom new_geom;
+            new_geom.type = TRIANGLE;
+            for (size_t vertex_ind = 0; vertex_ind < 3; vertex_ind++) {
+                tinyobj::index_t ind = shapes[shape_ind].mesh.indices[(index)];
+                tinyobj::real_t vx = attrib.vertices[ind.vertex_index * 3 + 0];
+                tinyobj::real_t vy = attrib.vertices[ind.vertex_index * 3 + 1];
+                tinyobj::real_t vz = attrib.vertices[ind.vertex_index * 3 + 2];
+                tinyobj::real_t nx = 0;
+                tinyobj::real_t ny = 0;
+                tinyobj::real_t nz = 0;
+                if (attrib.normals.size() > 0) {
+                    nx = attrib.normals[ind.vertex_index * 3 + 0];
+                    ny = attrib.normals[ind.vertex_index * 3 + 1];
+                    nz = attrib.normals[ind.vertex_index * 3 + 2];
+                }
+                new_geom.triangle.vertex[vertex_ind] = glm::vec3(vx, vy, vz);
+                new_geom.triangle.normals[vertex_ind] = glm::vec3(nx, ny, nz);
+                index++;
+            }
+            geom.push_back(new_geom);
+        }
+    }
+    return 1;
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
-        cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
-        return -1;
-    } else {
+        id = geoms.size();
+        //cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
+        //return -1;
+    }
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
+        std::vector<Geom> mesh; // mesh loading
         string line;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
+        vector<string> parts = utilityCore::tokenizeString(line);
         if (!line.empty() && fp_in.good()) {
             if (strcmp(line.c_str(), "sphere") == 0) {
                 cout << "Creating new sphere..." << endl;
@@ -51,6 +91,11 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (strcmp(parts[0].c_str(), "mesh") == 0) {
+                cout << "Creating new mesh..." << endl;
+                newGeom.type = TRIANGLE;
+                loadObj(parts[1], mesh);
             }
         }
 
@@ -78,15 +123,35 @@ int Scene::loadGeom(string objectid) {
 
             utilityCore::safeGetline(fp_in, line);
         }
-
-        newGeom.transform = utilityCore::buildTransformationMatrix(
+        
+        if (mesh.size() > 0) {
+            for (size_t geom_ind = 0; geom_ind < mesh.size(); geom_ind++) {
+                Geom geom = mesh[geom_ind];
+                geom.type = TRIANGLE;
+                geom.materialid = newGeom.materialid;
+                geom.transform = utilityCore::buildTransformationMatrix(
+                    newGeom.translation, newGeom.rotation, newGeom.scale);
+                geom.inverseTransform = glm::inverse(newGeom.transform);
+                geom.invTranspose = glm::inverseTranspose(newGeom.transform);
+                for (int ind = 0; ind < 3; ind++) {
+                    geom.triangle.vertex[ind] = glm::vec3(geom.transform * glm::vec4(geom.triangle.vertex[ind], 1.0f));
+                    geom.triangle.normals[ind] = glm::vec3(geom.invTranspose * glm::vec4(geom.triangle.normals[ind], 0.0f));
+                    //printf("%f \n", geom.triangle.vertex[ind].y);
+                }
+                geoms.push_back(geom);
+            }
+        }
+        else {
+            newGeom.transform = utilityCore::buildTransformationMatrix(
                 newGeom.translation, newGeom.rotation, newGeom.scale);
-        newGeom.inverseTransform = glm::inverse(newGeom.transform);
-        newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+            newGeom.inverseTransform = glm::inverse(newGeom.transform);
+            newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
-        geoms.push_back(newGeom);
+            geoms.push_back(newGeom);
+        }
+        
         return 1;
-    }
+
 }
 
 int Scene::loadCamera() {
@@ -112,6 +177,7 @@ int Scene::loadCamera() {
         } else if (strcmp(tokens[0].c_str(), "FILE") == 0) {
             state.imageName = tokens[1];
         }
+
     }
 
     string line;
@@ -124,6 +190,10 @@ int Scene::loadCamera() {
             camera.lookAt = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
             camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        } else if (strcmp(tokens[0].c_str(), "APERTURE") == 0) {
+            camera.aperture = atof(tokens[1].c_str());
+        } else if (strcmp(tokens[0].c_str(), "FOCUS_DIST") == 0) {
+            camera.focus_dist = atof(tokens[1].c_str());
         }
 
         utilityCore::safeGetline(fp_in, line);

@@ -142,3 +142,37 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float triangleIntersectionTest(Geom geom, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+    glm::vec3 bary_position;
+    Triangle tri = geom.triangle;
+    bool hit = glm::intersectRayTriangle(r.origin, r.direction,
+                                        tri.vertex[0], 
+                                        tri.vertex[1],
+                                        tri.vertex[2], bary_position);
+    //glm::vec3 bary_position_reverse; // glm intersectRayTriangle ignores back hitting.
+    //bool hit_reverse = glm::intersectRayTriangle(r.origin, r.direction,
+    //                                    tri.vertex[0], 
+    //                                    tri.vertex[2],
+    //                                    tri.vertex[1], bary_position_reverse);
+
+    if (hit) {
+        normal = (tri.normals[0] * (1.0f - bary_position.x - bary_position.y)) + 
+                    (tri.normals[1] * bary_position.x) + (tri.normals[2] * bary_position.y);
+        outside = false;
+    }
+    //else if (hit_reverse) {
+    //    normal = -1.0f * (tri.normals[0] * (1.0f - bary_position_reverse.x - bary_position_reverse.y)) +
+    //        (tri.normals[1] * bary_position_reverse.x) + (tri.normals[2] * bary_position_reverse.y);
+    //    outside = true;
+    //}
+    else {
+        return -1;
+    }
+    float t = bary_position.z;
+    intersectionPoint = getPointOnRay(r, t);
+    
+    return t;
+}
+
