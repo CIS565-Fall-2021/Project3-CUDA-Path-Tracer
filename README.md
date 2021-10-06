@@ -44,7 +44,7 @@ Depth of Field is created by sampling with a non-zero aperture size.
 
 
 ### Anti-Aliasing
-Anti-Aliasing is implement with sub-pixel sampling.
+Anti-Aliasing is implemented by sub-pixel sampling.
 
 | with Anti-Aliasing | without Anti-Aliasing |
 | ------------- | ----------- |
