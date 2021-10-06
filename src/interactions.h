@@ -93,9 +93,10 @@ void scatterRay(
     thrust::uniform_real_distribution<float> u01(0, 1);
     glm::vec3 incomingRayDirection = pathSegment.ray.direction;
 
+    float totalProb = m.hasReflective + m.hasRefractive;
+    float random = u01(rng) * totalProb;
 
-
-    if (m.hasReflective > 0.f)
+    if (random < m.hasReflective)
     {
         // Color the ray according to surface's material encountered
         pathSegment.color *= m.color;
@@ -104,7 +105,7 @@ void scatterRay(
         pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal));
         pathSegment.ray.origin = intersect;
     }
-    else if (m.hasRefractive > 0.f)
+    else if (random < m.hasReflective + m.hasRefractive)
     {
         float uniformSample = u01(rng);
 
