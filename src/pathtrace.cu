@@ -145,7 +145,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         int index_sub = x + (y * cam.resolution.x) + z * cam.resolution.x * cam.resolution.y;
         PathSegment & segment = pathSegments[index_sub];
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, index_sub, 0);
-        thrust::uniform_real_distribution<float> u01(-0.5, 0.5);
+        thrust::uniform_real_distribution<float> u01(-1.0, 1.0);
 
         
 
