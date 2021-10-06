@@ -30,7 +30,7 @@ public:
         triangleCount = a_triangleCount;
         Triangle_Point_Normals = a_Triangle_Point_Normals;
     }
-    void GetBounds(float *getBounds);
+    void GetBounds(float *getBounds, Geom &geom);
     ~BVH();
 };
 

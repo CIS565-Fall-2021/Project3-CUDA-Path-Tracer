@@ -108,6 +108,11 @@ void pathtraceInit(Scene* scene) {
 			Geom& currGeom = scene->geoms[i];
 			cudaMalloc(&currGeom.Device_Triangle_points_normals, 6 * currGeom.triangleCount * sizeof(glm::vec4));
 			cudaMemcpy(currGeom.Device_Triangle_points_normals, currGeom.Host_Triangle_points_normals, 6 * currGeom.triangleCount * sizeof(glm::vec4), cudaMemcpyHostToDevice);
+
+			//Copy Bound Volume Data
+
+			cudaMalloc(&currGeom.Device_BVH, 14 * sizeof(glm::vec4));
+			cudaMemcpy(currGeom.Device_BVH, currGeom.Host_BVH, 14 * sizeof(glm::vec4), cudaMemcpyHostToDevice);
 		}
 	}
 
@@ -269,7 +274,10 @@ __global__ void computeIntersections(
 
 			else if (geom.type == OBJ)
 			{
-				t = MeshIntersectionTest(geom,pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				if (intersect(pathSegments->ray, geom))
+				{
+					t = MeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				}
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 

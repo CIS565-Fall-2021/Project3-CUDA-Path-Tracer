@@ -32,7 +32,7 @@ void BuildBVH(Geom& objGeom)
 {
 	objGeom.Host_BVH = new float[14];
 	BVH a(objGeom.triangleCount, objGeom.Host_Triangle_points_normals);
-	a.GetBounds(objGeom.Host_BVH);
+	a.GetBounds(objGeom.Host_BVH, objGeom);
 }
 
 
