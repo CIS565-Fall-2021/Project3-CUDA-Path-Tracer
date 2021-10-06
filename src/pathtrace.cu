@@ -257,6 +257,7 @@ __global__ void computeIntersections(
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
             intersections[path_index].uvs = uv;
+            intersections[path_index].useTexture = geoms[hit_geom_index].useTexture;
         }
     }
 }
@@ -307,9 +308,11 @@ __global__ void shadeRealMaterial(
             pathSegments[idx].color =
                 tmpidx < (w * h) &&
                         intersection.uvs.x >= 0 &&
-                        intersection.uvs.y >= 0
+                        intersection.uvs.y >= 0 &&
+                        intersection.useTexture
                     ? glm::vec3(baseColor[tmpidx].bCol[0] / 255.f, baseColor[tmpidx].bCol[1] / 255.f, baseColor[tmpidx].bCol[2] / 255.f)
-                    : intersection.surfaceNormal;
+                    // : intersection.surfaceNormal;
+                    : material.color;
             // pathSegments[idx].color = baseColor[tmpidx] / 255.f;
             //   : material.color; // Debug only
             pathSegments[idx].remainingBounces = 0;

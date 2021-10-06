@@ -187,6 +187,7 @@ int Scene::loadGeom(string objectid)
                     meshVec[s].numTris = meshTris.size();
                     meshVec[s].triIdx = triangles.size();
                     triangles.insert(triangles.end(), meshTris.begin(), meshTris.end());
+                    cout << "min " << glm::to_string(meshVec[s].min) << " max " << glm::to_string(meshVec[s].max) << endl;
                 }
                 meshs = meshVec;
                 numMeshs = meshs.size();

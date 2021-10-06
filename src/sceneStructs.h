@@ -32,7 +32,7 @@
 #define CACHE_FIRST
 #endif
 // Use AABBs to quick check mesh intersections
-// #define BV_CULL
+#define BV_CULL
 
 #define SMALL_OFFSET 0.001f
 #define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
@@ -148,4 +148,5 @@ struct ShadeableIntersection
     glm::vec3 surfaceNormal = glm::vec3();
     int materialId = -1;
     glm::vec2 uvs = glm::vec2(0.f);
+    bool useTexture = false;
 };
