@@ -10,8 +10,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Enable C++11 for host code
-set(CMAKE_CXX_STANDARD 11)
+# Enable C++14 for host code
+set(CMAKE_CXX_STANDARD 14)
 
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -34,13 +34,6 @@ if(WIN32)
     # Set up include and lib paths
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
 endif(WIN32)
-########################################
-
-########################################
-# TinyGLTF 2.0 loader
-set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
-set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
-add_subdirectory(external/include/tinygltf-2.5.0)
 ########################################
 
 set(OpenGL_GL_PREFERENCE GLVND)
