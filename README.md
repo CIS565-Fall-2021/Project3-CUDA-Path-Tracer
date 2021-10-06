@@ -30,7 +30,7 @@ In real life, rays come from light source, bounce between object surfaces before
 Below list the 3 separate scattering surfaces implemented in this renderer. To make refracgive surface seen more realistic, schlicks approximation is used to make the surface the effect of Frenel reflections. Objects in the seen can use a combination of these 3 properties based on the bidirectional scattering distribution function (BSDF) of the surface. 
 
 | Lambertian | Reflective | Refractive | with Color |
-| ------------- | ----------- | ----------- | ----------- |
+| ------------ | ----------- | ----------- | ----------- |
 | ![](scenes/cornell.2021-10-03_23-27-37z.3488samp.png)  | ![](scenes/cornell.2021-10-03_23-34-37z.4309samp.png) | ![](scenes/cornell.2021-10-03_23-43-33z.1964samp.png) | ![](scenes/cornell.2021-10-04_00-14-05z.1925samp.png) |
 
 ## Features
