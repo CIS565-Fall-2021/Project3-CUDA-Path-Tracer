@@ -113,6 +113,11 @@ int Scene::loadGeom(string objectid)
                 auto &shapes = reader.GetShapes();
                 auto &materials = reader.GetMaterials();
 
+                cout << "sizeof shapes " << shapes.size() << endl;
+                cout << "sizeof materials " << materials.size() << endl;
+
+                vector<Geom> meshVec();
+
                 // Loop over shapes
                 for (size_t s = 0; s < shapes.size(); s++)
                 {
@@ -141,7 +146,6 @@ int Scene::loadGeom(string objectid)
                                 tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                                 tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
                                 tri.t.norm[v] = glm::vec3(nx, ny, nz);
-                                // tri.t.norm[v] = glm::normalize(tri.t.pos[v]); // TMP for test norm interp
                             }
 
                             // Check if `texcoord_index` is zero or positive. negative = no texcoord data
@@ -151,8 +155,6 @@ int Scene::loadGeom(string objectid)
                                 tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
                                 tx = tx < 0 ? -tx : tx;
                                 ty = ty < 0 ? -ty : ty;
-                                // tx = tx < 0 ? 1 + tx : tx;
-                                // ty = ty < 0 ? 1 + ty : ty;
                                 tri.t.uv[v] = glm::vec2(tx, ty);
                                 // if (f % 1024 == 0)
                                 // {
@@ -376,51 +378,32 @@ int Scene::loadMaterial(string materialid)
             {
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
+#define STBI_NO_FAILURE_STRINGS
+#define STBI_FAILURE_USERMSG
             else if (strcmp(tokens[0].c_str(), "COLORMAP") == 0)
             {
+                // NB: colormap goes first so this will reserve the vector and push back the elems
                 if (tokens.size() > 1)
                 {
                     // load color texture
                     std::string bcolorTexFile = tokens[1];
-#define STBI_NO_FAILURE_STRINGS
-#define STBI_FAILURE_USERMSG
                     int width, height, byteStride;
                     unsigned char *imgBuff = stbi_load(bcolorTexFile.c_str(), &width, &height, &byteStride, 0);
                     if (imgBuff == nullptr)
                     {
                         cout << stbi_failure_reason() << endl;
                     }
-                    // std::fill(baseColorVec.begin(), baseColorVec.end(), glm::vec3(0.f));
-                    baseColorVec.reserve(width * height);
-                    // baseColorVec.reserve(width * height);
-                    // ... process data if not NULL ...
-                    // ... x = width, y = height, n = # 8-bit components per pixel ...
-                    // ... replace '0' with '1'..'4' to force that many components per pixel
-                    // ... but 'n' will always be the number that it would have been if you said 0
-
-                    // The return value from an image loader is an 'unsigned char *' which points
-                    // to the pixel data, or NULL on an allocation failure or if the image is
-                    // corrupt or invalid. The pixel data consists of *y scanlines of *x pixels,
-                    // with each pixel consisting of N interleaved 8-bit components; the first
-                    // pixel pointed to is top-left-most in the image. There is no padding between
-                    // image scanlines or between pixels, regardless of format. The number of
-                    // components N is 'desired_channels' if desired_channels is non-zero, or
-                    // *channels_in_file otherwise. If desired_channels is non-zero,
-                    // *channels_in_file has the number of components that _would_ have been
-                    // output otherwise. E.g. if you set desired_channels to 4, you will always
-                    // get RGBA output, but you can check *channels_in_file to see if it's trivially
-                    // opaque because e.g. there were only 3 channels in the source image.
-                    // height lines of width pixels ->
-                    //    u * width, v * height, floor both
-                    //    nU, nV -> nU + width * nV
-                    cout << "image read size " << width * height * byteStride << endl;
-                    cout << "bytes per pix " << byteStride << endl;
+                    texData.reserve(width * height);
                     for (int idx = 0; idx < width * height; idx++)
                     {
                         int tmpIdx = idx * 3;
-                        baseColorVec.push_back(glm::vec3(imgBuff[tmpIdx], imgBuff[tmpIdx + 1], imgBuff[tmpIdx + 2]));
+                        struct TexData t;
+                        t.bCol[0] = imgBuff[tmpIdx];
+                        t.bCol[1] = imgBuff[tmpIdx + 1];
+                        t.bCol[2] = imgBuff[tmpIdx + 2];
+                        texData.push_back(t);
                     }
-                    cout << "vector size " << baseColorVec.size() << endl;
+                    cout << "vector size " << texData.size() << endl;
                     stbi_image_free(imgBuff);
                 }
             }
@@ -429,23 +412,62 @@ int Scene::loadMaterial(string materialid)
                 if (tokens.size() > 1)
                 {
                     // load color texture
-                    // newMaterial.emissiveTexID;
+                    std::string emitTexFile = tokens[1];
+                    int width, height, byteStride;
+                    unsigned char *imgBuff = stbi_load(emitTexFile.c_str(), &width, &height, &byteStride, 0);
+                    if (imgBuff == nullptr)
+                    {
+                        cout << stbi_failure_reason() << endl;
+                    }
+                    for (int idx = 0; idx < width * height; idx++)
+                    {
+                        texData[idx].emit = imgBuff[idx]; // assumes emitmap is 1 byte per pixel
+                    }
+                    stbi_image_free(imgBuff);
                 }
             }
             else if (strcmp(tokens[0].c_str(), "ROUGHMAP") == 0)
             {
                 if (tokens.size() > 1)
                 {
-                    // load color texture
-                    // newMaterial.roughTexID;
+                    // load ao_rough_metal texture
+                    std::string ao_rough_metal = tokens[1];
+                    int width, height, byteStride;
+                    unsigned char *imgBuff = stbi_load(ao_rough_metal.c_str(), &width, &height, &byteStride, 0);
+                    if (imgBuff == nullptr)
+                    {
+                        cout << stbi_failure_reason() << endl;
+                    }
+                    for (int idx = 0; idx < width * height; idx++)
+                    {
+                        int tmpIdx = idx * 3;
+                        texData[idx].amOc = imgBuff[tmpIdx];
+                        texData[idx].rogh = imgBuff[tmpIdx + 1];
+                        texData[idx].metl = imgBuff[tmpIdx + 2];
+                    }
+                    stbi_image_free(imgBuff);
                 }
             }
             else if (strcmp(tokens[0].c_str(), "NORMALMAP") == 0)
             {
                 if (tokens.size() > 1)
                 {
-                    // load color texture
-                    // newMaterial.normalTexID;
+                    // load normal/bump texture
+                    std::string normtex = tokens[1];
+                    int width, height, byteStride;
+                    unsigned char *imgBuff = stbi_load(normtex.c_str(), &width, &height, &byteStride, 0);
+                    if (imgBuff == nullptr)
+                    {
+                        cout << stbi_failure_reason() << endl;
+                    }
+                    for (int idx = 0; idx < width * height; idx++)
+                    {
+                        int tmpIdx = idx * 3;
+                        texData[idx].bump[0] = imgBuff[tmpIdx];
+                        texData[idx].bump[1] = imgBuff[tmpIdx + 1];
+                        texData[idx].bump[2] = imgBuff[tmpIdx + 2];
+                    }
+                    stbi_image_free(imgBuff);
                 }
             }
         }
