@@ -28,7 +28,9 @@ public:
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+    std::vector<struct Triangle> triangles;
+    int numMeshs = 0; // number of start indices
     RenderState state;
 
-    std::vector<glm::vec3> baseColorVec;
+    std::vector<struct TexData> texData;
 };

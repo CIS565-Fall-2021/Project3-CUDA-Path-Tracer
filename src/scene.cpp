@@ -65,6 +65,8 @@ int Scene::loadGeom(string objectid)
         vector<Geom> triangs;
         string line;
 
+        vector<Geom> meshs;
+
         //load object type
         utilityCore::safeGetline(fp_in, line);
         vector<string> tokens = utilityCore::tokenizeString(line);
@@ -116,20 +118,19 @@ int Scene::loadGeom(string objectid)
                 cout << "sizeof shapes " << shapes.size() << endl;
                 cout << "sizeof materials " << materials.size() << endl;
 
-                vector<Geom> meshVec();
+                vector<Geom> meshVec(shapes.size());
 
-                // Loop over shapes
+                // foreach mesh
                 for (size_t s = 0; s < shapes.size(); s++)
                 {
-                    // Loop over faces(polygon)
+                    vector<struct Triangle> meshTris;
+                    // foreach poly in mesh
                     size_t index_offset = 0;
                     for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++)
                     {
                         size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
-
-                        //! with ebon hawk model, all triangles so ignoring other polygons
-                        Geom tri;
-                        // Loop over vertices in the face.
+                        struct Triangle tri;
+                        // foreach vert in poly
                         for (size_t v = 0; v < fv; v++)
                         {
                             // access to vertex
@@ -137,7 +138,7 @@ int Scene::loadGeom(string objectid)
                             tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
                             tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
                             tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
-                            tri.t.pos[v] = glm::vec3(vx, vy, vz);
+                            tri.pos[v] = glm::vec3(vx, vy, vz);
 
                             // Check if `normal_index` is zero or positive. negative = no normal data
                             if (idx.normal_index >= 0)
@@ -145,7 +146,7 @@ int Scene::loadGeom(string objectid)
                                 tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
                                 tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                                 tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-                                tri.t.norm[v] = glm::vec3(nx, ny, nz);
+                                tri.norm[v] = glm::vec3(nx, ny, nz);
                             }
 
                             // Check if `texcoord_index` is zero or positive. negative = no texcoord data
@@ -155,25 +156,40 @@ int Scene::loadGeom(string objectid)
                                 tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
                                 tx = tx < 0 ? -tx : tx;
                                 ty = ty < 0 ? -ty : ty;
-                                tri.t.uv[v] = glm::vec2(tx, ty);
+                                tri.uv[v] = glm::vec2(tx, ty);
                                 // if (f % 1024 == 0)
                                 // {
-                                //     cout << "sample uvs " << glm::to_string(tri.t.uv[v]) << endl;
+                                //     cout << "sample uvs " << glm::to_string(tri.uv[v]) << endl;
                                 // }
                             }
-
-                            // Optional: vertex colors
-                            // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
-                            // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
-                            // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
                         }
                         index_offset += fv;
-                        triangs.push_back(tri);
+                        // triangs.push_back(tri);
+                        meshTris.push_back(tri);
 
                         // per-face material
                         shapes[s].mesh.material_ids[f];
                     }
+                    // meshVec[s].ts = meshTris;
+                    meshVec[s].useTexture = s != 0;
+                    meshVec[s].type = MESH;
+                    // meshVec[s].meshIdx = s;
+                    //TODO: Calculate AABBs
+                    meshVec[s].min = meshTris.at(0).pos[0];
+                    meshVec[s].max = meshTris.at(0).pos[0];
+                    for (auto const &t : meshTris)
+                    {
+                        auto tmpmin = glm::min(glm::min(t.pos[0], t.pos[1]), t.pos[2]);
+                        meshVec[s].min = glm::min(meshVec[s].min, tmpmin);
+                        auto tmpmax = glm::max(glm::max(t.pos[0], t.pos[1]), t.pos[2]);
+                        meshVec[s].max = glm::max(meshVec[s].max, tmpmax);
+                    }
+                    meshVec[s].numTris = meshTris.size();
+                    meshVec[s].triIdx = triangles.size();
+                    triangles.insert(triangles.end(), meshTris.begin(), meshTris.end());
                 }
+                meshs = meshVec;
+                numMeshs = meshs.size();
             }
         }
 
@@ -214,31 +230,29 @@ int Scene::loadGeom(string objectid)
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
-        //TODO: if is mesh, map these to every triangle in the mesh
-        //TODO push all triangles in container to geoms
-        //TODO else to the line below
-        if (triangs.size() > 0)
+        if (meshs.size() > 0)
         {
-            for (auto &tri : triangs)
+            for (auto &m : meshs)
             {
-                tri.translation = newGeom.translation;
-                tri.rotation = newGeom.rotation;
-                tri.scale = newGeom.scale;
-                tri.transform = newGeom.transform;
-                tri.inverseTransform = newGeom.inverseTransform;
-                tri.invTranspose = newGeom.invTranspose;
-                tri.materialid = newGeom.materialid;
-                tri.type = TRIANGLE;
-                // cout << "norm " << glm::to_string(tri.t.norm[0]) << " "
-                //      << glm::to_string(tri.t.norm[1]) << " "
-                //      << glm::to_string(tri.t.norm[2]) << endl;
+                m.translation = newGeom.translation;
+                m.rotation = newGeom.rotation;
+                m.scale = newGeom.scale;
+                m.transform = newGeom.transform;
+                m.inverseTransform = newGeom.inverseTransform;
+                m.invTranspose = newGeom.invTranspose;
+                m.materialid = newGeom.materialid;
+
+                // m.type = TRIANGLE;
+                // cout << "norm " << glm::to_string(tri.norm[0]) << " "
+                //      << glm::to_string(tri.norm[1]) << " "
+                //      << glm::to_string(tri.norm[2]) << endl;
                 // for (int trivert = 0; trivert < 3; trivert++)
                 // {
-                //     tri.t.pos[trivert] = glm::vec3(tri.transform * glm::vec4(tri.t.pos[trivert], 1.f));
-                //     tri.t.norm[trivert] = glm::vec3(tri.invTranspose * glm::vec4(tri.t.norm[trivert], 0.f));
+                //     tri.pos[trivert] = glm::vec3(tri.transform * glm::vec4(tri.pos[trivert], 1.f));
+                //     tri.norm[trivert] = glm::vec3(tri.invTranspose * glm::vec4(tri.norm[trivert], 0.f));
                 // }
             }
-            geoms.insert(geoms.end(), triangs.begin(), triangs.end());
+            geoms.insert(geoms.end(), meshs.begin(), meshs.end());
             cout << "geoms size: " << geoms.size() << endl;
         }
         else
@@ -393,6 +407,8 @@ int Scene::loadMaterial(string materialid)
                     {
                         cout << stbi_failure_reason() << endl;
                     }
+                    newMaterial.texHeight = height;
+                    newMaterial.texWidth = width;
                     texData.reserve(width * height);
                     for (int idx = 0; idx < width * height; idx++)
                     {

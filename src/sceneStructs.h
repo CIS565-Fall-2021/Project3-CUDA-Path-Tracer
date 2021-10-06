@@ -9,10 +9,11 @@
 
 // Flags for different optimizations and timing
 
+//! At most one debug flag at a time
 // try loading texture base color onto cube
-// #define DEBUG_TEX_BASE_COLOR
+#define DEBUG_TEX_BASE_COLOR
 // Sets color to the surface normal for debug
-#define DEBUG_SURFACE_NORMAL
+// #define DEBUG_SURFACE_NORMAL
 // Sets to grayscale representing the t value
 // #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
@@ -30,6 +31,8 @@
 // Cache first iter; only if first rays cast are deterministic
 #define CACHE_FIRST
 #endif
+// Use AABBs to quick check mesh intersections
+// #define BV_CULL
 
 #define SMALL_OFFSET 0.001f
 #define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
@@ -55,26 +58,23 @@ struct Triangle
     glm::vec2 uv[3] = {glm::vec2(), glm::vec2(), glm::vec2()};
 };
 
-// struct Mesh
+// struct TriBuff
 // {
-//     std::vector<struct Triangle> tris();
-// };
-// struct AABB
-// {
-//     glm::vec3 min(0.f);
-//     glm::vec3 max(0.f);
+//     struct Triangle *t;
+//     int len;
 // };
 
-// struct TexData
-// {
-//     uint8_t bCol[3];
-//     uint8_t bump[3];
-//     uint8_t amOc;
-//     uint8_t rogh;
-//     uint8_t metl;
-//     bool emit;
-// };
+struct TexData
+{
+    uint8_t bCol[3];
+    uint8_t bump[3];
+    uint8_t amOc;
+    uint8_t rogh;
+    uint8_t metl;
+    bool emit;
+};
 
+// Mesh knows its triangles startindex in triangle buffer and how many triangles it has
 struct Geom
 {
     enum GeomType type = MESH;
@@ -85,20 +85,25 @@ struct Geom
     glm::mat4 transform = glm::mat4();
     glm::mat4 inverseTransform = glm::mat4();
     glm::mat4 invTranspose = glm::mat4();
-    struct Triangle t;
-    // struct Mesh mesh;
-    // struct AABB bounds;
-    // bool useTexture;
+    // std::vector<struct Triangle> ts;
+    glm::vec3 min = glm::vec3(0.f);
+    glm::vec3 max = glm::vec3(0.f);
+    bool useTexture = false;
+    // int meshIdx = -1;
+    int triIdx = -1;
+    int numTris = 0;
 };
 
 struct Material
 {
-    glm::vec3 color = glm::vec3();
+    glm::vec3 color = glm::vec3(0.7241664348743744, 0.38082699022272768, 0.00178208301015399);
     struct
     {
         float exponent = 0.f;
         glm::vec3 color = glm::vec3();
     } specular;
+    int texHeight;
+    int texWidth;
     float hasReflective = 0.f;
     float hasRefractive = 0.f;
     float indexOfRefraction = 0.f;

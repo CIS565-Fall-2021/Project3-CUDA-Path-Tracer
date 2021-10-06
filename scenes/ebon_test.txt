@@ -8,9 +8,9 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 COLORMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+EMITMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_emissive.png
+ROUGHMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_metallicRoughness.png
+NORMALMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_normal.png
 
 // Camera
 CAMERA

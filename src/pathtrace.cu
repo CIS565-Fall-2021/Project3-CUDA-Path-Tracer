@@ -86,9 +86,8 @@ static PathSegment *dev_paths = NULL;
 static ShadeableIntersection *dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 static ShadeableIntersection *dev_intersectionCache = NULL;
-static glm::vec3 *dev_baseColor = NULL;
-static glm::vec3 *dev_aoRoughMetal = NULL;
-static glm::vec3 *dev_normals = NULL;
+static struct TexData *dev_texData = NULL;
+static struct Triangle *dev_tris = NULL;
 // ...
 
 void pathtraceInit(Scene *scene)
@@ -115,8 +114,11 @@ void pathtraceInit(Scene *scene)
     cudaMalloc(&dev_intersectionCache, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersectionCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    cudaMalloc(&dev_baseColor, scene->baseColorVec.size() * sizeof(glm::vec3));
-    cudaMemcpy(dev_baseColor, scene->baseColorVec.data(), scene->baseColorVec.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+    cudaMalloc(&dev_texData, scene->texData.size() * sizeof(struct TexData));
+    cudaMemcpy(dev_texData, scene->texData.data(), scene->texData.size() * sizeof(struct TexData), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&dev_tris, scene->triangles.size() * sizeof(struct Triangle));
+    cudaMemcpy(dev_tris, scene->triangles.data(), scene->triangles.size() * sizeof(struct Triangle), cudaMemcpyHostToDevice);
 
     checkCUDAError("pathtraceInit");
 }
@@ -130,7 +132,8 @@ void pathtraceFree()
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
     cudaFree(dev_intersectionCache);
-    cudaFree(dev_baseColor);
+    cudaFree(dev_texData);
+    cudaFree(dev_tris);
 
     checkCUDAError("pathtraceFree");
 }
@@ -184,7 +187,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
 __global__ void computeIntersections(
-    int depth, int num_paths, PathSegment *pathSegments, Geom *geoms, int geoms_size, ShadeableIntersection *intersections)
+    int depth, int num_paths, PathSegment *pathSegments, Geom *geoms, int geoms_size, ShadeableIntersection *intersections, struct Triangle *tri)
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -221,14 +224,14 @@ __global__ void computeIntersections(
                 tmp_uv = glm::vec2(-1.f);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
-            // else if (geom.type == MESH)
-            // {
-            //     t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-            // }
-            else if (geom.type == TRIANGLE)
+            else if (geom.type == MESH)
             {
-                t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
+                t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv, tri);
             }
+            // else if (geom.type == TRIANGLE)
+            // {
+            //     t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv, dev_tris);
+            // }
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -268,7 +271,7 @@ __global__ void computeIntersections(
  * @param materials array of materials
  */
 __global__ void shadeRealMaterial(
-    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth, glm::vec3 *baseColor)
+    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth, struct TexData *baseColor)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_paths)
@@ -298,12 +301,14 @@ __global__ void shadeRealMaterial(
             // height lines of width pixels ->
             //    u * width, v * height, floor both
             //    nU, nV -> nU + width * nV
-            long long tmpidx = (int)(glm::floor(intersection.uvs.x * 4096) + 4096 * floor(intersection.uvs.y * 4096));
+            int w = material.texWidth;
+            int h = material.texHeight;
+            long long tmpidx = (int)(glm::floor(intersection.uvs.x * w) + w * floor(intersection.uvs.y * h));
             pathSegments[idx].color =
-                tmpidx < (4096 * 4096) &&
+                tmpidx < (w * h) &&
                         intersection.uvs.x >= 0 &&
                         intersection.uvs.y >= 0
-                    ? baseColor[tmpidx] / 255.f
+                    ? glm::vec3(baseColor[tmpidx].bCol[0] / 255.f, baseColor[tmpidx].bCol[1] / 255.f, baseColor[tmpidx].bCol[2] / 255.f)
                     : intersection.surfaceNormal;
             // pathSegments[idx].color = baseColor[tmpidx] / 255.f;
             //   : material.color; // Debug only
@@ -439,7 +444,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
             if (iter == 1)
             {
                 computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
-                    depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersectionCache);
+                    depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersectionCache, dev_tris);
                 checkCUDAError("trace first bounce");
                 cudaDeviceSynchronize();
             }
@@ -450,7 +455,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 #endif
         {
             computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
-                depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
+                depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections, dev_tris);
             checkCUDAError("trace one bounce");
             cudaDeviceSynchronize();
         }
@@ -469,7 +474,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
         // path segments that have been reshuffled to be contiguous in memory.
 
         // shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials);
-        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth, dev_baseColor);
+        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth, dev_texData);
         checkCUDAError("my shader");
         depth++;
 #ifdef COMPACT_RAYS
