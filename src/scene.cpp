@@ -100,7 +100,7 @@ int Scene::loadGeom(string objectid) {
 
 int Scene::loadObjFile() {
 
-    std::string inputfile = "../scenes/cow.obj";
+    std::string inputfile = "../scenes/bunny.obj";
     tinyobj::ObjReaderConfig reader_config;
     //reader_config.mtl_search_path = "../scenes/"; // Path to material files
 

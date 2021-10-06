@@ -97,16 +97,24 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
  * @param outside            Output param for whether the ray came from outside.
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
-__host__ __device__ float customObjIntersectionTest(Geom custom_obj, Ray r,
+__host__ __device__ float triangleIntersectionTest(Geom custom_obj, Ray r,
     glm::vec3& intersectionPoint, glm::vec3 vertex1, glm::vec3 vertex2, glm::vec3 vertex3, 
-    int vertexCount, glm::vec3& normal, bool& outside) {
+    glm::vec3 normal1, glm::vec3 normal2, glm::vec3 normal3, glm::vec3& normal, bool& outside) {
 
-    glm::vec3 ro = multiplyMV(custom_obj.inverseTransform, glm::vec4(r.origin, 1.0f));
-    glm::vec3 rd = glm::normalize(multiplyMV(custom_obj.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    r.origin = multiplyMV(custom_obj.inverseTransform, glm::vec4(r.origin, 1.0f));
+    r.direction = glm::normalize(multiplyMV(custom_obj.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-    glm::intersectRayTriangle(ro, rd, vertex1, vertex2, vertex3, intersectionPoint);
+    glm::vec3 bary_position;
+
+    int is_hit = glm::intersectRayTriangle(r.origin, r.direction, vertex1, vertex2, vertex3, bary_position);
+    if (!is_hit) {
+        return -1;
+    }
+    normal = (normal1 * (1.f - bary_position.x - bary_position.y)) + normal2 * bary_position.x + normal3 * bary_position.y;
+    outside = false;
+    float t = bary_position.z;
+    intersectionPoint = getPointOnRay(r, t);
     intersectionPoint = multiplyMV(custom_obj.transform, glm::vec4(intersectionPoint, 1.0));
-
     return glm::length(r.origin - intersectionPoint);
 }
 

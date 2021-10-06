@@ -33,6 +33,9 @@ struct TriangleGeom {
     glm::vec3 vertex1;
     glm::vec3 vertex2;
     glm::vec3 vertex3;
+    glm::vec3 normal1;
+    glm::vec3 normal2;
+    glm::vec3 normal3;
 };
 
 struct Material {

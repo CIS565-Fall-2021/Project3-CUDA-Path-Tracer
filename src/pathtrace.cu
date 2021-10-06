@@ -200,13 +200,18 @@ __global__ void computeIntersections(
             }
             else if (geom.type == CUSTOM_OBJ) {
                 //Compute the minimum t (a ray might intersect multiple triangle (front and back) in a custom obj
-                for (int i = 0; i < triangles_size; i++) {
-                    TriangleGeom& triangle = triangles[i];
-
-                    float triangle_inter = customObjIntersectionTest(geom, pathSegment.ray,
-                        tmp_intersect, triangle.vertex1, triangle.vertex2, triangle.vertex3, triangles_size, tmp_normal, outside);
-                    t = glm::min(t, triangle_inter);
+                //float closest_dist = FLT_MAX;
+                for (int j = 0; j < triangles_size; j++) {
+                    TriangleGeom& triangle = triangles[j];
+                    float triangle_inter = triangleIntersectionTest(geom, pathSegment.ray,
+                        tmp_intersect, triangle.vertex1, triangle.vertex2, triangle.vertex3, 
+                        triangle.normal1, triangle.normal2, triangle.normal3, tmp_normal, outside);
+                    if (triangle_inter != -1) {
+                        //t = glm::min(closest_dist, triangle_inter);
+                        t = triangle_inter;
+                    }
                 }
+                //t = closest_dist;
             }
 
             // Compute the minimum t from the intersection tests to determine what
