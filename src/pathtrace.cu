@@ -32,7 +32,7 @@
 #define DIRECT_LIGHT 0
 
 // Toggle for bounding volume intersection culling to reduce number of rays to be checked
-#define BOUND_BOX 0
+#define BOUND_BOX 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -94,6 +94,8 @@ static ShadeableIntersection *dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 static Triangle *dev_meshes = NULL;
+static glm::vec3 *dev_textures = NULL;
+static glm::vec3 *dev_normal_maps = NULL;
 
 #if CACHE_FIRST_BOUNCE
 static ShadeableIntersection *dev_first_intersections = NULL;
@@ -140,6 +142,12 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_meshes, scene->meshes.size() * sizeof(Triangle));
     cudaMemcpy(dev_meshes, scene->meshes.data(), scene->meshes.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
+    cudaMalloc(&dev_textures, scene->textures.size() * sizeof(glm::vec3));
+    cudaMemcpy(dev_textures, scene->textures.data(), scene->textures.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&dev_normal_maps, scene->normal_maps.size() * sizeof(glm::vec3));
+    cudaMemcpy(dev_normal_maps, scene->normal_maps.data(), scene->normal_maps.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+
 #if CACHE_FIRST_BOUNCE
     cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMalloc(&dev_first_paths, pixelcount * sizeof(PathSegment));
@@ -171,6 +179,8 @@ void pathtraceFree() {
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
     cudaFree(dev_meshes);
+    cudaFree(dev_textures);
+    cudaFree(dev_normal_maps);
 
 #if CACHE_FIRST_BOUNCE
     cudaFree(dev_first_intersections);
@@ -329,6 +339,8 @@ __global__ void computeIntersections(
     , Triangle *meshes
     , ShadeableIntersection *intersections
     , float time
+    , glm::vec3 *textures
+    , glm::vec3 *normals
 )
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -340,15 +352,16 @@ __global__ void computeIntersections(
         float t;
         glm::vec3 intersect_point;
         glm::vec3 normal;
+        glm::vec3 texture;
         float t_min = FLT_MAX;
         int hit_geom_index = -1;
         bool outside = true;
 
         glm::vec3 tmp_intersect;
         glm::vec3 tmp_normal;
+        glm::vec3 tmp_texture(-1.f, -1.f, -1.f);
 
         // naive parse through global geoms
-
         for (int i = 0; i < geoms_size; i++)
         {
             Geom &geom = geoms[i];
@@ -378,9 +391,9 @@ __global__ void computeIntersections(
             else if (geom.type == MESH)
             {
 #if BOUND_BOX
-                t = mesh_triangle_intersection_test(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, meshes, true);
+                t = mesh_triangle_intersection_test(geom, pathSegment.ray, tmp_intersect, tmp_texture, tmp_normal, outside, meshes, textures, normals, true);
 #else
-                t = mesh_triangle_intersection_test(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, meshes, false);
+                t = mesh_triangle_intersection_test(geom, pathSegment.ray, tmp_intersect, tmp_texture, tmp_normal, outside, meshes, textures, normals, false);
 #endif                
             }
 
@@ -399,6 +412,7 @@ __global__ void computeIntersections(
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
+                texture = tmp_texture;
             }
         }
 
@@ -412,6 +426,7 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
+            intersections[path_index].texture_color = texture;
         }
     }
 }
@@ -458,7 +473,7 @@ __global__ void shadeFakeMaterial(
             // TODO: replace this! you should be able to start with basically a one-liner
             else {
                 // Accumulate current color and generate bounce ray
-                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
+                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, intersection.texture_color, rng);
             }
             // If there was no intersection, color the ray black.
             // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -469,7 +484,7 @@ __global__ void shadeFakeMaterial(
             // Terminate if nothing hitted
             pathSegments[idx].remainingBounces = 0;
 
-            pathSegments[idx].color = glm::vec3(0.0f);
+            pathSegments[idx].color = glm::vec3(0.f);
         }
     }
 }
@@ -523,7 +538,7 @@ __global__ void shade_direct_light(
             // Bounce on reflective or refractive surface
             else if (material.hasReflective || material.hasRefractive) {               
                 // Accumulate current color and generate bounce ray
-                scatterRay(pathSegment, intersection_pos, intersection.surfaceNormal, material, rng);
+                scatterRay(pathSegment, intersection_pos, intersection.surfaceNormal, material, intersection.texture_color, rng);
             }
             // For diffuse surface, take a final ray directly to a random point on an emissive object
             else if (pathSegment.remainingBounces == 1) {
@@ -552,7 +567,7 @@ __global__ void shade_direct_light(
             }
             else {
                 // Accumulate current color and generate bounce ray
-                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
+                scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, intersection.texture_color, rng);
             }
             // If there was no intersection, color the ray black.
             // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -737,6 +752,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                 , dev_meshes
                 , dev_intersections
                 , time
+                , dev_textures
+                , dev_normal_maps
                 );
             checkCUDAError("trace one bounce");
             cudaDeviceSynchronize();
@@ -761,6 +778,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             , dev_meshes
             , dev_intersections
             , time
+            , dev_textures
+            , dev_normal_maps
             );
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();

@@ -117,6 +117,7 @@ void scatterRay(
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
+        glm::vec3 texture,
         thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
@@ -144,8 +145,14 @@ void scatterRay(
         }
         // Ideal diffuse
         else {
-            // Shade rays
-            pathSegment.color *= m.color;
+            if (texture[0] < 0.f) {
+                // Shade rays
+                pathSegment.color *= m.color;
+            }
+            else {
+                // Use texture if exists
+                pathSegment.color *= texture;
+            }
 
             // Use this to test normal
             //pathSegment.color = (normal + 1.f) / 2.f;

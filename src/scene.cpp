@@ -9,6 +9,8 @@
 //#define TINYOBJLOADER_USE_MAPBOX_EARCUT
 #include "tiny_obj_loader.h"
 
+#include "stb_image.h"
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -18,6 +20,10 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
+    // Pointer for each geometry
+    mesh_offset = 0;
+    texture_offset = 0;
+    normal_offset = 0;
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -39,7 +45,7 @@ Scene::Scene(string filename) {
 
 // Load obj files by tinyObj
 // Copied from example code https://github.com/tinyobjloader/tinyobjloader
-int Scene::load_obj(string path, Geom& geom, int offset) {
+void Scene::load_obj(string path, Geom& geom, int offset) {
 
     std::string inputfile = path;
     tinyobj::ObjReaderConfig reader_config;
@@ -122,9 +128,43 @@ int Scene::load_obj(string path, Geom& geom, int offset) {
     }
 }
 
-int Scene::loadGeom(string objectid) {
-    int mesh_offset = 0;
+// Load texture or normal map from an image
+void Scene::load_texture(const char *path, Geom &geom, int offset, bool is_normal_map) {
+    if (is_normal_map) {
+        geom.normal_offset = offset;
+    }
+    else {
+        geom.texture_offset = offset;
+    }
 
+    int width = 0;
+    int height = 0;    
+    int channel = 3;
+    float *data = stbi_loadf(path, &width, &height, &channel, channel);
+
+    if (is_normal_map) {
+        geom.normal_shape = glm::ivec2(width, height);
+    }
+    else {
+        geom.texture_shape = glm::ivec2(width, height);
+    }
+
+    for (int i = 0; i < width * height; i++) {
+        if (is_normal_map) {
+            // Convert color to real normal
+            glm::vec3 normal(data[i * channel], data[i * channel + 1], data[i * channel + 2]);
+            normal = glm::normalize(normal * 2.f - 1.f);
+            normal_maps.push_back(normal);
+        }
+        else {
+            textures.push_back(glm::vec3(data[i * channel], data[i * channel + 1], data[i * channel + 2]));
+        }
+    }
+
+    stbi_image_free(data);
+}
+
+int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
         cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
@@ -133,6 +173,9 @@ int Scene::loadGeom(string objectid) {
         cout << "Loading Geom " << id << "..." << endl;
         Geom newGeom;
         string line;
+
+        newGeom.texture_offset = -1;
+        newGeom.normal_offset = -1;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
@@ -175,6 +218,12 @@ int Scene::loadGeom(string objectid) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "END") == 0) {
                 newGeom.end_translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+            } else if (strcmp(tokens[0].c_str(), "texture") == 0) {
+                load_texture(tokens[1].c_str(), newGeom, texture_offset, false);
+                texture_offset += (newGeom.texture_shape[0] * newGeom.texture_shape[1]);
+            } else if (strcmp(tokens[0].c_str(), "normal") == 0) {
+                load_texture(tokens[1].c_str(), newGeom, normal_offset, true);
+                normal_offset += (newGeom.normal_shape[0] * newGeom.normal_shape[1]);
             }
 
             utilityCore::safeGetline(fp_in, line);

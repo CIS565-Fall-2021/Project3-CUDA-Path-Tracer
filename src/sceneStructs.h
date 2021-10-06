@@ -46,6 +46,10 @@ struct Geom {
     int mesh_offset;
     int mesh_num;
     AABB bound_box;
+    int texture_offset;
+    glm::ivec2 texture_shape;
+    int normal_offset;
+    glm::ivec2 normal_shape;
 };
 
 struct Material {
@@ -95,4 +99,5 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec3 texture_color;
 };
