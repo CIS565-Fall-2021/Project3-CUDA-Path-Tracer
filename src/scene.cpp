@@ -12,6 +12,7 @@ Scene::Scene(string filename) {
 
     // initialize triangle ptr list
     this->trianglePtrs = std::vector<std::unique_ptr<std::vector<Triangle>>>();
+    //this->trianglePtrs = vector<unique_ptr<vector<glm::vec3>>>();
 
     char* fname = (char*)filename.c_str();
     fp_in.open(fname);
@@ -48,11 +49,9 @@ bool Scene::loadObj(string filename, Geom& geom) {
    // geom.boundingBox.minZ = 10000000.f;
    // geom.boundingBox.maxZ = 0.f;
 
-    geom.triangles = NULL;
     std::vector<Triangle> triangles;
 
     // read in mesh and construct bounding box
-
     tinyobj::ObjReaderConfig reader_config;
     reader_config.triangulate = true;
     tinyobj::ObjReader reader;
@@ -72,29 +71,18 @@ bool Scene::loadObj(string filename, Geom& geom) {
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
 
-    // find num faces total
-    int numFaces = 0;
-    for (size_t s = 0; s < shapes.size(); s++) {
-        numFaces += shapes[s].mesh.num_face_vertices.size();
-    }
-
-    // allocate memory on CPU
-    geom.triangles = new Triangle[1];
-    geom.numTriangles = 1;
-
     // loop over shapes
     for (size_t s = 0; s < shapes.size(); s++) {
 
         // loop over faces
         size_t index_offset = 0;
         for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
-            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
             Triangle t;
             std::vector<glm::vec3> pts;
             std::vector<glm::vec3> nors;
             //loop over verts
-            for (size_t v = 0; v < fv; v++) {
+            for (size_t v = 0; v < 3; v++) {
                 tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
                 tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
                 tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
@@ -119,7 +107,8 @@ bool Scene::loadObj(string filename, Geom& geom) {
 
                 pts.push_back(glm::vec3(vx, vy, vz));
             }
-            if (s == 0 && f == 0) {
+            index_offset += 3;
+            //if (s == 0 && f == 0) {
                 t.p1 = glm::vec3(pts[0].x, pts[0].y, pts[0].z);
                 t.p2 = glm::vec3(pts[1].x, pts[1].y, pts[1].z);
                 t.p3 = glm::vec3(pts[2].x, pts[2].y, pts[2].z);
@@ -127,16 +116,23 @@ bool Scene::loadObj(string filename, Geom& geom) {
                 t.n2 = glm::vec3(nors[1].x, nors[1].y, nors[1].z);
                 t.n3 = glm::vec3(nors[2].x, nors[2].y, nors[2].z);
                 triangles.push_back(t);
-            }
+            //}
         }
     }
 
     // save unique ptr to triangle vector in scene
     this->trianglePtrs.push_back(make_unique<vector<Triangle>> (triangles));
-
+    //this->trianglePtrs.push_back(make_unique<vector<glm::vec3>>(triangles));
+    
     // get raw ptr and save to geom
     geom.triangles = &this->trianglePtrs[this->trianglePtrs.size() - 1].get()->front();
+    //geom.triangles = &this->trianglesTest[0];
+    
+
     geom.numTriangles = triangles.size();
+
+    //geom.numTriangles = triangles.size() / 3;
+   
     //std::cout << "minX: " << geom.boundingBox.minX << ", maxX: " << geom.boundingBox.maxX << ", minY: " << geom.boundingBox.minY << ", maxY: " << geom.boundingBox.maxY << ", minZ: " << geom.boundingBox.minZ << ", maxZ: " << geom.boundingBox.maxZ << std::endl;
     return true;
 }

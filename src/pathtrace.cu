@@ -83,6 +83,7 @@ static ShadeableIntersection* dev_intersections = NULL;
 static thrust::device_ptr<PathSegment*> dev_thrust_alive_paths = NULL;
 static PathSegment** dev_alive_paths = NULL;
 static PathSegment* dev_first_paths = NULL;
+static Triangle* dev_triangles = NULL;
 
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
@@ -101,6 +102,12 @@ void pathtraceInit(Scene* scene) {
     cudaMalloc(&dev_alive_paths, pixelcount * sizeof(PathSegment*));
     dev_thrust_alive_paths = thrust::device_ptr<PathSegment*>(dev_alive_paths);
 
+    for (int i = 0; i < scene->geoms.size(); i++) {
+        if (scene->geoms[i].type == MESH) {
+            cudaMalloc(&dev_triangles, scene->geoms[i].numTriangles * sizeof(Triangle));
+            cudaMemcpy(dev_triangles, scene->geoms[i].triangles, scene->geoms[i].numTriangles * sizeof(Triangle), cudaMemcpyHostToDevice);
+        }
+    }
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
@@ -203,6 +210,7 @@ __global__ void computeIntersections(
     , Geom* geoms
     , int geoms_size
     , ShadeableIntersection* intersections
+    , Triangle* triangles
 )
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -236,7 +244,7 @@ __global__ void computeIntersections(
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             else if (geom.type == MESH) {
-                t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, triangles);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -442,6 +450,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             , dev_geoms
             , hst_scene->geoms.size()
             , dev_intersections
+            , dev_triangles
             );
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
