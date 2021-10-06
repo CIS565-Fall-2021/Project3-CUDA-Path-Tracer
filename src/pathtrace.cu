@@ -213,12 +213,12 @@ __global__ void computeIntersections(
             if (geom.type == CUBE)
             {
                 t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                tmp_uv = glm::vec2(-1);
+                tmp_uv = glm::vec2(-1.f);
             }
             else if (geom.type == SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                tmp_uv = glm::vec2(-1);
+                tmp_uv = glm::vec2(-1.f);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
             // else if (geom.type == MESH)
@@ -238,7 +238,8 @@ __global__ void computeIntersections(
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
-                uv = geom.type == TRIANGLE ? tmp_uv : glm::vec2(-1);
+                // uv = geom.type == TRIANGLE ? tmp_uv : glm::vec2(-1.f);
+                uv = tmp_uv;
             }
         }
 
@@ -297,12 +298,14 @@ __global__ void shadeRealMaterial(
             // height lines of width pixels ->
             //    u * width, v * height, floor both
             //    nU, nV -> nU + width * nV
-            int tmpidx = (int)(glm::floor(intersection.uvs.x * 4096) + 4096 * floor(intersection.uvs.y * 4096));
-            pathSegments[idx].color = tmpidx < (4096 * 4096) &&
-                                              intersection.uvs.x >= 0 &&
-                                              intersection.uvs.y >= 0
-                                          ? baseColor[tmpidx] / 255.f
-                                          : intersection.surfaceNormal;
+            long long tmpidx = (int)(glm::floor(intersection.uvs.x * 4096) + 4096 * floor(intersection.uvs.y * 4096));
+            pathSegments[idx].color =
+                tmpidx < (4096 * 4096) &&
+                        intersection.uvs.x >= 0 &&
+                        intersection.uvs.y >= 0
+                    ? baseColor[tmpidx] / 255.f
+                    : intersection.surfaceNormal;
+            // pathSegments[idx].color = baseColor[tmpidx] / 255.f;
             //   : material.color; // Debug only
             pathSegments[idx].remainingBounces = 0;
 #else

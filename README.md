@@ -43,11 +43,15 @@ TODO: noise vs aliasing trade off, notice the sphere's left edge is not nearly a
 ## Performance Analysis
 
 ## Debug Views
-![](finalRenders/ebonhawk_surface_normals.png)
+![](finalRenders/ebonhawk_surface_normals.png) should have displayed the texture
+![](finalRenders/debug_texture_base_color.png) It was caused by negative uv coords because of tiling
 ![](finalRenders/texture_cube.png)
 ![](finalRenders/debug_normal_sphere.png)
 ![](finalRenders/debug_normal_cube_tilted.png)
 ![](finalRenders/debug_depth_cube.png)
+![](finalRenders/debug_cow_normals.png) made me think I had bad normal blending so
+![](finalRenders/debug_no_norm_blending.png) also agreed
+![](finalRenders/debug_norm_inter_working.png) showed that each triangle just had the same normal
 
 ## Bloopers
 * Initial mesh loading had triangle collision errors
@@ -101,3 +105,6 @@ ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
 NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
 
 check t < 0
+
+
+wrapping negative texture coords

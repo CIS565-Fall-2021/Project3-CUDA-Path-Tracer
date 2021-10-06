@@ -141,6 +141,7 @@ int Scene::loadGeom(string objectid)
                                 tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                                 tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
                                 tri.t.norm[v] = glm::vec3(nx, ny, nz);
+                                // tri.t.norm[v] = glm::normalize(tri.t.pos[v]); // TMP for test norm interp
                             }
 
                             // Check if `texcoord_index` is zero or positive. negative = no texcoord data
@@ -148,7 +149,15 @@ int Scene::loadGeom(string objectid)
                             {
                                 tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
                                 tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
+                                tx = tx < 0 ? -tx : tx;
+                                ty = ty < 0 ? -ty : ty;
+                                // tx = tx < 0 ? 1 + tx : tx;
+                                // ty = ty < 0 ? 1 + ty : ty;
                                 tri.t.uv[v] = glm::vec2(tx, ty);
+                                // if (f % 1024 == 0)
+                                // {
+                                //     cout << "sample uvs " << glm::to_string(tri.t.uv[v]) << endl;
+                                // }
                             }
 
                             // Optional: vertex colors

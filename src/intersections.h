@@ -221,15 +221,16 @@ __host__ __device__ float triangleIntersectionTest(Geom const &tri, Ray r, glm::
         (1.f - tuv.y - tuv.z) * tri.t.norm[0] +
         tuv.y * tri.t.norm[1] +
         tuv.z * tri.t.norm[2]);
-    normalTri = norm; // Test no normal interp
+    // normalTri = norm; // Test no normal interp
     outside = glm::dot(norm, q.direction) < 0.f;
     // back from triangle space
     intersectionPoint = multiplyMV(tri.transform, glm::vec4(getPointOnRay(q, tuv.x), 1.f));
     normalTri *= (outside ? 1.f : -1.f);
     normal = glm::normalize(multiplyMV(tri.invTranspose, glm::vec4(normalTri, 0.f)));
     uv = (1.f - tuv.y - tuv.z) * tri.t.uv[0] +
-        tuv.y * tri.t.uv[1] +
-        tuv.z * tri.t.uv[2];
+         tuv.y * tri.t.uv[1] +
+         tuv.z * tri.t.uv[2];
+    // uv = tri.t.uv[0]; // Test no normal interp
     return glm::length(r.origin - intersectionPoint);
 }
 

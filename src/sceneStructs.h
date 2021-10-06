@@ -10,9 +10,9 @@
 // Flags for different optimizations and timing
 
 // try loading texture base color onto cube
-#define DEBUG_TEX_BASE_COLOR
+// #define DEBUG_TEX_BASE_COLOR
 // Sets color to the surface normal for debug
-// #define DEBUG_SURFACE_NORMAL
+#define DEBUG_SURFACE_NORMAL
 // Sets to grayscale representing the t value
 // #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
@@ -88,6 +88,7 @@ struct Geom
     struct Triangle t;
     // struct Mesh mesh;
     // struct AABB bounds;
+    // bool useTexture;
 };
 
 struct Material
