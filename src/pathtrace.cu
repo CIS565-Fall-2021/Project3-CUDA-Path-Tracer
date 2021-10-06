@@ -17,9 +17,10 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define MATERIAL_SORT 1
+#define MATERIAL_SORT 0
 #define FIRST_BOUNCE_CACHE 0
 #define ANTI_ALIASING 1
+#define DEPTH_OF_FIELD 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -126,6 +127,38 @@ void pathtraceFree() {
     checkCUDAError("pathtraceFree");
 }
 
+/** 
+ * Maps a random point to a sample on a unit disk
+ */
+__host__ __device__ glm::vec3 concentricSampleDisk(glm::vec2 u)
+{
+    // Map input to -1 to 1 range
+    // glm::vec2 uOffset = 2.f * u - glm::vec2(1.f);
+    glm::vec2 uOffset = u;
+
+    // Handle degeneracy at origin
+    if (uOffset.x == 0.f && uOffset.y == 0.f)
+    {
+        return glm::vec3(0.f);
+    }
+
+    // Apply concentric mapping to point
+    float theta, r;
+    if (glm::abs(uOffset.x) > glm::abs(uOffset.y))
+    {
+        r = uOffset.x;
+        theta = PI / 4.f * (uOffset.y / uOffset.x);
+    }
+    else
+    {
+        r = uOffset.y;
+        theta = PI / 2.f - PI / 4.f * (uOffset.x / uOffset.y);
+    }
+
+    return r * glm::vec3(glm::cos(theta), glm::sin(theta), 0);
+
+}
+
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -149,13 +182,12 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         float xOffset = ((float)x - (float)cam.resolution.x * 0.5f);
         float yOffset = ((float)y - (float)cam.resolution.y * 0.5f);
 
-#if ANTI_ALIASING
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, traceDepth);
-        thrust::uniform_real_distribution<float> xDisplacement(-1.f, 1.f);
-        thrust::uniform_real_distribution<float> yDisplacement(-1.f, 1.f);
+        thrust::uniform_real_distribution<float> disp(-1.f, 1.f);
 
-        xOffset += 0.5 * xDisplacement(rng);
-        yOffset += 0.5 * yDisplacement(rng);
+#if ANTI_ALIASING
+        xOffset += 0.5 * disp(rng);
+        yOffset += 0.5 * disp(rng);
 #endif
 
         // DONE: implement antialiasing by jittering the ray
@@ -163,6 +195,25 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.right * cam.pixelLength.x * xOffset
             - cam.up * cam.pixelLength.y * yOffset
         );
+
+#if DEPTH_OF_FIELD
+        float lensRadius = cam.lensRadius;
+        float focalDistance = cam.focalLength;
+        float sample1 = disp(rng);
+        float sample2 = disp(rng);
+        
+        glm::vec3 pLens = lensRadius * concentricSampleDisk(glm::vec2(sample1, sample2));
+        float ft = focalDistance / glm::dot(cam.view, segment.ray.direction);
+        
+        glm::vec3 pFocus = cam.position + ft * segment.ray.direction;
+        segment.ray.origin += cam.right * pLens.x + cam.up + pLens.y;
+        segment.ray.direction = glm::normalize(pFocus - segment.ray.origin);
+
+#if ANTI_ALIASING
+        glm::vec3 aaOffset = glm::vec3(0.001 * disp(rng), 0.001 * disp(rng), 0.f);
+        segment.ray.direction = glm::normalize(segment.ray.direction + aaOffset);
+#endif
+#endif
 
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;

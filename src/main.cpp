@@ -2,6 +2,9 @@
 #include "preview.h"
 #include <cstring>
 
+#define ORIG_LENS_RADIUS 0.f;
+#define ORIG_FOCAL_LENFTH 4.f;
+
 static std::string startTimeString;
 
 // For camera controls
@@ -65,6 +68,10 @@ int main(int argc, char** argv) {
     theta = glm::acos(glm::dot(glm::normalize(viewZY), glm::vec3(0, 1, 0)));
     ogLookAt = cam.lookAt;
     zoom = glm::length(cam.position - ogLookAt);
+
+    // Initialize camera factors
+    cam.lensRadius = ORIG_LENS_RADIUS;
+    cam.focalLength = ORIG_FOCAL_LENFTH;
 
     // Initialize CUDA and GL components
     init();
@@ -148,21 +155,43 @@ void runCuda() {
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
-      switch (key) {
-      case GLFW_KEY_ESCAPE:
-        saveImage();
-        glfwSetWindowShouldClose(window, GL_TRUE);
-        break;
-      case GLFW_KEY_S:
-        saveImage();
-        break;
-      case GLFW_KEY_SPACE:
-        camchanged = true;
         renderState = &scene->state;
-        Camera &cam = renderState->camera;
-        cam.lookAt = ogLookAt;
-        break;
-      }
+        Camera& cam = renderState->camera;
+        switch (key) {            
+            case GLFW_KEY_ESCAPE:
+                saveImage();
+                glfwSetWindowShouldClose(window, GL_TRUE);
+                break;
+            case GLFW_KEY_S:
+                saveImage();
+                break;
+            case GLFW_KEY_R:
+                camchanged = true;
+                cam.lensRadius += 0.025f;
+                cam.lensRadius = std::min(0.5f, cam.lensRadius);
+                break;
+            case GLFW_KEY_T:
+                camchanged = true;
+                cam.lensRadius -= 0.025f;
+                cam.lensRadius = std::max(0.f, cam.lensRadius);
+                break;
+            case GLFW_KEY_F:
+                camchanged = true;
+                cam.focalLength += 0.2f;
+                cam.focalLength = std::min(8.f, cam.focalLength);
+                break;
+            case GLFW_KEY_G:
+                camchanged = true;
+                cam.focalLength -= 0.2f;
+                cam.focalLength = std::max(3.f, cam.focalLength);
+                break;
+            case GLFW_KEY_SPACE:
+                camchanged = true;
+                cam.lookAt = ogLookAt;
+                cam.lensRadius = ORIG_LENS_RADIUS;
+                cam.focalLength = ORIG_FOCAL_LENFTH;
+                break;
+        }
     }
 }
 
