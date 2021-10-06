@@ -201,6 +201,8 @@ __global__ void computeIntersections(
 
         glm::vec3 tmp_intersect;
         glm::vec3 tmp_normal;
+        glm::vec2 tmp_uv;
+        glm::vec2 uv;
 
         // naive parse through global geoms
 
@@ -211,10 +213,12 @@ __global__ void computeIntersections(
             if (geom.type == CUBE)
             {
                 t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                tmp_uv = glm::vec2(-1);
             }
             else if (geom.type == SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                tmp_uv = glm::vec2(-1);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
             // else if (geom.type == MESH)
@@ -223,7 +227,7 @@ __global__ void computeIntersections(
             // }
             else if (geom.type == TRIANGLE)
             {
-                t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv);
             }
 
             // Compute the minimum t from the intersection tests to determine what
@@ -234,6 +238,7 @@ __global__ void computeIntersections(
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
+                uv = geom.type == TRIANGLE ? tmp_uv : glm::vec2(-1);
             }
         }
 
@@ -247,59 +252,7 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
-        }
-    }
-}
-
-// LOOK: "fake" shader demonstrating what you might do with the info in
-// a ShadeableIntersection, as well as how to use thrust's random number
-// generator. Observe that since the thrust random number generator basically
-// adds "noise" to the iteration, the image should start off noisy and get
-// cleaner as more iterations are computed.
-//
-// Note that this shader does NOT do a BSDF evaluation!
-// Your shaders should handle that - this can allow techniques such as
-// bump mapping.
-__global__ void shadeFakeMaterial(
-    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < num_paths)
-    {
-        ShadeableIntersection intersection = shadeableIntersections[idx];
-        if (intersection.t > 0.0f)
-        { // if the intersection exists...
-            // Set up the RNG
-            // LOOK: this is how you use thrust's RNG! Please look at
-            // makeSeededRandomEngine as well.
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-            thrust::uniform_real_distribution<float> u01(0, 1);
-
-            Material material = materials[intersection.materialId];
-            glm::vec3 materialColor = material.color;
-
-            // If the material indicates that the object was a light, "light" the ray
-            if (material.emittance > 0.0f)
-            {
-                pathSegments[idx].color *= (materialColor * material.emittance);
-            }
-            // Otherwise, do some pseudo-lighting computation. This is actually more
-            // like what you would expect from shading in a rasterizer like OpenGL.
-            // TODO: replace this! you should be able to start with basically a one-liner
-            else
-            {
-                float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-                pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-                pathSegments[idx].color *= u01(rng); // apply some noise because why not
-            }
-            // If there was no intersection, color the ray black.
-            // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
-            // used for opacity, in which case they can indicate "no opacity".
-            // This can be useful for post-processing and image compositing.
-        }
-        else
-        {
-            pathSegments[idx].color = glm::vec3(0.0f);
+            intersections[path_index].uvs = uv;
         }
     }
 }
@@ -314,7 +267,7 @@ __global__ void shadeFakeMaterial(
  * @param materials array of materials
  */
 __global__ void shadeRealMaterial(
-    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth)
+    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth, glm::vec3 *baseColor)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_paths)
@@ -339,6 +292,18 @@ __global__ void shadeRealMaterial(
             pathSegments[idx].remainingBounces = 0;
 #elif defined(DEBUG_T_VAL)
             pathSegments[idx].color = glm::vec3(intersection.t * 0.01); // Debug only
+            pathSegments[idx].remainingBounces = 0;
+#elif defined(DEBUG_TEX_BASE_COLOR)
+            // height lines of width pixels ->
+            //    u * width, v * height, floor both
+            //    nU, nV -> nU + width * nV
+            int tmpidx = (int)(glm::floor(intersection.uvs.x * 4096) + 4096 * floor(intersection.uvs.y * 4096));
+            pathSegments[idx].color = tmpidx < (4096 * 4096) &&
+                                              intersection.uvs.x >= 0 &&
+                                              intersection.uvs.y >= 0
+                                          ? baseColor[tmpidx] / 255.f
+                                          : intersection.surfaceNormal;
+            //   : material.color; // Debug only
             pathSegments[idx].remainingBounces = 0;
 #else
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
@@ -501,7 +466,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
         // path segments that have been reshuffled to be contiguous in memory.
 
         // shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials);
-        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth);
+        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth, dev_baseColor);
         checkCUDAError("my shader");
         depth++;
 #ifdef COMPACT_RAYS
@@ -546,4 +511,56 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
     cudaMemcpy(hst_scene->state.image.data(), dev_image,
                pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
     checkCUDAError("pathtrace");
+}
+// LOOK: "fake" shader demonstrating what you might do with the info in
+// a ShadeableIntersection, as well as how to use thrust's random number
+// generator. Observe that since the thrust random number generator basically
+// adds "noise" to the iteration, the image should start off noisy and get
+// cleaner as more iterations are computed.
+//
+// Note that this shader does NOT do a BSDF evaluation!
+// Your shaders should handle that - this can allow techniques such as
+// bump mapping.
+__global__ void shadeFakeMaterial(
+    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths)
+    {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > 0.0f)
+        { // if the intersection exists...
+            // Set up the RNG
+            // LOOK: this is how you use thrust's RNG! Please look at
+            // makeSeededRandomEngine as well.
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+
+            // If the material indicates that the object was a light, "light" the ray
+            if (material.emittance > 0.0f)
+            {
+                pathSegments[idx].color *= (materialColor * material.emittance);
+            }
+            // Otherwise, do some pseudo-lighting computation. This is actually more
+            // like what you would expect from shading in a rasterizer like OpenGL.
+            // TODO: replace this! you should be able to start with basically a one-liner
+            else
+            {
+                float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+                pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
+                pathSegments[idx].color *= u01(rng); // apply some noise because why not
+            }
+            // If there was no intersection, color the ray black.
+            // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
+            // used for opacity, in which case they can indicate "no opacity".
+            // This can be useful for post-processing and image compositing.
+        }
+        else
+        {
+            pathSegments[idx].color = glm::vec3(0.0f);
+        }
+    }
 }

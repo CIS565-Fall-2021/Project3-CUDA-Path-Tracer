@@ -206,7 +206,7 @@ __host__ __device__ glm::vec3 triIntersect(Ray const &r, Triangle const &tri, gl
     return vec3(t, u, v);
 }
 
-__host__ __device__ float triangleIntersectionTest(Geom const &tri, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
+__host__ __device__ float triangleIntersectionTest(Geom const &tri, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, glm::vec2 &uv)
 {
     Ray q; // in triangle space
     q.origin = multiplyMV(tri.inverseTransform, glm::vec4(r.origin, 1.0f));
@@ -227,10 +227,13 @@ __host__ __device__ float triangleIntersectionTest(Geom const &tri, Ray r, glm::
     intersectionPoint = multiplyMV(tri.transform, glm::vec4(getPointOnRay(q, tuv.x), 1.f));
     normalTri *= (outside ? 1.f : -1.f);
     normal = glm::normalize(multiplyMV(tri.invTranspose, glm::vec4(normalTri, 0.f)));
+    uv = (1.f - tuv.y - tuv.z) * tri.t.uv[0] +
+        tuv.y * tri.t.uv[1] +
+        tuv.z * tri.t.uv[2];
     return glm::length(r.origin - intersectionPoint);
 }
 
-__host__ __device__ float aabbIntersectionTest(Geom g, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
+__host__ __device__ bool aabbIntersectionTest(Geom g, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
 {
     // Ray q;
     // q.origin = multiplyMV(g.inverseTransform, glm::vec4(r.origin, 1.0f));
@@ -247,5 +250,10 @@ __host__ __device__ float aabbIntersectionTest(Geom g, Ray r, glm::vec3 &interse
     // normal = glm::normalize(multiplyMV(g.invTranspose, glm::vec4(tmin_n, 0.0f)));
     // return glm::length(r.origin - intersectionPoint);
     // return 0.f;
+    return -1.f;
+}
+
+__host__ __device__ float meshIntersectionTest()
+{
     return -1.f;
 }

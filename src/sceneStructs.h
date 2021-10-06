@@ -9,6 +9,8 @@
 
 // Flags for different optimizations and timing
 
+// try loading texture base color onto cube
+#define DEBUG_TEX_BASE_COLOR
 // Sets color to the surface normal for debug
 // #define DEBUG_SURFACE_NORMAL
 // Sets to grayscale representing the t value
@@ -53,22 +55,25 @@ struct Triangle
     glm::vec2 uv[3] = {glm::vec2(), glm::vec2(), glm::vec2()};
 };
 
-struct Mesh
-{
-    std::vector<struct Triangle> tris();
-};
-struct AABB
-{
-    glm::vec3 min(0.f);
-    glm::vec3 max(0.f);
-};
+// struct Mesh
+// {
+//     std::vector<struct Triangle> tris();
+// };
+// struct AABB
+// {
+//     glm::vec3 min(0.f);
+//     glm::vec3 max(0.f);
+// };
 
-struct Textures
-{
-    int width = 0;
-    int height = 0;
-    glm::vec3 *data;
-};
+// struct TexData
+// {
+//     uint8_t bCol[3];
+//     uint8_t bump[3];
+//     uint8_t amOc;
+//     uint8_t rogh;
+//     uint8_t metl;
+//     bool emit;
+// };
 
 struct Geom
 {
@@ -81,7 +86,6 @@ struct Geom
     glm::mat4 inverseTransform = glm::mat4();
     glm::mat4 invTranspose = glm::mat4();
     struct Triangle t;
-    // struct Texture baseColor;
     // struct Mesh mesh;
     // struct AABB bounds;
 };
@@ -98,10 +102,6 @@ struct Material
     float hasRefractive = 0.f;
     float indexOfRefraction = 0.f;
     float emittance = 0.f;
-    int colorTexID = -1;
-    int emissiveTexID = -1;
-    int roughTexID = -1;
-    int normalTexID = -1;
 };
 
 struct Camera
@@ -141,4 +141,5 @@ struct ShadeableIntersection
     float t = 0.f;
     glm::vec3 surfaceNormal = glm::vec3();
     int materialId = -1;
+    glm::vec2 uvs = glm::vec2(0.f);
 };

@@ -89,55 +89,6 @@ int Scene::loadGeom(string objectid)
                 cout << "Creating new mesh..." << endl;
                 newGeom.type = MESH;
 
-                // using namespace tinygltf;
-
-                // Model model;
-                // TinyGLTF loader;
-                // std::string err;
-                // std::string warn;
-
-                // bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, tokens[1]);
-                // //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
-
-                // if (!warn.empty())
-                // {
-                //     printf("Warn: %s\n", warn.c_str());
-                // }
-
-                // if (!err.empty())
-                // {
-                //     printf("Err: %s\n", err.c_str());
-                // }
-
-                // if (!ret)
-                // {
-                //     printf("Failed to parse glTF\n");
-                //     return -1;
-                // }
-
-                // std::cout << "loaded glTF file has:\n"
-                //           << model.accessors.size() << " accessors\n"
-                //           << model.animations.size() << " animations\n"
-                //           << model.buffers.size() << " buffers\n"
-                //           << model.bufferViews.size() << " bufferViews\n"
-                //           << model.materials.size() << " materials\n"
-                //           << model.meshes.size() << " meshes\n"
-                //           << model.nodes.size() << " nodes\n"
-                //           << model.textures.size() << " textures\n"
-                //           << model.images.size() << " images\n"
-                //           << model.skins.size() << " skins\n"
-                //           << model.samplers.size() << " samplers\n"
-                //           << model.cameras.size() << " cameras\n"
-                //           << model.scenes.size() << " scenes\n"
-                //           << model.lights.size() << " lights\n";
-
-                // // Iterate through all the meshes in the glTF file
-                // for (const auto &gltfMesh : model.meshes)
-                // {
-                //     std::cout << "Current mesh has " << gltfMesh.primitives.size()
-                //               << " primitives:\n";
-                // }
-
                 std::string inputfile = tokens[1];
                 tinyobj::ObjReaderConfig reader_config;
                 reader_config.mtl_search_path = "../scenes/"; // Path to material files
@@ -422,13 +373,46 @@ int Scene::loadMaterial(string materialid)
                 {
                     // load color texture
                     std::string bcolorTexFile = tokens[1];
-                    std::ifstream texIn(bcolorTexFile, std::ios::binary);
-                    std::vector<unsigned char> imgBuff(std::istreambuf_iterator<char>(texIn), {});
-                    for (int idx = 0; idx < (TEXHEIGHT * TEXWIDTH); idx++)
+#define STBI_NO_FAILURE_STRINGS
+#define STBI_FAILURE_USERMSG
+                    int width, height, byteStride;
+                    unsigned char *imgBuff = stbi_load(bcolorTexFile.c_str(), &width, &height, &byteStride, 0);
+                    if (imgBuff == nullptr)
+                    {
+                        cout << stbi_failure_reason() << endl;
+                    }
+                    // std::fill(baseColorVec.begin(), baseColorVec.end(), glm::vec3(0.f));
+                    baseColorVec.reserve(width * height);
+                    // baseColorVec.reserve(width * height);
+                    // ... process data if not NULL ...
+                    // ... x = width, y = height, n = # 8-bit components per pixel ...
+                    // ... replace '0' with '1'..'4' to force that many components per pixel
+                    // ... but 'n' will always be the number that it would have been if you said 0
+
+                    // The return value from an image loader is an 'unsigned char *' which points
+                    // to the pixel data, or NULL on an allocation failure or if the image is
+                    // corrupt or invalid. The pixel data consists of *y scanlines of *x pixels,
+                    // with each pixel consisting of N interleaved 8-bit components; the first
+                    // pixel pointed to is top-left-most in the image. There is no padding between
+                    // image scanlines or between pixels, regardless of format. The number of
+                    // components N is 'desired_channels' if desired_channels is non-zero, or
+                    // *channels_in_file otherwise. If desired_channels is non-zero,
+                    // *channels_in_file has the number of components that _would_ have been
+                    // output otherwise. E.g. if you set desired_channels to 4, you will always
+                    // get RGBA output, but you can check *channels_in_file to see if it's trivially
+                    // opaque because e.g. there were only 3 channels in the source image.
+                    // height lines of width pixels ->
+                    //    u * width, v * height, floor both
+                    //    nU, nV -> nU + width * nV
+                    cout << "image read size " << width * height * byteStride << endl;
+                    cout << "bytes per pix " << byteStride << endl;
+                    for (int idx = 0; idx < width * height; idx++)
                     {
                         int tmpIdx = idx * 3;
-                        baseColorVec[idx] = glm::vec3(imgBuff[tmpIdx], imgBuff[tmpIdx + 1], imgBuff[tmpIdx + 2]);
+                        baseColorVec.push_back(glm::vec3(imgBuff[tmpIdx], imgBuff[tmpIdx + 1], imgBuff[tmpIdx + 2]));
                     }
+                    cout << "vector size " << baseColorVec.size() << endl;
+                    stbi_image_free(imgBuff);
                 }
             }
             else if (strcmp(tokens[0].c_str(), "EMITMAP") == 0)
@@ -436,7 +420,7 @@ int Scene::loadMaterial(string materialid)
                 if (tokens.size() > 1)
                 {
                     // load color texture
-                    newMaterial.emissiveTexID;
+                    // newMaterial.emissiveTexID;
                 }
             }
             else if (strcmp(tokens[0].c_str(), "ROUGHMAP") == 0)
@@ -444,7 +428,7 @@ int Scene::loadMaterial(string materialid)
                 if (tokens.size() > 1)
                 {
                     // load color texture
-                    newMaterial.roughTexID;
+                    // newMaterial.roughTexID;
                 }
             }
             else if (strcmp(tokens[0].c_str(), "NORMALMAP") == 0)
@@ -452,7 +436,7 @@ int Scene::loadMaterial(string materialid)
                 if (tokens.size() > 1)
                 {
                     // load color texture
-                    newMaterial.normalTexID;
+                    // newMaterial.normalTexID;
                 }
             }
         }
