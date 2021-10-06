@@ -89,6 +89,7 @@ int cacheNumPaths = 0;
 
 bool usingCache = false;
 bool usingDOF= false;
+bool useBVH = true;
 
 void pathtraceInit(Scene* scene) {
 	hst_scene = scene;
@@ -242,7 +243,7 @@ __global__ void computeIntersections(
 	, Geom* geoms
 	, int geoms_size
 	, ShadeableIntersection* intersections
-)
+	, bool useBVH)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -277,12 +278,17 @@ __global__ void computeIntersections(
 
 			else if (geom.type == OBJ)
 			{
-				bool a = intersect(pathSegment.ray, geom);
-				if (a)
+				if (useBVH)
+				{
+					if (intersect(pathSegment.ray, geom))
+					{
+						t = MeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+					}
+				}
+				else
 				{
 					t = MeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 				}
-				//t = MeshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -590,7 +596,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			, dev_geoms
 			, hst_scene->geoms.size()
 			, dev_intersections
-			);
+			, useBVH);
 		checkCUDAError("trace one bounce");
 		cudaDeviceSynchronize();
 		depth++;
