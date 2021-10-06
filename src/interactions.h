@@ -94,7 +94,7 @@ void scatterRay(
     glm::vec3 incomingRayDirection = pathSegment.ray.direction;
 
     float totalProb = m.hasReflective + m.hasRefractive;
-    float random = u01(rng) * totalProb;
+    float random = u01(rng);
 
     if (random < m.hasReflective)
     {
