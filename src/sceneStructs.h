@@ -11,14 +11,16 @@
 
 // Sets color to the surface normal for debug
 // #define DEBUG_SURFACE_NORMAL
+// Sets to grayscale representing the t value
+// #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
 // #define TIME_PATHTRACE
 // Groups the rays by material type for better warp coherence (stream compact)
-// #define GROUP_RAYS
+#define GROUP_RAYS
 // Removes finished rays
-// #define COMPACT_RAYS
+#define COMPACT_RAYS
 // Jitter the ray directions slightly to trade noise for jagged edges
-// #define ANTIALIASING
+#define ANTIALIASING
 // Use thin lens to randomize ray origin to approximate depth of field
 // #define DEPTH_OF_FIELD
 #if defined(ANTIALIASING) || defined(DEPTH_OF_FIELD)
@@ -26,6 +28,9 @@
 // Cache first iter; only if first rays cast are deterministic
 #define CACHE_FIRST
 #endif
+
+#define SMALL_OFFSET 0.001f
+#define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
 
 enum GeomType
 {
@@ -48,15 +53,22 @@ struct Triangle
     glm::vec2 uv[3] = {glm::vec2(), glm::vec2(), glm::vec2()};
 };
 
-// struct Mesh
-// {
-//     std::vector<struct Triangle> tris();
-// };
-// struct AABB
-// {
-//     glm::vec3 min(0.f);
-//     glm::vec3 max(0.f);
-// };
+struct Mesh
+{
+    std::vector<struct Triangle> tris();
+};
+struct AABB
+{
+    glm::vec3 min(0.f);
+    glm::vec3 max(0.f);
+};
+
+struct Textures
+{
+    int width = 0;
+    int height = 0;
+    glm::vec3 *data;
+};
 
 struct Geom
 {
@@ -69,6 +81,7 @@ struct Geom
     glm::mat4 inverseTransform = glm::mat4();
     glm::mat4 invTranspose = glm::mat4();
     struct Triangle t;
+    // struct Texture baseColor;
     // struct Mesh mesh;
     // struct AABB bounds;
 };

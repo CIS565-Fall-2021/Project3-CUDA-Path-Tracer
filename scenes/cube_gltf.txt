@@ -54,13 +54,27 @@ EMITMAP
 ROUGHMAP 
 NORMALMAP 
 
-// Specular white
+// Diffuse Blue
 MATERIAL 4
-RGB         .98 .98 .98
+RGB         .35 .35 .85
 SPECEX      0
 SPECRGB     .98 .98 .98
 REFL        0
-REFR        1
+REFR        0
+REFRIOR     1.5
+EMITTANCE   0
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// chrome
+MATERIAL 5
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
 REFRIOR     1.5
 EMITTANCE   0
 COLORMAP 
@@ -70,11 +84,11 @@ NORMALMAP
 
 // Camera
 CAMERA
-RES         800 800
+RES         480 480
 FOVY        45
-ITERATIONS  5000
+ITERATIONS  1000
 DEPTH       8
-FILE        cornell
+FILE        cow
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
@@ -91,47 +105,15 @@ SCALE       3 .3 3
 // Floor
 OBJECT 1
 cube
-material 1
+material 3
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       10 .01 10
 
-// Ceiling
+// Cow, emissive
 OBJECT 2
-cube
-material 1
-TRANS       0 10 0
-ROTAT       0 0 90
-SCALE       .01 10 10
-
-// Back wall
-OBJECT 3
-cube
-material 1
-TRANS       0 5 -5
-ROTAT       0 90 0
-SCALE       .01 10 10
-
-// Left wall
-OBJECT 4
-cube
+mesh ../scenes/cube.gltf
 material 2
-TRANS       -5 5 0
+TRANS       0 5 0
 ROTAT       0 0 0
-SCALE       .01 10 10
-
-// Right wall
-OBJECT 5
-cube
-material 3
-TRANS       5 5 0
-ROTAT       0 0 0
-SCALE       .01 10 10
-
-// Sphere
-OBJECT 6
-sphere
-material 4
-TRANS       -1 4 -1
-ROTAT       0 45 0
-SCALE       3 3 3
+SCALE       0.5 0.5 0.5

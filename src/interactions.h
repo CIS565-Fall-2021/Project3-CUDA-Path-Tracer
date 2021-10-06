@@ -65,14 +65,7 @@ __host__ __device__ __forceinline__ void dielectricScatter(glm::vec3 &color, glm
     float cosTheta = min(dProd * -1.f, 1.f);
     float sinTheta = sqrt(1.f - cosTheta * cosTheta);
     bool willReflect = (eta * sinTheta > 1.f) || reflectance(cosTheta, eta) > randomFloat;
-    // glm::vec3 offsetOrigin = intersect + OFFSET_VECTOR(normal * negateOnLeave * (willReflect ? 1.f : -1.f));
-    // glm::vec3 refractedDir = glm::normalize(
-    //     willReflect
-    //         ? glm::reflect(rayDir, normal * negateOnLeave)
-    //         : glm::refract(rayDir, normal * negateOnLeave, eta));
-    // orig = offsetOrigin;
     orig = intersect + OFFSET_VECTOR(normal * negateOnLeave * (willReflect ? 1.f : -1.f));
-    // direc = refractedDir;
     direc = glm::normalize(
         willReflect
             ? glm::reflect(rayDir, normal * negateOnLeave)
@@ -122,53 +115,23 @@ __host__ __device__ __forceinline__ void diffuseScatter(glm::vec3 &color, glm::v
 __host__ __device__ void scatterRay(PathSegment &pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material &m, thrust::default_random_engine &rng)
 {
     glm::vec3 cacheDir = glm::normalize(pathSegment.ray.direction);
-    // glm::vec3 colorAcc(0.f);
-    // glm::vec3 origAcc(0.f);
-    // glm::vec3 dirAcc(0.f);
     thrust::uniform_real_distribution<float> u01(0, 1);
     // This lets us probabilistically choose refractive, reflective, and diffuse
-    float randFloat(u01(rng));
-    float randomFloat(u01(rng));
+    float randFloat = (u01(rng));
+    float randomFloat = (u01(rng));
 
     // if (m.hasRefractive > 0.f) // will bend light but this also applies glass stuff
     if (randFloat < m.hasRefractive)
     {
-        // float dProd = glm::dot(cacheDir, normal);
-        // bool leaving = dProd > 0.f;
-        // float negateOnLeave = leaving ? -1.f : 1.f;
-        // float eta = !leaving ? (1.f / m.indexOfRefraction) : m.indexOfRefraction;
-
-        // float cosTheta = min(dProd * -1.f, 1.f);
-        // float sinTheta = sqrt(1.f - cosTheta * cosTheta);
-        // bool willReflect = (eta * sinTheta > 1.f) || reflectance(cosTheta, eta) > u01(rng);
-        // glm::vec3 offsetOrigin = intersect + OFFSET_VECTOR(normal * negateOnLeave * (willReflect ? 1.f : -1.f));
-        // glm::vec3 refractedDir = glm::normalize(
-        //     willReflect
-        //         ? glm::reflect(cacheDir, normal * negateOnLeave)
-        //         : glm::refract(cacheDir, normal * negateOnLeave, eta));
-        // origAcc = offsetOrigin;
-        // dirAcc = refractedDir;
-        // colorAcc = willReflect ? m.specular.color : glm::vec3(1.f);
         dielectricScatter(pathSegment.color, pathSegment.ray.origin, pathSegment.ray.direction, intersect, normal, m, cacheDir, randomFloat);
     }
     // else if (m.hasReflective > 0.f) // Shiny
     else if (randFloat < m.hasReflective)
     {
-        // colorAcc = m.specular.color;
-        // origAcc = intersect + OFFSET_VECTOR(normal);
-        // dirAcc = glm::reflect(cacheDir, normal);
         specularScatter(pathSegment.color, pathSegment.ray.origin, pathSegment.ray.direction, intersect, normal, m, cacheDir);
     }
     else // Else lambort
     {
-        // colorAcc = m.color;
-        // origAcc = intersect + OFFSET_VECTOR(normal);
-        // dirAcc = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
         diffuseScatter(pathSegment.color, pathSegment.ray.origin, pathSegment.ray.direction, intersect, normal, m, rng);
     }
-
-    // Set the color
-    // pathSegment.color *= colorAcc;
-    // pathSegment.ray.origin = origAcc;
-    // pathSegment.ray.direction = dirAcc;
 }

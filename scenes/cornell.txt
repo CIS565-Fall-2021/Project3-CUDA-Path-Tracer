@@ -7,10 +7,10 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // Diffuse white
 MATERIAL 1
@@ -21,10 +21,10 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // Diffuse red
 MATERIAL 2
@@ -35,10 +35,10 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // Diffuse green
 MATERIAL 3
@@ -49,10 +49,10 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // Specular white
 MATERIAL 4
@@ -63,10 +63,10 @@ REFL        0
 REFR        1
 REFRIOR     1.5
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // Diffuse Blue
 MATERIAL 5
@@ -77,10 +77,10 @@ REFL        0
 REFR        0
 REFRIOR     1.5
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // chrome
 MATERIAL 6
@@ -91,10 +91,10 @@ REFL        1
 REFR        0
 REFRIOR     1.5
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
 
 // Camera
 CAMERA
@@ -184,7 +184,7 @@ SCALE       2 2 2
 OBJECT 9
 sphere
 material 6
-TRANS       4 1 -3
+TRANS       -1 1 0
 ROTAT       0 30 0
 SCALE       2 2 2
 

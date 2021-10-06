@@ -10,6 +10,10 @@
 
 using namespace std;
 
+// Hardcoded for now
+#define TEXWIDTH 4096
+#define TEXHEIGHT 4096
+
 class Scene
 {
 private:
@@ -25,4 +29,6 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
+
+    std::vector<glm::vec3> baseColorVec;
 };

@@ -84,8 +84,11 @@ static Geom *dev_geoms = NULL;
 static Material *dev_materials = NULL;
 static PathSegment *dev_paths = NULL;
 static ShadeableIntersection *dev_intersections = NULL;
-static ShadeableIntersection *dev_intersectionCache = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
+static ShadeableIntersection *dev_intersectionCache = NULL;
+static glm::vec3 *dev_baseColor = NULL;
+static glm::vec3 *dev_aoRoughMetal = NULL;
+static glm::vec3 *dev_normals = NULL;
 // ...
 
 void pathtraceInit(Scene *scene)
@@ -112,6 +115,9 @@ void pathtraceInit(Scene *scene)
     cudaMalloc(&dev_intersectionCache, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersectionCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
+    cudaMalloc(&dev_baseColor, scene->baseColorVec.size() * sizeof(glm::vec3));
+    cudaMemcpy(dev_baseColor, scene->baseColorVec.data(), scene->baseColorVec.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -124,6 +130,7 @@ void pathtraceFree()
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
     cudaFree(dev_intersectionCache);
+    cudaFree(dev_baseColor);
 
     checkCUDAError("pathtraceFree");
 }
@@ -210,6 +217,10 @@ __global__ void computeIntersections(
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
+            // else if (geom.type == MESH)
+            // {
+            //     t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            // }
             else if (geom.type == TRIANGLE)
             {
                 t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
@@ -297,10 +308,10 @@ __global__ void shadeFakeMaterial(
  * @brief Shader that DOES do a BSDF Evaluation
  * 
  * @param iter iteration number
- * @param num_paths 
- * @param shadeableIntersections 
- * @param pathSegments 
- * @param materials 
+ * @param num_paths total number of paths/rays
+ * @param shadeableIntersections array of shadeable intersections
+ * @param pathSegments array of pathsegments
+ * @param materials array of materials
  */
 __global__ void shadeRealMaterial(
     int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth)
@@ -314,26 +325,26 @@ __global__ void shadeRealMaterial(
     ShadeableIntersection intersection = shadeableIntersections[idx];
     if (intersection.t > 0.0f)
     {
-        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-        thrust::uniform_real_distribution<float> u01(0, 1);
-
         Material material = materials[intersection.materialId];
-        // #ifdef DEBUG_SURFACE_NORMAL
-        // glm::vec3 materialColor =
-        // #else
-        glm::vec3 materialColor = material.color;
-        // #endif
-
         if (material.emittance > 0.f) // case thing is light
         {
+            glm::vec3 materialColor = material.color;
             pathSegments[idx].color *= (materialColor * material.emittance);
             pathSegments[idx].remainingBounces = 0;
         }
         else // case thing isnt light so calculate
         {
-            // if (material.tex){}
+#ifdef DEBUG_SURFACE_NORMAL
+            pathSegments[idx].color = intersection.surfaceNormal; // Debug only
+            pathSegments[idx].remainingBounces = 0;
+#elif defined(DEBUG_T_VAL)
+            pathSegments[idx].color = glm::vec3(intersection.t * 0.01); // Debug only
+            pathSegments[idx].remainingBounces = 0;
+#else
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
             scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
             pathSegments[idx].remainingBounces--;
+#endif
         }
     }
     else // intersection't => black

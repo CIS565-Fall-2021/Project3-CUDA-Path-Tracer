@@ -9,6 +9,10 @@
 #include "../external/include/tiny_gltf.h"
 #include "tiny_obj_loader.h"
 
+#include <fstream>
+#include <iterator>
+#include <vector>
+
 Scene::Scene(string filename)
 {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -78,8 +82,61 @@ int Scene::loadGeom(string objectid)
             }
             else if (strcmp(tokens[0].c_str(), "mesh") == 0)
             {
+                if (tokens.size() < 2)
+                {
+                    return -1;
+                }
                 cout << "Creating new mesh..." << endl;
                 newGeom.type = MESH;
+
+                // using namespace tinygltf;
+
+                // Model model;
+                // TinyGLTF loader;
+                // std::string err;
+                // std::string warn;
+
+                // bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, tokens[1]);
+                // //bool ret = loader.LoadBinaryFromFile(&model, &err, &warn, argv[1]); // for binary glTF(.glb)
+
+                // if (!warn.empty())
+                // {
+                //     printf("Warn: %s\n", warn.c_str());
+                // }
+
+                // if (!err.empty())
+                // {
+                //     printf("Err: %s\n", err.c_str());
+                // }
+
+                // if (!ret)
+                // {
+                //     printf("Failed to parse glTF\n");
+                //     return -1;
+                // }
+
+                // std::cout << "loaded glTF file has:\n"
+                //           << model.accessors.size() << " accessors\n"
+                //           << model.animations.size() << " animations\n"
+                //           << model.buffers.size() << " buffers\n"
+                //           << model.bufferViews.size() << " bufferViews\n"
+                //           << model.materials.size() << " materials\n"
+                //           << model.meshes.size() << " meshes\n"
+                //           << model.nodes.size() << " nodes\n"
+                //           << model.textures.size() << " textures\n"
+                //           << model.images.size() << " images\n"
+                //           << model.skins.size() << " skins\n"
+                //           << model.samplers.size() << " samplers\n"
+                //           << model.cameras.size() << " cameras\n"
+                //           << model.scenes.size() << " scenes\n"
+                //           << model.lights.size() << " lights\n";
+
+                // // Iterate through all the meshes in the glTF file
+                // for (const auto &gltfMesh : model.meshes)
+                // {
+                //     std::cout << "Current mesh has " << gltfMesh.primitives.size()
+                //               << " primitives:\n";
+                // }
 
                 std::string inputfile = tokens[1];
                 tinyobj::ObjReaderConfig reader_config;
@@ -210,6 +267,14 @@ int Scene::loadGeom(string objectid)
                 tri.invTranspose = newGeom.invTranspose;
                 tri.materialid = newGeom.materialid;
                 tri.type = TRIANGLE;
+                // cout << "norm " << glm::to_string(tri.t.norm[0]) << " "
+                //      << glm::to_string(tri.t.norm[1]) << " "
+                //      << glm::to_string(tri.t.norm[2]) << endl;
+                // for (int trivert = 0; trivert < 3; trivert++)
+                // {
+                //     tri.t.pos[trivert] = glm::vec3(tri.transform * glm::vec4(tri.t.pos[trivert], 1.f));
+                //     tri.t.norm[trivert] = glm::vec3(tri.invTranspose * glm::vec4(tri.t.norm[trivert], 0.f));
+                // }
             }
             geoms.insert(geoms.end(), triangs.begin(), triangs.end());
             cout << "geoms size: " << geoms.size() << endl;
@@ -356,6 +421,14 @@ int Scene::loadMaterial(string materialid)
                 if (tokens.size() > 1)
                 {
                     // load color texture
+                    std::string bcolorTexFile = tokens[1];
+                    std::ifstream texIn(bcolorTexFile, std::ios::binary);
+                    std::vector<unsigned char> imgBuff(std::istreambuf_iterator<char>(texIn), {});
+                    for (int idx = 0; idx < (TEXHEIGHT * TEXWIDTH); idx++)
+                    {
+                        int tmpIdx = idx * 3;
+                        baseColorVec[idx] = glm::vec3(imgBuff[tmpIdx], imgBuff[tmpIdx + 1], imgBuff[tmpIdx + 2]);
+                    }
                 }
             }
             else if (strcmp(tokens[0].c_str(), "EMITMAP") == 0)
