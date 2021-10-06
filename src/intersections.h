@@ -6,6 +6,8 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+#define USE_BB false
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -147,58 +149,70 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
     glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside, Triangle* triangles){
     // NOTE: try first w/o bounding box?
     // create bounding box and test for intersection
-   /* Geom box;
-    box.type = CUBE;
-    box.transform = mesh.boundingBox.transform;
-    box.inverseTransform = mesh.boundingBox.inverseTransform;
-    box.invTranspose = mesh.boundingBox.invTranspose;
 
-    int intersectsBB = boxIntersectionTest(box, r, intersectionPoint, normal, outside);
-    return intersectsBB;*/
+    int intersectsBB = 0;
 
-    // if intersects the bounding box, check against each triangle
-    //if (intersectsBB != -1) {
+    if (USE_BB) {
+        Geom box;
+        box.type = CUBE;
+        box.transform = mesh.boundingBox.transform;
+        box.inverseTransform = mesh.boundingBox.inverseTransform;
+        box.invTranspose = mesh.boundingBox.invTranspose;
 
- 
-    // set up new ray that we will inverse transform by the mesh's transform
-    Ray q;
-    q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
-    q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
-
-    glm::vec3 tmp_isect_pt;
-    float tmin = -1e38f;
-    glm::vec3 tmin_n;
-    for (int i = 0; i < mesh.numTriangles; i++) {
-
-        
-        Triangle t = triangles[i];
-        // check if ray intersects triangle
-        float3 tri1 = make_float3(t.p1.x, t.p1.y, t.p1.z);
-        float3 tri2 = make_float3(t.p2.x, t.p2.y, t.p2.z);
-        float3 tri3 = make_float3(t.p3.x, t.p3.y, t.p3.z);
-
-        float test = tri1.x + tri2.x + tri3.x;
-
-        bool intersects = glm::intersectRayTriangle(q.origin, q.direction, t.p1, t.p2, t.p3, tmp_isect_pt);
-         
-        if (!intersects) {
-            continue;
-        }
-
-        // if this t value is less than tmin, replace
-        float tri_tmin = glm::length(q.origin - tmp_isect_pt);
-        if (tri_tmin > 0 && (tri_tmin < tmin || tmin < 0)) {
-            tmin = tri_tmin;
-            tmin_n = t.n1;
-        }
-
+        intersectsBB = boxIntersectionTest(box, r, intersectionPoint, normal, outside);
     }
-    
-    if (tmin > 0) {
-        // transform ray back to find the intersection point
-        intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
-        normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmin_n, 0.0f)));
-        return glm::length(r.origin - intersectionPoint);
+ 
+    // if intersects the bounding box, check against each triangle
+    if (intersectsBB != -1) {
+
+
+        // set up new ray that we will inverse transform by the mesh's transform
+        Ray q;
+        q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+        q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+        glm::vec3 tmp_isect_pt;
+        float tmin = -1e38f;
+        float tmax = -1e38f;
+        glm::vec3 tmin_n;
+        glm::vec3 tmax_n;
+
+        for (int i = 0; i < mesh.numTriangles; i++) {
+
+
+            Triangle tri = triangles[i];
+
+            // check if ray intersects triangle
+            bool intersects = glm::intersectRayTriangle(q.origin, q.direction, tri.p1, tri.p2, tri.p3, tmp_isect_pt);
+
+            if (!intersects) {
+                continue;
+            }
+
+            // if this t value is less than tmin, replace
+            float t = glm::length(q.origin - tmp_isect_pt);
+            
+            if (t > tmin && t > tmax) {
+                tmax = t;
+                tmax_n = tri.n1;
+            }
+            if (i == 0 || t < tmin) {
+                tmin = t;
+                tmin_n = tri.n1;
+            }
+        }
+
+        if (tmin < 0) {
+            tmin = tmax;
+            tmin_n = tmax_n;
+        }
+
+        if (tmin > 0) {
+            // transform ray back to find the intersection point
+            intersectionPoint = multiplyMV(mesh.inverseTransform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
+            normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmin_n, 0.0f)));
+            return glm::length(r.origin - intersectionPoint);
+        }
     }
 
     return -1;

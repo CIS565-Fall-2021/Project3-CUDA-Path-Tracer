@@ -29,7 +29,7 @@ struct Triangle {
 
 struct Geom {
     enum GeomType type;
-    /*struct {
+    struct {
         float minX;
         float minY;
         float minZ;
@@ -39,7 +39,7 @@ struct Geom {
         glm::mat4 transform;
         glm::mat4 inverseTransform;
         glm::mat4 invTranspose;
-    } boundingBox;*/
+    } boundingBox;
     int materialid;
     glm::vec3 translation;
     glm::vec3 rotation;
