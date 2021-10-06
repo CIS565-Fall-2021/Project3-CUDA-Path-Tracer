@@ -13,6 +13,10 @@ project, and we will not be able to grade you without a good README.
 
 ## Overview
 
+![](finalRenders/cornell_demo1.png)
+![](finalRenders/cornell_demo2.png)
+![](finalRenders/cornell_demo_tilt.png)
+
 ## Features
 
 * Diffuse surfaces
@@ -28,6 +32,27 @@ project, and we will not be able to grade you without a good README.
 
 * Anti Aliasing via Stochastic Sampling
 ![](finalRenders/cornell_antialiasing.png)
+TODO: noise vs aliasing trade off, notice the sphere's left edge is not nearly as jagged
+
+* Obj Mesh Loading
+![](finalRenders/cow_shiny.png)
+
+* Textures from files
+![](finalRenders/texture_cow.png)
+
+## Performance Analysis
+
+## Debug Views
+![](finalRenders/ebonhawk_surface_normals.png)
+![](finalRenders/texture_cube.png)
+![](finalRenders/debug_normal_sphere.png)
+![](finalRenders/debug_normal_cube_tilted.png)
+![](finalRenders/debug_depth_cube.png)
+
+## Bloopers
+* Initial mesh loading had triangle collision errors
+![](finalRenders/objLoadingCow.png)
+![](finalRenders/bug_mesh_triangle_shiny.png)
 
 
 Bug fixes:
