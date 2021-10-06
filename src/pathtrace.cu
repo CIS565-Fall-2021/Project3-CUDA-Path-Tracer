@@ -153,8 +153,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
             );
 
-#if (CACHE_FIRST_BOUNCE == 0)
         // depth-of-field
+#if (CACHE_FIRST_BOUNCE == 0)
         if (cam.aperture > 0)
         {
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);

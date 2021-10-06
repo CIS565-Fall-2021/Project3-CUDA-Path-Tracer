@@ -72,15 +72,41 @@ __host__ __device__ void scatterRay(PathSegment& pathSegment,
                                     glm::vec2 uv,
                                     const Material& m,
                                     const glm::vec3* texData,
-                                    thrust::default_random_engine &rng) 
+                                    thrust::default_random_engine& rng) 
 {
-    if (m.hasReflective)
+    glm::vec3 dir = pathSegment.ray.direction;
+
+    if (m.hasRefractive)
     {
-        pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+        float ior = m.indexOfRefraction;
+        float cosAngle = glm::dot(dir, -normal);
+        float fresnel = (1.f - ior) / (1.f + ior);
+        fresnel *= fresnel;
+        fresnel = fresnel + (1.f - fresnel) * pow((1.f - cosAngle), 5);
+
+        thrust::uniform_real_distribution<float> u01(0, 1);
+        if (u01(rng) < fresnel)
+        {
+            pathSegment.ray.origin = intersect;
+            pathSegment.ray.direction = glm::reflect(dir, normal);
+            pathSegment.color *= m.specular.color;
+        }
+        else
+        {
+            pathSegment.ray.origin = intersect + dir * .0002f;
+            pathSegment.ray.direction = glm::refract(dir, normal, cosAngle > 0.f ? 1.f / ior : ior);
+            pathSegment.color *= m.color;
+        }
+    }
+    else if (m.hasReflective)
+    {
+        pathSegment.ray.origin = intersect;
+        pathSegment.ray.direction = glm::reflect(dir, normal);
         pathSegment.color *= m.specular.color;
     }
     else
     {
+        pathSegment.ray.origin = intersect;
         pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
         glm::vec3 col = m.color;
         int offset = m.tex.offset;
@@ -94,5 +120,4 @@ __host__ __device__ void scatterRay(PathSegment& pathSegment,
         }
         pathSegment.color *= col;
     }
-    pathSegment.ray.origin = intersect;
 }
