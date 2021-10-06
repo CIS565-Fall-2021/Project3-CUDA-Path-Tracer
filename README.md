@@ -44,6 +44,7 @@ TODO: noise vs aliasing trade off, notice the sphere's left edge is not nearly a
 
 ## Debug Views
 ![](finalRenders/ebonhawk_surface_normals.png) should have displayed the texture
+![](finalRenders/hawk_norm_interp.png)
 ![](finalRenders/debug_texture_base_color.png) It was caused by negative uv coords because of tiling
 ![](finalRenders/texture_cube.png)
 ![](finalRenders/debug_normal_sphere.png)
