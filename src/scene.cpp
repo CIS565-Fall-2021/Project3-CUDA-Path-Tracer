@@ -4,6 +4,12 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define LOAD_MESH_VERBOSE 1
+
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
+#include "tiny_obj_loader.h"
+
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -26,6 +32,9 @@ Scene::Scene(string filename) {
                 cout << " " << endl;
             } else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
                 loadCamera();
+                cout << " " << endl;
+            } else if (strcmp(tokens[0].c_str(), "MESH") == 0) {
+                loadMesh(tokens[1]);
                 cout << " " << endl;
             }
         }
@@ -184,5 +193,129 @@ int Scene::loadMaterial(string materialid) {
         }
         materials.push_back(newMaterial);
         return 1;
+    }
+}
+
+int Scene::loadMesh(string meshid) {
+    int id = atoi(meshid.c_str());
+    cout << "Loading Mesh " << id << " as Geom..." << endl;
+
+    string line;
+    utilityCore::safeGetline(fp_in, line);
+    cout << "OBJ file name is " << line << "..." << endl;
+
+    tinyobj::ObjReaderConfig reader_config;
+    tinyobj::ObjReader reader;
+    reader_config.triangulate = true;
+
+    if (!reader.ParseFromFile(line, reader_config))
+    {
+        if (!reader.Error().empty())
+        {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+
+        cout << "Failed to read Mesh " << id << "..." << endl;
+        return 0;
+    }
+
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+
+    std::vector<Triangle> triangles;
+
+#if LOAD_MESH_VERBOSE
+    cout << "Number of shapes: " << shapes.size() << endl;
+#endif
+    // Loop over shapes
+    for (size_t s = 0; s < shapes.size(); s++) {
+#if LOAD_MESH_VERBOSE
+        cout << "Number of faces in shape: " << shapes[s].mesh.num_face_vertices.size() << endl;
+#endif
+
+        // Loop over triangles
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+            Triangle t;
+
+            // Loop over vertices of the triangle
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+
+                glm::vec3 vertexPos = glm::vec3(0.f);
+
+                vertexPos.x = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                vertexPos.y = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                vertexPos.z = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+                if (v == 0) {
+                    t.p1 = vertexPos;
+                } else if (v == 1) {
+                    t.p2 = vertexPos;
+                } else if (v == 2) {
+                    t.p3 = vertexPos;
+                }
+            }
+            index_offset += fv;
+
+            triangles.push_back(t);
+        }
+    }
+
+    // Link material
+    int materialId = 0;
+    utilityCore::safeGetline(fp_in, line);
+    if (!line.empty() && fp_in.good()) {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+        materialId = atoi(tokens[1].c_str());
+        cout << "Connecting Mesh " << id << " to Material " << materialId << "..." << endl;
+    }
+
+    // Load transformations
+    glm::vec3 translation, rotation, scale;
+    utilityCore::safeGetline(fp_in, line);
+    while (!line.empty() && fp_in.good()) {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+
+        //load tranformations
+        if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
+            translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+        else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
+            rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+        else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
+            scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+
+        utilityCore::safeGetline(fp_in, line);
+    }
+
+    glm::mat4 transform = utilityCore::buildTransformationMatrix(
+        translation, rotation, scale);
+    glm::mat4 inverseTransform = glm::inverse(transform);
+    glm::mat4 invTranspose = glm::inverseTranspose(transform);
+
+    // Process triangles into scene geometries
+    unsigned int numTriangles = 0;
+    for (Triangle &t : triangles) {
+        Geom newGeom;
+        newGeom.type = GeomType::TRIANGLE;
+        newGeom.materialid = materialId;
+        newGeom.translation = translation;
+        newGeom.rotation = rotation;
+        newGeom.scale = scale;
+        newGeom.transform = transform;
+        newGeom.inverseTransform = inverseTransform;
+        newGeom.invTranspose = invTranspose;
+
+        newGeom.triangleCoords.p1 = glm::vec3(transform * glm::vec4(t.p1, 1.f));
+        newGeom.triangleCoords.p2 = glm::vec3(transform * glm::vec4(t.p2, 1.f));
+        newGeom.triangleCoords.p3 = glm::vec3(transform * glm::vec4(t.p3, 1.f));
+
+        geoms.push_back(newGeom);
     }
 }
