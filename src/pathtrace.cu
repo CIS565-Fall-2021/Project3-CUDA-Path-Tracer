@@ -330,6 +330,7 @@ __global__ void shadeFakeMaterial (
 }
 
 __global__ void shadeBSDF(int iter,
+                          int depth,
                           int num_paths,
                           ShadeableIntersection* shadeableIntersections,
                           PathSegment* pathSegments,
@@ -355,7 +356,7 @@ __global__ void shadeBSDF(int iter,
             int bounces = --pathSeg.remainingBounces;
             if (bounces > 0) 
             {
-                thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+                thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
                 scatterRay(pathSeg, 
                            getPointOnRay(pathSeg.ray, intersection.t), 
                            intersection.surfaceNormal, 
@@ -488,7 +489,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
         thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths);
 #endif
         
-        shadeBSDF<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, dev_texData);
+        shadeBSDF<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, depth, num_paths, dev_intersections, dev_paths, dev_materials, dev_texData);
 
         dev_paths_end = thrust::partition(thrust::device, dev_paths, dev_paths_end, pathRemains());
         num_paths = dev_paths_end - dev_paths;
