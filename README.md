@@ -36,17 +36,7 @@ Below list the 3 separate scattering surfaces implemented in this renderer. To m
 ### Depth of Field
 Depth of Field is created by sampling with a non-zero aperture size.
 
-<p align="center">
-<img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
-     alt="dof1"
-     width="400"/>
-</p>
-
-<p align="center">
-<img src="scenes/cornell.2021-10-04_00-14-05z.1925samp.png"
-     alt="dof2"
-     width="400"/>
-</p>
+| ![](img/cornell.2021-10-05_19-34-14z.1858samp.png) | ![](img/cornell.2021-10-05_21-11-55z.5000samp.png) |
 
 ### Anti-Aliasing
 Anti-Aliasing is implement with sub-pixel sampling.
