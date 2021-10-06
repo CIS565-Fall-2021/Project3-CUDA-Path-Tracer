@@ -145,24 +145,33 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
     {
         int index = x + (y * cam.resolution.x);
 
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+
         Ray r;
         r.origin = cam.position;
-        // TODO: implement antialiasing by jittering the ray
-        r.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-            );
 
-        // depth-of-field
 #if (CACHE_FIRST_BOUNCE == 0)
+        // stochastic sampled anti-aliasing
+        thrust::uniform_real_distribution<float> offset(-0.5, 0.5);
+        glm::vec2 point(x + offset(rng), y + offset(rng));
+        r.direction = glm::normalize(cam.view
+                                     - cam.right * cam.pixelLength.x * ((float)point.x - (float)cam.resolution.x * 0.5f)
+                                     - cam.up * cam.pixelLength.y * ((float)point.y - (float)cam.resolution.y * 0.5f));
+#else
+        r.direction = glm::normalize(cam.view
+                                     - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+                                     - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f));
+#endif
+
+#if (CACHE_FIRST_BOUNCE == 0)
+        // depth-of-field
         if (cam.aperture > 0)
         {
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             glm::vec3 forward = glm::normalize(cam.lookAt - cam.position);
             glm::vec3 right = glm::normalize(glm::cross(forward, cam.up));
-            glm::vec3 focalPoint = r.origin + cam.focalLen * r.direction;
+            glm::vec3 focalPoint = r.origin + cam.focalDist * r.direction;
 
             float angle = u01(rng) * 2.f * PI;
             float radius = cam.aperture * glm::sqrt(u01(rng));

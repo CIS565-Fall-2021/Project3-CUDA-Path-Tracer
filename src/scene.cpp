@@ -297,9 +297,9 @@ int Scene::loadCamera() {
         {
             camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         }
-        else if (strcmp(tokens[0].c_str(), "FOCALLEN") == 0)
+        else if (strcmp(tokens[0].c_str(), "FOCUS") == 0)
         {
-            camera.focalLen = atof(tokens[1].c_str());
+            camera.focalDist = atof(tokens[1].c_str());
         }
         else if (strcmp(tokens[0].c_str(), "APERTURE") == 0)
         {
