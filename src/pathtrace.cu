@@ -4,6 +4,8 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/device_vector.h>
+#include <thrust/partition.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -255,9 +257,9 @@ __global__ void shadeFakeMaterial (
         //float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
         //pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
         //pathSegments[idx].color *= u01(rng); // apply some noise because why not
-          scatterRay(pathSegments[idx], pathSegments[idx].ray.origin + pathSegments[idx].ray.direction * intersection.t,
-              intersection.surfaceNormal, material, rng);
-          pathSegments[idx].remainingBounces -= 1;
+          scatterRay(pathSegments[idx], pathSegments[idx].ray.origin + pathSegments[idx].ray.direction * intersection.t, intersection.surfaceNormal,
+              material, rng);
+          pathSegments[idx].remainingBounces--;
       }
     // If there was no intersection, color the ray black.
     // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -281,6 +283,28 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
         image[iterationPath.pixelIndex] += iterationPath.color;
     }
 }
+
+struct should_end {
+    __host__ __device__
+        bool operator()(const PathSegment& pathSegment) {
+        return (pathSegment.remainingBounces < 0);
+    }
+};
+
+//struct should_end 
+//{
+//    __host__ __device__ 
+//    bool operator()(const PathSegment& pathSegment) {
+//        return (pathSegment.remainingBounces <= 0);
+//    }
+//};
+
+//__host__ __device__
+//    bool should_end(const PathSegment& pathSegment) {
+//        return (pathSegment.remainingBounces <= 0);
+//}
+
+
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -378,7 +402,22 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_paths,
     dev_materials
   );
-  iterationComplete = true; // TODO: should be based off stream compaction results.
+
+  /*thrust::device_vector<PathSegment> thrust_dev_paths(dev_paths);
+  thrust::device_vector<PathSegment> stencil(num_paths);
+
+  thrust::copy(thrust::device, thrust_dev_paths.begin(), thrust_dev_paths.end(), stencil.begin());
+
+    thrust::device_ptr<PathSegment> dev_path_end = thrust::partition(thrust_dev_paths.begin(), thrust_dev_paths.end(), stencil.begin(), should_end());
+    
+    num_paths = dev_path_end - thrust_dev_paths.begin();*/
+  /*dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, should_end());
+  num_paths = dev_path_end - dev_paths;*/
+
+    // if (num_paths == 0) {
+         iterationComplete = true;
+    //}
+        
     }
 
   // Assemble this iteration and apply it to the image
