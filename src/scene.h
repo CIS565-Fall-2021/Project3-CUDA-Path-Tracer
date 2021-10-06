@@ -17,6 +17,9 @@ private:
   int loadGeom(std::string objectid);
   int loadCamera();
 
+  std::vector<Geom> loadObjMesh(const std::string& file_path,
+                                const std::string& material_path = "./");
+
 public:
   Scene(std::string filename);
   ~Scene();

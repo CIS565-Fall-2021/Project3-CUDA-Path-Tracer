@@ -5,6 +5,8 @@
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
+#include "model_loader.hpp"
+
 using namespace std;
 
 Scene::Scene(string filename) {
@@ -35,68 +37,124 @@ Scene::Scene(string filename) {
   }
 }
 
+std::vector<Geom> Scene::loadObjMesh(const std::string &file_path,
+                                     const std::string &material_path) {
+  std::vector<Geom> mesh;
+  ObjLoader loader(file_path, material_path);
+
+  if (!loader.isReady()) return mesh;
+
+  for (int shape_id = 0; shape_id < loader.numShapes(); ++shape_id) {
+    int idx_offset = 0;
+    for (int face_id = 0; face_id < loader.numFaces(shape_id); ++face_id) {
+      int num_vertices = loader.numVertices(shape_id, face_id);
+      if (num_vertices != 3) {
+        cout << "ERROR: Non-triangular meshes not supported!\n";
+        continue;
+      }
+      for (int vert_id = 0; vert_id < 3; ++vert_id) {
+        Geom geom_triangle;
+        geom_triangle.type = TRIANGLE;
+        geom_triangle.triangle.vertices[vert_id] =
+            loader.getVertexPos(shape_id, idx_offset + vert_id);
+        geom_triangle.triangle.normals[vert_id] =
+            loader.getNormalVec(shape_id, idx_offset + vert_id);
+        mesh.push_back(std::move(geom_triangle));
+      }
+      idx_offset += num_vertices;
+    }
+  }
+  return mesh;
+}
+
 int Scene::loadGeom(string objectid) {
   int id = atoi(objectid.c_str());
-  if (id != geoms.size()) {
-    cout << "ERROR: OBJECT ID does not match expected number of geoms" << endl;
-    return -1;
+  cout << "Loading Geom " << id << "..." << endl;
+
+  std::vector<Geom> mesh;
+  bool is_objMesh = false;
+  Geom newGeom;
+  string line;
+
+  // load object type
+  utilityCore::safeGetline(fp_in, line);
+  if (!line.empty() && fp_in.good()) {
+    vector<string> tokens = utilityCore::tokenizeString(line);
+    if (strcmp(tokens[0].c_str(), "sphere") == 0) {
+      cout << "Creating new sphere..." << endl;
+      newGeom.type = SPHERE;
+    } else if (strcmp(tokens[0].c_str(), "cube") == 0) {
+      cout << "Creating new cube..." << endl;
+      newGeom.type = CUBE;
+    } else if (strcmp(tokens[0].c_str(), "mesh_obj") == 0) {
+      cout << "Creating new OBJ mesh..." << endl;
+      mesh       = loadObjMesh(tokens[1], tokens[2]);
+      is_objMesh = true;
+      cout << "OBJ Mesh Loaded" << endl;
+    }
+  }
+
+  // link material
+  utilityCore::safeGetline(fp_in, line);
+  if (!line.empty() && fp_in.good()) {
+    vector<string> tokens = utilityCore::tokenizeString(line);
+    newGeom.materialid    = atoi(tokens[1].c_str());
+    cout << "Connecting Geom " << objectid << " to Material "
+         << newGeom.materialid << "..." << endl;
+  }
+
+  // load transformations
+  utilityCore::safeGetline(fp_in, line);
+  while (!line.empty() && fp_in.good()) {
+    vector<string> tokens = utilityCore::tokenizeString(line);
+
+    // load tranformations
+    if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
+      newGeom.translation =
+          glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()),
+                    atof(tokens[3].c_str()));
+    } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
+      newGeom.rotation =
+          glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()),
+                    atof(tokens[3].c_str()));
+    } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
+      newGeom.scale =
+          glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()),
+                    atof(tokens[3].c_str()));
+    }
+
+    utilityCore::safeGetline(fp_in, line);
+  }
+
+  if (is_objMesh) {
+    for (auto &geom_triangle : mesh) {
+      geom_triangle.materialid  = newGeom.materialid;
+      geom_triangle.translation = newGeom.translation;
+      geom_triangle.rotation    = newGeom.rotation;
+      geom_triangle.scale       = newGeom.scale;
+      geom_triangle.transform   = utilityCore::buildTransformationMatrix(
+          newGeom.translation, newGeom.rotation, newGeom.scale);
+      geom_triangle.inverseTransform = glm::inverse(geom_triangle.transform);
+      geom_triangle.invTranspose =
+          glm::inverseTranspose(geom_triangle.transform);
+      for (int i = 0; i < 3; ++i) {
+        auto &vertex = geom_triangle.triangle.vertices[i];
+        auto &normal = geom_triangle.triangle.normals[i];
+        vertex = glm::vec3(geom_triangle.transform * glm::vec4(vertex, 1.0f));
+        normal =
+            glm::vec3(geom_triangle.invTranspose * glm::vec4(normal, 0.0f));
+      }
+      geoms.push_back(geom_triangle);
+    }
   } else {
-    cout << "Loading Geom " << id << "..." << endl;
-    Geom newGeom;
-    string line;
-
-    // load object type
-    utilityCore::safeGetline(fp_in, line);
-    if (!line.empty() && fp_in.good()) {
-      if (strcmp(line.c_str(), "sphere") == 0) {
-        cout << "Creating new sphere..." << endl;
-        newGeom.type = SPHERE;
-      } else if (strcmp(line.c_str(), "cube") == 0) {
-        cout << "Creating new cube..." << endl;
-        newGeom.type = CUBE;
-      }
-    }
-
-    // link material
-    utilityCore::safeGetline(fp_in, line);
-    if (!line.empty() && fp_in.good()) {
-      vector<string> tokens = utilityCore::tokenizeString(line);
-      newGeom.materialid    = atoi(tokens[1].c_str());
-      cout << "Connecting Geom " << objectid << " to Material "
-           << newGeom.materialid << "..." << endl;
-    }
-
-    // load transformations
-    utilityCore::safeGetline(fp_in, line);
-    while (!line.empty() && fp_in.good()) {
-      vector<string> tokens = utilityCore::tokenizeString(line);
-
-      // load tranformations
-      if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
-        newGeom.translation =
-            glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()),
-                      atof(tokens[3].c_str()));
-      } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
-        newGeom.rotation =
-            glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()),
-                      atof(tokens[3].c_str()));
-      } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
-        newGeom.scale =
-            glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()),
-                      atof(tokens[3].c_str()));
-      }
-
-      utilityCore::safeGetline(fp_in, line);
-    }
-
     newGeom.transform = utilityCore::buildTransformationMatrix(
         newGeom.translation, newGeom.rotation, newGeom.scale);
     newGeom.inverseTransform = glm::inverse(newGeom.transform);
     newGeom.invTranspose     = glm::inverseTranspose(newGeom.transform);
-
     geoms.push_back(newGeom);
-    return 1;
   }
+
+  return 1;
 }
 
 int Scene::loadCamera() {

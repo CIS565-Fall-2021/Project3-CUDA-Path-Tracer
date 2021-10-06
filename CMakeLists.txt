@@ -78,6 +78,7 @@ set(headers
     src/utilities.h
     src/stream_compaction.h
     src/static_config.h
+    src/model_loader.hpp
     )
 
 set(sources
@@ -90,6 +91,7 @@ set(sources
     src/utilities.cpp
     src/stream_compaction.cu
     src/static_config.cpp
+    src/obj_loader.cpp
     )
 
 list(SORT headers)

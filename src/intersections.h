@@ -155,3 +155,40 @@ __host__ __device__ float sphereIntersectionTest(const Geom &sphere,
 
   return glm::length(r.origin - intersectionPoint);
 }
+
+/**
+ * @brief Test intersection between a ray and a triangle. All vertices of the
+ * triangle should be transformed according to Geom::transform.
+ *
+ * This function can only provide outside ray intersection test (not suitable
+ * for transmission materials).
+ *
+ * @param triangle:   Input parameter of the triangle
+ * @param r:          Input parameter of the ray
+ * @param intersectionPoint:  Output parameter for point of intersection
+ * @param normal:             Output parameter for surface normal
+ * @param outside:            Output param for whether the ray came from outside
+ * @return float:     Ray parameter `t` value. -1 if no intersection.
+ */
+__host__ __device__ float triangleIntersectionTest(const Geom tri, const Ray r,
+                                                   glm::vec3 &intersectionPoint,
+                                                   glm::vec3 &normal,
+                                                   bool &outside) {
+  glm::vec3 barycentric_position{0.f};
+
+  bool has_intersection = glm::intersectRayTriangle(
+      r.origin, r.direction, tri.triangle.vertices[0], tri.triangle.vertices[1],
+      tri.triangle.vertices[2], barycentric_position);
+
+  // bary-centric interpolate the triangle normal
+  // reference: https://community.khronos.org/t/ray-cast-ray-tracing/73652/22
+  normal = tri.triangle.normals[0] * barycentric_position.x +
+           tri.triangle.normals[1] * barycentric_position.y +
+           tri.triangle.normals[2] *
+               (1 - barycentric_position.x - barycentric_position.y);
+
+  intersectionPoint = getPointOnRay(r, barycentric_position.z);
+  outside           = true;
+
+  return (has_intersection) ? barycentric_position.z : -1.0f;
+}
