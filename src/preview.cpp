@@ -168,10 +168,10 @@ bool init() {
     return true;
 }
 
-void mainLoop() {
+void mainLoop(std::clock_t start) {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        runCuda();
+        runCuda(start);
 
         string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations";
         glfwSetWindowTitle(window, title.c_str());

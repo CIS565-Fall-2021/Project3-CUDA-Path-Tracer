@@ -21,9 +21,9 @@
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
-#define SORT_MATERIALS false
+#define SORT_MATERIALS true
 #define CACHE_FIRST_BOUNCE false
-#define DOF true
+#define DOF false
 #define ANTIALIASING false
 
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
@@ -373,7 +373,7 @@ struct compMaterialID : public binary_function<ShadeableIntersection, ShadeableI
  * of memory management
  */
 void pathtrace(uchar4* pbo, int frame, int iter) {
-    const int traceDepth = /*hst_scene->state.traceDepth*/8;
+    const int traceDepth = hst_scene->state.traceDepth;
     const Camera& cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
     bool isFirstIter = iter == 0;
@@ -433,7 +433,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
     // if not the first iteration, assume the paths have been cached, harvest
     if (CACHE_FIRST_BOUNCE && !ANTIALIASING && !DOF && !isFirstIter) {
-        cudaMemcpy(dev_paths, dev_first_paths, init_num_paths, cudaMemcpyDeviceToDevice);
+        cudaMemcpy(dev_paths, dev_first_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
         depth++; // start on second bounce now
     }
 
@@ -494,8 +494,8 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             );
 
         // if first iteration, cache first bounce
-        if (CACHE_FIRST_BOUNCE && !ANTIALIASING && !DOF && isFirstIter) {
-            cudaMemcpy(dev_first_paths, dev_paths, init_num_paths, cudaMemcpyDeviceToDevice);
+        if (CACHE_FIRST_BOUNCE && !ANTIALIASING && !DOF && isFirstIter && depth == 1) {
+            cudaMemcpy(dev_first_paths, dev_paths, pixelcount * sizeof(PathSegment), cudaMemcpyDeviceToDevice);
         }
 
         // perform stream compaction

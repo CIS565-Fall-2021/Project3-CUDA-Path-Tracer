@@ -70,7 +70,10 @@ int main(int argc, char** argv) {
     init();
 
     // GLFW main loop
-    mainLoop();
+    std::clock_t start;
+    start = std::clock();
+
+    mainLoop(start);
 
     return 0;
 }
@@ -98,7 +101,7 @@ void saveImage() {
     //img.saveHDR(filename);  // Save a Radiance HDR file
 }
 
-void runCuda() {
+void runCuda(std::clock_t start) {
     if (camchanged) {
         iteration = 0;
         Camera &cam = renderState->camera;
@@ -142,6 +145,8 @@ void runCuda() {
         saveImage();
         pathtraceFree();
         cudaDeviceReset();
+        float duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+        std::cout << "Render time: " << duration << '\n';
         exit(EXIT_SUCCESS);
     }
 }
