@@ -208,7 +208,9 @@ __global__ void computeIntersections(
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
-
+            else if (geom.type == TRIANGLE) {
+                t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            }
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
             if (t > 0.0f && t_min > t)
@@ -414,7 +416,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
     int depth = 0;
     PathSegment *dev_path_end = dev_paths + pixelcount;
     int num_paths = dev_path_end - dev_paths;
-
+   // std::cout << glm::to_string(hst_scene->geoms[0].vertices[0])
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
 
@@ -472,7 +474,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
 #ifdef STREAM_COMPACTION
         // stream compaction
-        dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_path_end, path_alive());
+        dev_path_end = thrust::partition(thrust::device, dev_paths, dev_path_end, path_alive());
         num_paths = dev_path_end - dev_paths;
         iterationComplete = (num_paths == 0);
 #endif
