@@ -77,7 +77,7 @@ glm::vec3 ObjLoader::getNormalVec(const int shape_id,
 
   glm::vec3 normal{0.0f, 0.0f, 0.0f};
 
-  if (idx.normal_index >= 0) {
+  if (idx.normal_index > 0) {
     const auto& attrib = reader_.GetAttrib();
     normal.x           = attrib.normals[idx.vertex_index * 3 + 0];
     normal.y           = attrib.normals[idx.vertex_index * 3 + 1];
