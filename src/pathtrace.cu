@@ -412,6 +412,8 @@ struct hasNoBounces
     {
         return glm::length(p.color) < 0.0001f;
         // return p.remainingBounces <= 0;
+        // Testing whether remaining bounces exist did not work, so instead I Had to check the color being black.
+        // This does result in rays being filtered, as seen by observing the number of remaining paths in the pathtrace function.
     }
 };
 
@@ -553,7 +555,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 #endif
         depth++;
 
-        // TODO:
+        // DONE:
         // --- Shading Stage ---
         // Shade path segments based on intersections and generate new rays by
         // evaluating the BSDF.
@@ -585,7 +587,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         dev_path_end = thrust::raw_pointer_cast(thrust_path_end);
         num_paths = dev_path_end - dev_paths;
 
-        iterationComplete = depth >= traceDepth; // TODO: should be based off stream compaction results.
+        iterationComplete = (depth >= traceDepth) || (num_paths == 0);
     }
 
     // Assemble this iteration and apply it to the image

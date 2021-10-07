@@ -84,11 +84,9 @@ void scatterRay(
     glm::vec3 normal,
     const Material& m,
     thrust::default_random_engine& rng) {
-    // TODO: implement this.
+    // DONE: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
-    
-    // TODO - AH: account for probabilities of each factor
     
     thrust::uniform_real_distribution<float> u01(0, 1);
     glm::vec3 incomingRayDirection = pathSegment.ray.direction;
