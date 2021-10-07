@@ -108,7 +108,22 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 }
 
 
-
+void generateProcedural()
+{
+	vector<glm::vec3> posValues;
+	Turtle buildingTurtle1 = Turtle(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
+		glm::vec3(0, 1, 0), 1, 1);
+	buildingTurtle1.m_rotateAngle = 90.0f;
+	buildingTurtle1.m_takeRandomRotationsForward = false;
+	LSystem *BuildingSystem1 = new LSystem(buildingTurtle1);
+	std::vector<PostCondition> F_Conditions = { PostCondition(1.0, "F+F-F-F+F") };
+	Rule F_Rule1(F_Conditions);
+	BuildingSystem1->AddRule('F', F_Rule1);
+	BuildingSystem1->AssignAxiom("-F");
+	BuildingSystem1->LSystemParse(3);
+	BuildingSystem1->PrintParsedSystem();
+	BuildingSystem1->CarveBuilding(posValues);
+}
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -120,7 +135,7 @@ int main(int argc, char** argv) {
 		printf("Usage: %s SCENEFILE.txt\n", argv[0]);
 		return 1;
 	}
-
+	generateProcedural();
 	const char* sceneFile = argv[1];
 
 	// Load scene file

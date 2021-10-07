@@ -5,9 +5,9 @@ float sdCapsule(glm::vec3 p, glm::vec3 a, glm::vec3 b, float r);
 void MoveForward();
 float sdTriPrism(glm::vec3 p, glm::vec2 h);
 
-LSystem::LSystem()
+LSystem::LSystem(Turtle& currturtle)
 {
-    currTurtle = mkU<Turtle>();
+    currTurtle = mkU<Turtle>(currturtle);
     AddDefaultFuncPointer();
 }
 
@@ -36,6 +36,19 @@ void LSystem::LSystemParse(int iterations)
                 currSym = nextSym;
                 continue;
             }
+            currSym = currSym->next;
+        }
+    }
+}
+
+void LSystem::PrintParsedSystem()
+{
+    Symbol* currSym = rootSymbol;
+    if (currSym != NULL)
+    {
+        while (currSym != NULL)
+        {
+            std::cout << currSym->m_refCharacter;
             currSym = currSym->next;
         }
     }
@@ -131,6 +144,17 @@ void MoveForward(Turtle(*currTurtle))
     currTurtle->Move();
 }
 
+bool ContainsPos(std::vector<glm::vec3> &posBuffer, glm::vec3 a_position)
+{
+    for (int i = 0; i < posBuffer.size(); i++)
+    {
+        if (posBuffer[i] == a_position)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape)
 {
@@ -170,7 +194,10 @@ void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape)
                             //glm::vec3 currPos = a + glm::vec3(x, y, z) * rotMat;
                             if ((sdCapsule(currpos, a, b, r1) <= 0))
                             {
-                                procShape.push_back(currpos);
+                                if (!ContainsPos(procShape, currpos))
+                                {
+                                    procShape.push_back(currpos);
+                                }
                                /* if (y < 210)
                                 {
                                     uPtr<BuildingBlock> b1 = mkU<BuildingBlock>(a_currContext, currpos, WHITESTONE);

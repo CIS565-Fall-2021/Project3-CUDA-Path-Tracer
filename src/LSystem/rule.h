@@ -14,7 +14,7 @@ public:
 
     std::vector<PostCondition> Rules;
     std::vector<float> ConditionWeights;
-    bool ConditionsNormalised;
+    bool ConditionsNormalised = false;
 
     void AddRules(PostCondition);
     void NormaliseandBuildWeights();

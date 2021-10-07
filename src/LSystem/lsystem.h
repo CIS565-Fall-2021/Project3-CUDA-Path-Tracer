@@ -33,7 +33,7 @@ typedef void (Turtle::* RuleFunc)();
 class LSystem
 {
 public:
-    LSystem();
+    LSystem(Turtle&);
     uPtr<Turtle> currTurtle;
 
     std::string axiom;
@@ -50,6 +50,7 @@ public:
     void GetRandomRule(char a_ruleKey);
     void CarveBuilding(std::vector<glm::vec3>& procShape);
     void AddDefaultFuncPointer();
+    void PrintParsedSystem();
     //void digBlock(int x, int z, int depth);
 };
 

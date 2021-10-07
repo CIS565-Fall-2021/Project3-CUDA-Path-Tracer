@@ -23,6 +23,8 @@
 #include "..\src\MeshLoading\tiny_obj_loader.h"
 
 #include "..\src\MeshLoading\BVH.h"
+#include "LSystem/turtle.h";
+#include "LSystem/lsystem.h";
 
 using namespace std;
 
