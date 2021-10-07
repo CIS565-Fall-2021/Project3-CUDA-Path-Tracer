@@ -178,7 +178,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
             case GLFW_KEY_F:
                 camchanged = true;
                 cam.focalLength += 0.2f;
-                cam.focalLength = std::min(8.f, cam.focalLength);
+                cam.focalLength = std::min(14.f, cam.focalLength);
                 break;
             case GLFW_KEY_G:
                 camchanged = true;
