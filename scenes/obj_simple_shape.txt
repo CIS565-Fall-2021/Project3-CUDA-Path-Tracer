@@ -130,7 +130,7 @@ SCALE       .01 10 10
 
 // Cornell Box - Mesh
 OBJECT 6
-mesh_obj    ../scenes/model/objs/lost-empire/lost_empire.obj   ../scenes/model/objs/lost-empire
+mesh_obj    ../scenes/model/objs/simple/cube.obj   ../scenes/model/objs/simple
 material 4
 TRANS       0 4 0
 ROTAT       0 0 0
