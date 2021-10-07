@@ -234,32 +234,45 @@ __global__ void shadeFakeMaterial (
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_paths)
   {
+      if (pathSegments[idx].remainingBounces <= 0) {
+          return;
+      }
+
     ShadeableIntersection intersection = shadeableIntersections[idx];
     if (intersection.t > 0.0f) { // if the intersection exists...
       // Set up the RNG
       // LOOK: this is how you use thrust's RNG! Please look at
       // makeSeededRandomEngine as well.
-      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
       thrust::uniform_real_distribution<float> u01(0, 1);
 
       Material material = materials[intersection.materialId];
       glm::vec3 materialColor = material.color;
+      //pathSegments[idx].remainingBounces--;
 
       // If the material indicates that the object was a light, "light" the ray
       if (material.emittance > 0.0f) {
         pathSegments[idx].color *= (materialColor * material.emittance);
-        pathSegments[idx].remainingBounces = -1;
+        pathSegments[idx].remainingBounces = 0;
       }
       // Otherwise, do some pseudo-lighting computation. This is actually more
       // like what you would expect from shading in a rasterizer like OpenGL.
       // TODO: replace this! you should be able to start with basically a one-liner
+      //float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+      //pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
+      //pathSegments[idx].color *= u01(rng); // apply some noise because why not
+      /*else if (pathSegments[idx].remainingBounces == 0) {
+          pathSegments[idx].remainingBounces = 0;
+          pathSegments[idx].color = glm::vec3(0.0f);
+      }*/ 
       else {
-        //float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-        //pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-        //pathSegments[idx].color *= u01(rng); // apply some noise because why not
+          pathSegments[idx].remainingBounces -= 1;
+          if (pathSegments[idx].remainingBounces == 0) {
+              pathSegments[idx].color = glm::vec3(0.0f);
+              return;
+          }
           scatterRay(pathSegments[idx], pathSegments[idx].ray.origin + pathSegments[idx].ray.direction * intersection.t, intersection.surfaceNormal,
               material, rng);
-          pathSegments[idx].remainingBounces--;
       }
     // If there was no intersection, color the ray black.
     // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -267,7 +280,7 @@ __global__ void shadeFakeMaterial (
     // This can be useful for post-processing and image compositing.
     } else {
       pathSegments[idx].color = glm::vec3(0.0f);
-      pathSegments[idx].remainingBounces = -1;
+      pathSegments[idx].remainingBounces = 0;
     }
   }
 }
@@ -287,22 +300,9 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 struct should_end {
     __host__ __device__
         bool operator()(const PathSegment& pathSegment) {
-        return (pathSegment.remainingBounces < 0);
+        return (pathSegment.remainingBounces >= 0);
     }
 };
-
-//struct should_end 
-//{
-//    __host__ __device__ 
-//    bool operator()(const PathSegment& pathSegment) {
-//        return (pathSegment.remainingBounces <= 0);
-//    }
-//};
-
-//__host__ __device__
-//    bool should_end(const PathSegment& pathSegment) {
-//        return (pathSegment.remainingBounces <= 0);
-//}
 
 
 
@@ -403,26 +403,19 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     dev_materials
   );
 
-  /*thrust::device_vector<PathSegment> thrust_dev_paths(dev_paths);
-  thrust::device_vector<PathSegment> stencil(num_paths);
+  dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_path_end, should_end());
+  num_paths = dev_path_end - dev_paths;
 
-  thrust::copy(thrust::device, thrust_dev_paths.begin(), thrust_dev_paths.end(), stencil.begin());
 
-    thrust::device_ptr<PathSegment> dev_path_end = thrust::partition(thrust_dev_paths.begin(), thrust_dev_paths.end(), stencil.begin(), should_end());
-    
-    num_paths = dev_path_end - thrust_dev_paths.begin();*/
-  /*dev_path_end = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, should_end());
-  num_paths = dev_path_end - dev_paths;*/
-
-    // if (num_paths == 0) {
-         iterationComplete = true;
-    //}
-        
+    if (num_paths == 0 || depth > traceDepth) {
+        iterationComplete = true;
     }
+        
+}
 
   // Assemble this iteration and apply it to the image
   dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+    finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 
