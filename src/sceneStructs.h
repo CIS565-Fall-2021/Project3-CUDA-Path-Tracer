@@ -28,6 +28,24 @@ struct Geom {
     glm::mat4 invTranspose;
 };
 
+struct Tri {
+    glm::vec3 verts;
+    glm::vec3 normal;
+};
+
+struct MeshGeom {
+    std::string file;
+    int materialid;
+    glm::vec3 translation;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+    glm::mat4 transform;
+    glm::mat4 inverseTransform;
+    glm::mat4 invTranspose;
+    Tri* tris;
+    int numTris;
+};
+
 struct Material {
     glm::vec3 color;
     struct {

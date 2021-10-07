@@ -3,6 +3,7 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <tiny_obj_loader.h>
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
