@@ -84,6 +84,11 @@ static ShadeableIntersection* dev_intersections = NULL;
 static ShadeableIntersection* dev_firstBounceIntersections = NULL;
 #endif
 
+#if MESH_CULL
+static Mesh* dev_meshes = NULL;
+static Geom* dev_triangles = NULL;
+#endif
+
 
 void pathtraceInit(Scene* scene) {
     hst_scene = scene;
@@ -110,6 +115,14 @@ void pathtraceInit(Scene* scene) {
     cudaMemset(dev_firstBounceIntersections, 0, pixelcount * sizeof(ShadeableIntersection));
 #endif
 
+#if MESH_CULL
+    cudaMalloc(&dev_meshes, scene->meshes.size() * sizeof(Mesh));
+    cudaMemcpy(dev_meshes, scene->meshes.data(), scene->meshes.size() * sizeof(Mesh), cudaMemcpyHostToDevice);
+
+    cudaMalloc(&dev_triangles, scene->triangles.size() * sizeof(Geom));
+    cudaMemcpy(dev_triangles, scene->triangles.data(), scene->triangles.size() * sizeof(Geom), cudaMemcpyHostToDevice);
+#endif
+
     checkCUDAError("pathtraceInit");
 }
 
@@ -122,6 +135,11 @@ void pathtraceFree() {
     // TODO: clean up any extra device memory you created
 #if FIRST_BOUNCE_CACHE
     cudaFree(dev_firstBounceIntersections);
+#endif
+
+#if MESH_CULL
+    cudaFree(dev_meshes);
+    cudaFree(dev_triangles);
 #endif
 
     checkCUDAError("pathtraceFree");
@@ -231,6 +249,12 @@ __global__ void computeIntersections(
     , Geom* geoms
     , int geoms_size
     , ShadeableIntersection* intersections
+#if MESH_CULL
+    , Mesh* meshes
+    , int meshes_size
+    , Geom* triangles
+    , int triangles_size
+#endif
 )
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -245,12 +269,14 @@ __global__ void computeIntersections(
         float t_min = FLT_MAX;
         int hit_geom_index = -1;
         bool outside = true;
+        bool triangleHit = false;
+        int triangleHitMaterialId;
 
         glm::vec3 tmp_intersect;
         glm::vec3 tmp_normal;
 
         // naive parse through global geoms
-
+        // If MESH_CULL is disabled, all mesh triangles will be in the geoms array
         for (int i = 0; i < geoms_size; i++)
         {
             Geom& geom = geoms[i];
@@ -263,11 +289,12 @@ __global__ void computeIntersections(
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
-            // TODO: add more intersection tests here... triangle? metaball? CSG?
+#if !MESH_CULL
             else if (geom.type == TRIANGLE)
             {
                 t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
+#endif
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -280,10 +307,45 @@ __global__ void computeIntersections(
             }
         }
 
-        if (hit_geom_index == -1)
+#if MESH_CULL
+        // If MESH_CULL is enabled, mesh triangle checking will happen on a per mesh basis
+        for (int i = 0; i < meshes_size; i++)
+        {
+            Mesh& mesh = meshes[i];
+            float b = boxIntersectionTest(mesh.boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            if (b > 0.0f)       // Mesh bounding box was hit by ray, so check all triangles inside
+            {
+                for (int j = mesh.triangleDataStartIndex; j < mesh.triangleDataStartIndex + mesh.numTriangles; j++)
+                {
+                    Geom& triangle = triangles[j];
+                    t = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+
+                    if (t > 0.0f && t_min > t)
+                    {
+                        t_min = t;
+                        triangleHitMaterialId = triangle.materialid;
+                        intersect_point = tmp_intersect;
+                        normal = tmp_normal;
+                        triangleHit = true;
+                    }
+                }
+            }
+        }
+#endif
+
+        if (hit_geom_index == -1 && !triangleHit)
         {
             intersections[path_index].t = -1.0f;
         }
+#if MESH_CULL
+        else if (triangleHit)
+        {
+            //The ray hits a triangle from a mesh
+            intersections[path_index].t = t_min;
+            intersections[path_index].materialId = triangleHitMaterialId;
+            intersections[path_index].surfaceNormal = normal;
+        }
+#endif
         else
         {
             //The ray hits something
@@ -518,6 +580,12 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
                 , dev_geoms
                 , hst_scene->geoms.size()
                 , dev_firstBounceIntersections
+#if MESH_CULL
+                , dev_meshes
+                , hst_scene->meshes.size()
+                , dev_triangles
+                , hst_scene->triangles.size()
+#endif
                 );
             checkCUDAError("trace first bounce");
             cudaDeviceSynchronize();
@@ -537,6 +605,12 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
                 , dev_geoms
                 , hst_scene->geoms.size()
                 , dev_intersections
+#if MESH_CULL
+                , dev_meshes
+                , hst_scene->meshes.size()
+                , dev_triangles
+                , hst_scene->triangles.size()
+#endif
                 );
             checkCUDAError("trace one bounce");
             cudaDeviceSynchronize();
@@ -549,6 +623,12 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             , dev_geoms
             , hst_scene->geoms.size()
             , dev_intersections
+#if MESH_CULL
+            , dev_meshes
+            , hst_scene->meshes.size()
+            , dev_triangles
+            , hst_scene->triangles.size()
+#endif
             );
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();

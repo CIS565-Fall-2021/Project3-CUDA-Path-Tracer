@@ -13,12 +13,6 @@ enum GeomType {
     TRIANGLE,
 };
 
-struct Mesh {
-    unsigned int id;
-    glm::vec3 minCorner;
-    glm::vec3 maxCorner;
-};
-
 struct Triangle {
     glm::vec3 p1;
     glm::vec3 p2;
@@ -41,6 +35,14 @@ struct Geom {
     glm::mat4 invTranspose;
 
     Triangle triangleCoords;
+};
+
+struct Mesh {
+    unsigned int id;
+    unsigned int numTriangles;
+    unsigned int triangleDataStartIndex;
+
+    Geom boundingBox;
 };
 
 struct Material {

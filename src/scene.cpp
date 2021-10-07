@@ -20,6 +20,9 @@ Scene::Scene(string filename) {
         throw;
     }
     
+#if MESH_CULL
+    triangleIndex = 0;
+#endif
     unsigned int currMeshId = 0;
     while (fp_in.good()) {
         string line;
@@ -224,7 +227,7 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
 
-    std::vector<Triangle> triangles;
+    std::vector<Triangle> objTriangles;
 
 #if LOAD_MESH_VERBOSE
     cout << "Number of shapes: " << shapes.size() << endl;
@@ -263,7 +266,7 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
             }
             index_offset += fv;
 
-            triangles.push_back(t);
+            objTriangles.push_back(t);
         }
     }
 
@@ -301,12 +304,18 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
     glm::mat4 inverseTransform = glm::inverse(transform);
     glm::mat4 invTranspose = glm::inverseTranspose(transform);
 
-    // Process triangles into scene geometries
 #if MESH_CULL
+    // Create Mesh with which loaded triangles will be associated
+    Mesh newMesh;
+    newMesh.id = meshId;
+    newMesh.numTriangles = 0;
+    newMesh.triangleDataStartIndex = triangleIndex;
+
     float min_x = FLT_MAX, min_y = FLT_MAX, min_z = FLT_MAX;
     float max_x = -FLT_MAX, max_y = -FLT_MIN, max_z = -FLT_MIN;
 #endif
-    for (Triangle &t : triangles) {
+    // Process triangles into scene geometries and associate with mesh
+    for (Triangle &t : objTriangles) {
         Geom newGeom;
         newGeom.type = GeomType::TRIANGLE;
         newGeom.materialid = materialId;
@@ -345,20 +354,18 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
         max_z = glm::max(max_z, newGeom.triangleCoords.p1.z);
         max_z = glm::max(max_z, newGeom.triangleCoords.p2.z);
         max_z = glm::max(max_z, newGeom.triangleCoords.p3.z);
-#endif
 
+        triangles.push_back(newGeom);
+        triangleIndex++;
+        newMesh.numTriangles++;
+#else
         geoms.push_back(newGeom);
+#endif
     }
 
 #if MESH_CULL
     glm::vec3 minCoords = glm::vec3(min_x, min_y, min_z);
     glm::vec3 maxCoords = glm::vec3(max_x, max_y, max_z);
-
-    // Create a new object to track mesh details
-    Mesh newMesh;
-    newMesh.id = meshId;
-    newMesh.minCorner = minCoords;
-    newMesh.maxCorner = maxCoords;
 
     // Use center and displacement between corners of box for Geom construction
     translation = 0.5f * (minCoords + maxCoords);
@@ -370,12 +377,10 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
     inverseTransform = glm::inverse(transform);
     invTranspose = glm::inverseTranspose(transform);
 
-    meshes[meshId] = newMesh;
-
     // Create cube geometry to represent bounding box (so Box test can be reused)
     Geom boundingBox;
     boundingBox.type = GeomType::CUBE;
-    boundingBox.materialid = 8;     // For debug; change to 0
+    boundingBox.materialid = 8;     // For debug purposes, as the box is never rendered
     boundingBox.translation = translation;
     boundingBox.rotation = glm::vec3(0.f);
     boundingBox.scale = scale;
@@ -383,8 +388,10 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
     boundingBox.inverseTransform = inverseTransform;
     boundingBox.invTranspose = invTranspose;
 
-    geoms.push_back(boundingBox);
+    // Associate bounding box Geom with the mesh
+    newMesh.boundingBox = boundingBox;
+    meshes.push_back(newMesh);
 
-
+    // geoms.push_back(boundingBox);
 #endif
 }

@@ -9,7 +9,7 @@
 #include "utilities.h"
 #include "sceneStructs.h"
 
-#define MESH_CULL 1
+#define MESH_CULL 0
 
 using namespace std;
 
@@ -20,6 +20,9 @@ private:
     int loadGeom(string objectid);
     int loadCamera();
     int loadMesh(string objectid, unsigned int meshId);
+#if MESH_CULL
+    int triangleIndex;
+#endif
 
 public:
     Scene(string filename);
@@ -28,8 +31,8 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
-
 #if MESH_CULL
-    std::unordered_map<unsigned int, Mesh> meshes;
+    std::vector<Mesh> meshes;
+    std::vector<Geom> triangles;
 #endif
 };
