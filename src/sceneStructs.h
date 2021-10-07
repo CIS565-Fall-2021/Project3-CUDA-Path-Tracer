@@ -9,10 +9,7 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
-enum GeomType {
-  SPHERE,
-  CUBE,
-};
+enum GeomType { SPHERE, CUBE, TRIANGLE };
 
 struct Ray {
   glm::vec3 origin;
@@ -28,6 +25,10 @@ struct Geom {
   glm::mat4 transform;
   glm::mat4 inverseTransform;
   glm::mat4 invTranspose;
+  struct Triangle {
+    glm::vec3 vertices[3];
+    glm::vec3 normals[3];
+  } triangle;
 };
 
 struct Material {

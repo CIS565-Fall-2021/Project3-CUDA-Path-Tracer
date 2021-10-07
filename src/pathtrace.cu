@@ -312,8 +312,10 @@ __global__ void computeIntersections(const int depth, const int num_paths,
       } else if (geom.type == SPHERE) {
         t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect,
                                    tmp_normal, outside);
+      } else if (geom.type == TRIANGLE) {
+        t = triangleIntersectionTest(geom, pathSegment.ray, tmp_intersect,
+                                     tmp_normal, outside);
       }
-      // TODO: add more intersection tests here... triangle? metaball? CSG?
 
       // Compute the minimum t from the intersection tests to determine what
       // scene geometry object was hit first.

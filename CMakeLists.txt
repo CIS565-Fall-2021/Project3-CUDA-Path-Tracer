@@ -10,8 +10,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Enable C++11 for host code
-set(CMAKE_CXX_STANDARD 11)
+# Enable C++14 for host code
+set(CMAKE_CXX_STANDARD 14)
 
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -78,6 +78,7 @@ set(headers
     src/utilities.h
     src/stream_compaction.h
     src/static_config.h
+    src/model_loader.hpp
     )
 
 set(sources
@@ -90,6 +91,7 @@ set(sources
     src/utilities.cpp
     src/stream_compaction.cu
     src/static_config.cpp
+    src/obj_loader.cpp
     )
 
 list(SORT headers)
