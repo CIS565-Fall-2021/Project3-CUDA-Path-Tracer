@@ -5,6 +5,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 #define TINYOBJLOADER_IMPLEMENTATION
+
 #include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
@@ -127,11 +128,18 @@ int Scene::loadObjFile() {
         // Loop over faces(polygon)
         size_t index_offset = 0;
         TriangleGeom current_face;
+
+#ifdef MESH_BOUND_CHECK
+        glm::vec3 bound_min{ FLT_MAX };
+        glm::vec3 bound_max{ FLT_MIN };
+#endif
+
         for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
             glm::vec3 current_ver{ 0 };
             glm::vec3 current_norm{ 0 };
+
             // Loop over vertices in the face.
             for (size_t v = 0; v < fv; v++) {
                 // access to vertex
@@ -141,6 +149,27 @@ int Scene::loadObjFile() {
                 tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
 
                 current_ver = glm::vec3(vx, vy, vz);
+
+#ifdef MESH_BOUND_CHECK
+                if (vx < bound_min.x) {
+                    bound_min.x = vx;
+                }
+                if (vy < bound_min.y) {
+                    bound_min.y = vy;
+                }
+                if (vz < bound_min.z) {
+                    bound_min.z = vz;
+                }
+                if (vx > bound_max.x) {
+                    bound_max.x = vx;
+                }
+                if (vy > bound_max.y) {
+                    bound_max.y = vy;
+                }
+                if (vz > bound_max.z) {
+                    bound_max.z = vz;
+                }
+#endif
                 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
@@ -171,6 +200,11 @@ int Scene::loadObjFile() {
 
             index_offset += fv;
             triangles.push_back(current_face);
+
+#ifdef MESH_BOUND_CHECK
+            triangle_bound_max = bound_max;
+            triangle_bound_min = bound_min;
+#endif
             // per-face material
             //shapes[s].mesh.material_ids[f];
         }

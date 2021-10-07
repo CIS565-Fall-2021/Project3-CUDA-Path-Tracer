@@ -9,6 +9,8 @@
 #include "sceneStructs.h"
 
 using namespace std;
+#define MESH_BOUND_CHECK 0
+
 
 class Scene {
 private:
@@ -22,6 +24,11 @@ public:
     ~Scene();
    
     std::vector<TriangleGeom> triangles;
+
+#ifdef MESH_BOUND_CHECK
+    glm::vec3 triangle_bound_min;
+    glm::vec3 triangle_bound_max;
+#endif
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
