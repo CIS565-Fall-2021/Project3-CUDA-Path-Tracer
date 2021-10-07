@@ -100,7 +100,7 @@ int Scene::loadGeom(string objectid) {
 
 int Scene::loadObjFile() {
 
-    std::string inputfile = "../scenes/cube_tri.obj";
+    std::string inputfile = "../scenes/bunny.obj";
     tinyobj::ObjReaderConfig reader_config;
     //reader_config.mtl_search_path = "../scenes/"; // Path to material files
 
@@ -131,6 +131,7 @@ int Scene::loadObjFile() {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
 
             glm::vec3 current_ver{ 0 };
+            glm::vec3 current_norm{ 0 };
             // Loop over vertices in the face.
             for (size_t v = 0; v < fv; v++) {
                 // access to vertex
@@ -146,6 +147,7 @@ int Scene::loadObjFile() {
                     tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
                     tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                     tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+                    current_norm = glm::vec3(nx, ny, nz);
                 }
 
                 // Check if `texcoord_index` is zero or positive. negative = no texcoord data
@@ -155,19 +157,22 @@ int Scene::loadObjFile() {
                 }
                 if (v == 0) {
                     current_face.vertex1 = current_ver;
+                    current_face.normal1 = current_norm;
                 }
                 else if (v == 1) {
                     current_face.vertex2 = current_ver;
+                    current_face.normal1 = current_norm;
                 }
                 else {
                     current_face.vertex3 = current_ver;
+                    current_face.normal1 = current_norm;
                 }
             }
 
             index_offset += fv;
             triangles.push_back(current_face);
             // per-face material
-            shapes[s].mesh.material_ids[f];
+            //shapes[s].mesh.material_ids[f];
         }
         
         

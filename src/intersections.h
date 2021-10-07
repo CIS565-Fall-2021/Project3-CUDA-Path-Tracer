@@ -101,20 +101,49 @@ __host__ __device__ float triangleIntersectionTest(Geom custom_obj, Ray r,
     glm::vec3& intersectionPoint, glm::vec3 vertex1, glm::vec3 vertex2, glm::vec3 vertex3, 
     glm::vec3 normal1, glm::vec3 normal2, glm::vec3 normal3, glm::vec3& normal, bool& outside) {
 
-    r.origin = multiplyMV(custom_obj.inverseTransform, glm::vec4(r.origin, 1.0f));
-    r.direction = glm::normalize(multiplyMV(custom_obj.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    glm::vec3 ro = multiplyMV(custom_obj.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 rd = glm::normalize(multiplyMV(custom_obj.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-    glm::vec3 bary_position;
+    //Transformed Ray
+    Ray rt;
+    rt.origin = ro;
+    rt.direction = rd;
 
-    int is_hit = glm::intersectRayTriangle(r.origin, r.direction, vertex1, vertex2, vertex3, bary_position);
+    glm::vec3 bary_coords{ 0.f };
+    bool is_hit = glm::intersectRayTriangle(rt.origin, rt.direction, vertex1, vertex2, vertex3, bary_coords);
+
     if (!is_hit) {
         return -1;
     }
-    normal = (normal1 * (1.f - bary_position.x - bary_position.y)) + normal2 * bary_position.x + normal3 * bary_position.y;
-    outside = false;
-    float t = bary_position.z;
-    intersectionPoint = getPointOnRay(r, t);
-    intersectionPoint = multiplyMV(custom_obj.transform, glm::vec4(intersectionPoint, 1.0));
+
+    glm::vec3 bary_position = (1.f - bary_coords.x - bary_coords.y) * vertex1 + bary_coords.x * vertex2 + bary_coords.y * vertex3;
+    intersectionPoint = multiplyMV(custom_obj.transform, glm::vec4(bary_position, 1.f));
+
+    glm::vec3 n0;
+    glm::vec3 n1;
+    glm::vec3 n2;
+
+    //Some obj file does not have "vn" infos
+    bool has_normal = (glm::length(normal1) != 0) && (glm::length(normal2) != 0) && (glm::length(normal3) != 0);
+
+    n0 = has_normal ? normal1: glm::normalize(glm::cross(vertex2 - vertex1, vertex3 - vertex1));
+    n1 = has_normal ? normal2: glm::normalize(glm::cross(vertex1 - vertex2, vertex3 - vertex2));
+    n2 = has_normal ? normal3: glm::normalize(glm::cross(vertex1 - vertex3, vertex2 - vertex3));
+
+    //Use smoothed normal (no triangulated mesh look)
+    float S = 0.5f * glm::length(glm::cross(vertex1 - vertex2, vertex3 - vertex2));
+    float S0 = 0.5f * glm::length(glm::cross(vertex2 - bary_position, vertex3 - bary_position));
+    float S1 = 0.5f * glm::length(glm::cross(vertex1 - bary_position, vertex3 - bary_position));
+    float S2 = 0.5f * glm::length(glm::cross(vertex1 - bary_position, vertex2 - bary_position));
+    glm::vec3 smoothNormal = glm::normalize(n0 * S0 / S + n1 * S1 / S + n2 * S2 / S);
+
+    normal = glm::normalize(multiplyMV(custom_obj.invTranspose, glm::vec4(smoothNormal, 0.f)));
+
+    if (glm::dot(normal, r.direction) > 0) {
+        normal = -normal;
+        outside = false;
+    }
+
     return glm::length(r.origin - intersectionPoint);
 }
 
