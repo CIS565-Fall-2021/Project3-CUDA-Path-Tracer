@@ -21,9 +21,10 @@
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 
-#define SORT_MATERIALS true
+#define SORT_MATERIALS false
 #define CACHE_FIRST_BOUNCE false
 #define DOF false
+#define FOCAL_LEN 6.7f
 #define ANTIALIASING false
 
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
@@ -182,7 +183,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
         // calculate the ray direction
         if (DOF) {
-            float focalLen = 11.f;
+            float focalLen = FOCAL_LEN;
             float angle = glm::radians(cam.fov.y);
             float aspect = ((float)cam.resolution.x / (float)cam.resolution.y);
             float ndc_x = 1.f - ((float)x / cam.resolution.x) * 2.f;
@@ -308,8 +309,6 @@ __global__ void shadeFakeMaterial(
             ShadeableIntersection intersection = shadeableIntersections[idx];
             if (intersection.t > 0.0f) { // if the intersection exists...
               // Set up the RNG
-              // LOOK: this is how you use thrust's RNG! Please look at
-              // makeSeededRandomEngine as well.
                 thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx]->remainingBounces);
                 thrust::uniform_real_distribution<float> u01(0, 1);
 
@@ -321,13 +320,11 @@ __global__ void shadeFakeMaterial(
                     pathSegments[idx]->color *= materialColor * material.emittance;
                     pathSegments[idx]->terminated = true;
                 }
-
-                // Otherwise, do some pseudo-lighting computation. This is actually more
-                // like what you would expect from shading in a rasterizer like OpenGL.
-                // TODO: replace this! you should be able to start with basically a one-liner
                 else {
+                    // multiply by the albedo color
                     pathSegments[idx]->color *= materialColor;
 
+                    // find and set next ray direction
                     glm::vec3 intersectPt = getPointOnRay(pathSegments[idx]->ray, intersection.t);
                     scatterRay(*pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng); 
                     pathSegments[idx]->remainingBounces -= 1;
@@ -356,12 +353,14 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
     }
 }
 
+// terminates ray if its terminated flag is raised
 struct terminateRay {
     __host__ __device__ bool operator()(const PathSegment* ps) {
         return !ps->terminated;
     }
 };
 
+// compares materials for sorting
 struct compMaterialID : public binary_function<ShadeableIntersection, ShadeableIntersection, bool> {
     __host__ __device__ bool operator()(const ShadeableIntersection &isect1, const ShadeableIntersection &isect2) {
         return isect1.materialId < isect2.materialId;
@@ -376,7 +375,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera& cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
-    bool isFirstIter = iter == 0;
+    bool isFirstIter = iter == 1;
 
     // 2D block for generating ray from camera
     const dim3 blockSize2d(8, 8);
@@ -387,46 +386,13 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     // 1D block for path tracing
     const int blockSize1d = 128;
 
-    ///////////////////////////////////////////////////////////////////////////
-
-    // Recap:
-    // * Initialize array of path rays (using rays that come out of the camera)
-    //   * You can pass the Camera object to that kernel.
-    //   * Each path ray must carry at minimum a (ray, color) pair,
-    //   * where color starts as the multiplicative identity, white = (1, 1, 1).
-    //   * This has already been done for you.
-    // * For each depth:
-    //   * Compute an intersection in the scene for each path ray.
-    //     A very naive version of this has been implemented for you, but feel
-    //     free to add more primitives and/or a better algorithm.
-    //     Currently, intersection distance is recorded as a parametric distance,
-    //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
-    //     * Color is attenuated (multiplied) by reflections off of any object
-    //   * TODO: Stream compact away all of the terminated paths.
-    //     You may use either your implementation or `thrust::remove_if` or its
-    //     cousins.
-    //     * Note that you can't really use a 2D kernel launch any more - switch
-    //       to 1D.
-    //   * TODO: Shade the rays that intersected something or didn't bottom out.
-    //     That is, color the ray by performing a color computation according
-    //     to the shader, then generate a new ray to continue the ray path.
-    //     We recommend just updating the ray's PathSegment in place.
-    //     Note that this step may come before or after stream compaction,
-    //     since some shaders you write may also cause a path to terminate.
-    // * Finally, add this iteration's results to the image. This has been done
-    //   for you.
-
-    // TODO later: can we not do this if we've cached first bounce ? will involve getting pointers to elements in dev_paths
-     generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, dev_alive_paths);
-     checkCUDAError("generate camera ray");
+    generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, dev_alive_paths);
+    checkCUDAError("generate camera ray");
 
     int depth = 0;
     PathSegment* dev_path_end = dev_paths + pixelcount;
     int init_num_paths = dev_path_end - dev_paths;
     int num_paths = init_num_paths;
-
-    // --- PathSegment Tracing Stage ---
-    // Shoot ray into scene, bounce between objects, push shading chunks
 
     bool iterationComplete = false;
     thrust::device_ptr<PathSegment*> endPtr(dev_alive_paths + pixelcount);
@@ -438,15 +404,6 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     }
 
     while (!iterationComplete) {
-
-        // THOUGHTS ON LAST BOUNCE PATH GUIDING
-        /* 1. find num lights by iterating over geoms (do so outside this function)
-        *  2. if depth == traceDepth - 1, call guide paths kernel (w rng)
-        *  3. For each ray, randomly choose light
-        *  4. get light position (translation)
-        *  5. shoot ray toward it (light pos - origin)
-        *  6. Deal with sampling later?
-        */
 
         // clean shading chunks
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
@@ -466,25 +423,14 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         cudaDeviceSynchronize();
         depth++;
 
-
-        // TODO:
-        // --- Shading Stage ---
-        // Shade path segments based on intersections and generate new rays by
-      // evaluating the BSDF.
-      // Start off with just a big kernel that handles all the different
-      // materials you have in the scenefile.
-      // TODO: compare between directly shading the path segments and shading
-      // path segments that have been reshuffled to be contiguous in memory.
-
         // sort rays by material
-        // QUESTION: should we see any improvements at this point? Performing worse, I think
-        // QUESTION: by toggle, do you just mean a global var?
         if (SORT_MATERIALS) {
             thrust::device_ptr<PathSegment*> sorted_paths(dev_alive_paths);
             thrust::device_ptr<ShadeableIntersection> sorted_isects(dev_intersections);
             thrust::sort_by_key(sorted_isects, sorted_isects + num_paths, sorted_paths, compMaterialID());
         }
 
+        // shade paths
         shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
             iter,
             num_paths,
@@ -503,6 +449,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         endPtr = newPathsEnd;
         num_paths = endPtr - dev_thrust_alive_paths;
 
+        // if reached max depth or if no paths remain, terminate iteration
         if (depth == traceDepth || num_paths == 0) {
             iterationComplete = true;
         }
