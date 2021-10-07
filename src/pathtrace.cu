@@ -23,8 +23,8 @@
 
 #define SORT_MATERIALS false
 #define CACHE_FIRST_BOUNCE false
-#define DOF false
-#define ANTIALIASING true
+#define DOF true
+#define ANTIALIASING false
 
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
 #if ERRORCHECK
@@ -152,11 +152,12 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         PathSegment& segment = pathSegments[index];
         aliveSegments[index] = &segment;
 
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
+        thrust::uniform_real_distribution<float> u01(0, 1);
+
         // calculate the ray origin
         if (DOF) {
             float aperture = 2.0;
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, x, y);
-            thrust::uniform_real_distribution<float> u01(0, 1);
             float sampleX = u01(rng);
             float sampleY = u01(rng);
 
@@ -171,9 +172,17 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             segment.ray.origin = cam.position;
         }
 
+        if (ANTIALIASING) {
+            float rand1 = u01(rng);
+            float rand2 = u01(rng);
+
+            x = x + rand1 * 2.0;
+            y = y + rand2 * 2.0;
+        }
+
         // calculate the ray direction
         if (DOF) {
-            float focalLen = 15.f;
+            float focalLen = 11.f;
             float angle = glm::radians(cam.fov.y);
             float aspect = ((float)cam.resolution.x / (float)cam.resolution.y);
             float ndc_x = 1.f - ((float)x / cam.resolution.x) * 2.f;
@@ -186,11 +195,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             segment.ray.direction = normalize(target_pt - segment.ray.origin);
         }
         else {
-            // TODO: implement antialiasing by jittering the ray
             segment.ray.direction = glm::normalize(cam.view
-                - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-                - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-            );
+                    - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
+                    - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
+             );
+            
         }
 
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -423,7 +432,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     thrust::device_ptr<PathSegment*> endPtr(dev_alive_paths + pixelcount);
 
     // if not the first iteration, assume the paths have been cached, harvest
-    if (CACHE_FIRST_BOUNCE && !isFirstIter) {
+    if (CACHE_FIRST_BOUNCE && !ANTIALIASING && !DOF && !isFirstIter) {
         cudaMemcpy(dev_paths, dev_first_paths, init_num_paths, cudaMemcpyDeviceToDevice);
         depth++; // start on second bounce now
     }
@@ -485,7 +494,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             );
 
         // if first iteration, cache first bounce
-        if (CACHE_FIRST_BOUNCE && isFirstIter) {
+        if (CACHE_FIRST_BOUNCE && !ANTIALIASING && !DOF && isFirstIter) {
             cudaMemcpy(dev_first_paths, dev_paths, init_num_paths, cudaMemcpyDeviceToDevice);
         }
 
