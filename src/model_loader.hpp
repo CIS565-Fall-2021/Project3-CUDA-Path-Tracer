@@ -62,6 +62,10 @@ public:
 private:
   tinyobj::ObjReader reader_;
   tinyobj::ObjReaderConfig reader_config_;
+
+  tinyobj::attrib_t attribute_;
+  std::vector<tinyobj::shape_t> shapes_;
+  std::vector<tinyobj::material_t> materials_;
 };
 
 #endif /* __CUDA_PATH_TRACING_MODEL_LOADER_HPP__ */

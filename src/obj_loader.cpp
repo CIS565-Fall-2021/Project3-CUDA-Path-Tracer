@@ -25,6 +25,9 @@ bool ObjLoader::loadFromFile(const std::string& file_path) {
   if (!reader_.Warning().empty()) {
     std::cout << "TinyObjReader: " << reader_.Warning();
   }
+  shapes_    = reader_.GetShapes();
+  materials_ = reader_.GetMaterials();
+  attribute_ = reader_.GetAttrib();
   return true;
 }
 
@@ -40,48 +43,46 @@ bool ObjLoader::loadFromFile(const std::string& file_path,
   if (!reader_.Warning().empty()) {
     std::cout << "TinyObjReader: " << reader_.Warning();
   }
+  shapes_    = reader_.GetShapes();
+  materials_ = reader_.GetMaterials();
+  attribute_ = reader_.GetAttrib();
   return true;
 }
 
-int ObjLoader::numShapes() const {
-  return static_cast<int>(reader_.GetShapes().size());
-}
+int ObjLoader::numShapes() const { return static_cast<int>(shapes_.size()); }
 
 int ObjLoader::numFaces(const int shape_id) const {
-  const auto& shapes = reader_.GetShapes();
-  return static_cast<int>(shapes[shape_id].mesh.num_face_vertices.size());
+  return static_cast<int>(shapes_[shape_id].mesh.num_face_vertices.size());
 }
 
 int ObjLoader::numVertices(const int shape_id, const int face_id) const {
-  const auto& shape = reader_.GetShapes()[shape_id];
+  const auto& shape = shapes_[shape_id];
   return static_cast<int>(shape.mesh.num_face_vertices[face_id]);
 }
 
 glm::vec3 ObjLoader::getVertexPos(const int shape_id,
                                   const int vertex_id) const {
-  const auto& shape    = reader_.GetShapes()[shape_id];
+  const auto& shape    = shapes_[shape_id];
   tinyobj::index_t idx = shape.mesh.indices[vertex_id];
 
-  const auto& attrib = reader_.GetAttrib();
-  tinyobj::real_t vx = attrib.vertices[idx.vertex_index * 3 + 0];
-  tinyobj::real_t vy = attrib.vertices[idx.vertex_index * 3 + 1];
-  tinyobj::real_t vz = attrib.vertices[idx.vertex_index * 3 + 2];
+  tinyobj::real_t vx = attribute_.vertices[idx.vertex_index * 3 + 0];
+  tinyobj::real_t vy = attribute_.vertices[idx.vertex_index * 3 + 1];
+  tinyobj::real_t vz = attribute_.vertices[idx.vertex_index * 3 + 2];
 
   return glm::vec3(vx, vy, vz);
 }
 
 glm::vec3 ObjLoader::getNormalVec(const int shape_id,
                                   const int normal_id) const {
-  const auto& shape    = reader_.GetShapes()[shape_id];
+  const auto& shape    = shapes_[shape_id];
   tinyobj::index_t idx = shape.mesh.indices[normal_id];
 
   glm::vec3 normal{0.0f, 0.0f, 0.0f};
 
   if (idx.normal_index > 0) {
-    const auto& attrib = reader_.GetAttrib();
-    normal.x           = attrib.normals[idx.vertex_index * 3 + 0];
-    normal.y           = attrib.normals[idx.vertex_index * 3 + 1];
-    normal.z           = attrib.normals[idx.vertex_index * 3 + 2];
+    normal.x = attribute_.normals[idx.vertex_index * 3 + 0];
+    normal.y = attribute_.normals[idx.vertex_index * 3 + 1];
+    normal.z = attribute_.normals[idx.vertex_index * 3 + 2];
   } else {
     std::cout << "TinyObjReader: no normal vectors found in shape " << shape_id
               << ", id " << normal_id << "!\n";
