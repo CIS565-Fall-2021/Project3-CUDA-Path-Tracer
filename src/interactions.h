@@ -50,20 +50,19 @@ __host__ __device__ float getFresnelCoefficient(float eta, float cosTheta, float
     cosTheta = abs(cosTheta);
     if (sinThetaT < 1) {
         // calc fresnel coefficient
-        float R0 = ((1.f - matIOF) / (1.f + matIOF));
+        /*float R0 = ((1.f - matIOF) / (1.f + matIOF));
         R0 = R0 * R0;
 
         float oneMinTheta = (1.f - cosTheta);
         oneMinTheta *= oneMinTheta;
         oneMinTheta *= oneMinTheta;
-        oneMinTheta *= oneMinTheta;
-        fresnelCoeff = R0 + (1.f - R0) * oneMinTheta;
+        fresnelCoeff = R0 + (1.f - R0) * oneMinTheta;*/
 
-        /*float cosThetaT = sqrt(max(0.f, 1.f - sinThetaT * sinThetaT));
+        float cosThetaT = sqrt(max(0.f, 1.f - sinThetaT * sinThetaT));
 
         float rparl = ((matIOF * cosTheta) - (cosThetaT)) / ((matIOF * cosTheta) + (cosThetaT));
         float rperp = ((cosTheta) - (matIOF * cosThetaT)) / ((cosTheta) + (matIOF * cosThetaT));
-        fresnelCoeff = (rparl * rparl + rperp * rperp) / 2.0;*/
+        fresnelCoeff = (rparl * rparl + rperp * rperp) / 2.0;
     }
     return fresnelCoeff;
 }

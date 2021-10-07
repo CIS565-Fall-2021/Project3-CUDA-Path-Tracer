@@ -24,6 +24,7 @@
 #define SORT_MATERIALS false
 #define CACHE_FIRST_BOUNCE false
 #define DOF false
+#define ANTIALIASING true
 
 void checkCUDAErrorFn(const char* msg, const char* file, int line) {
 #if ERRORCHECK

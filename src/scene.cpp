@@ -6,7 +6,7 @@
 #include <glm/gtx/string_cast.hpp>
 #include "tiny_obj_loader.h"
 
-#define USE_BB true
+#define USE_BB false
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
