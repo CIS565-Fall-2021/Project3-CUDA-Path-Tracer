@@ -17,10 +17,10 @@
 #include "intersections.h"
 #include "interactions.h"
 
-#define ERRORCHECK 1
+#define ERRORCHECK 0
 
 // Sort the rays so that rays interacting with the same material are contiguous in memory before shading
-#define MATERIAL_SORT 1
+#define MATERIAL_SORT 0
 
 // Cache the first bounce intersections for re-use across all subsequent iterations
 #define CACHE_FIRST_BOUNCE 1

@@ -173,7 +173,16 @@ void mainLoop() {
         glfwPollEvents();
         runCuda();
 
+#if KERNEL_FPS
+        std::ostringstream ss;
+        ss << "[";
+        ss.precision(2);
+        ss << std::fixed << kernel_fps;
+        ss << " spp/s] ";
+        string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations" + " | FPS " + ss.str();
+#else
         string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations";
+#endif
         glfwSetWindowTitle(window, title.c_str());
 
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
