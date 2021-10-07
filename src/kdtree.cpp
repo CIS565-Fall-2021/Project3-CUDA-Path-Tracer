@@ -53,7 +53,10 @@ bool zSort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b) {
     return centerA.x < centerB.x;
 }
 
-void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, std::vector<std::unique_ptr<KDNode>>* kdNodes)
+void buildTree(
+    int node,
+    std::vector<std::array<glm::vec3, 3>>& triangles,
+    std::vector<KDNode>* kdNodes)
 {
     // update the min and max corner of parent node
     // update the min and max corners
@@ -82,35 +85,35 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
     glm::vec3 maxCorner = glm::vec3(maxX, maxY, maxZ);
 
     // create box geom
-    node->boundingBox.type = GeomType::CUBE;
-    node->boundingBox.translation = (maxCorner - minCorner) / 2.f;
-    node->boundingBox.scale = maxCorner / 0.5f;
-    node->boundingBox.rotation = glm::vec3(0);
-    node->boundingBox.transform = utilityCore::buildTransformationMatrix(
-        node->boundingBox.translation, node->boundingBox.rotation, node->boundingBox.scale);
-    node->boundingBox.inverseTransform = glm::inverse(node->boundingBox.transform);
-    node->boundingBox.invTranspose = glm::inverseTranspose(node->boundingBox.transform);
+    kdNodes->at(node).boundingBox.type = GeomType::CUBE;
+    kdNodes->at(node).boundingBox.translation = (maxCorner - minCorner) / 2.f;
+    kdNodes->at(node).boundingBox.scale = maxCorner / 0.5f;
+    kdNodes->at(node).boundingBox.rotation = glm::vec3(0);
+    kdNodes->at(node).boundingBox.transform = utilityCore::buildTransformationMatrix(
+        kdNodes->at(node).boundingBox.translation, kdNodes->at(node).boundingBox.rotation, kdNodes->at(node).boundingBox.scale);
+    kdNodes->at(node).boundingBox.inverseTransform = glm::inverse(kdNodes->at(node).boundingBox.transform);
+    kdNodes->at(node).boundingBox.invTranspose = glm::inverseTranspose(kdNodes->at(node).boundingBox.transform);
 
     // sort triangles
-    std::sort(triangles.begin(), triangles.end(), node->axis == 0 ? xSort : node->axis == 1 ? ySort : zSort);
+    std::sort(triangles.begin(), triangles.end(), kdNodes->at(node).axis == 0 ? xSort : kdNodes->at(node).axis == 1 ? ySort : zSort);
 
     // get the median value
     unsigned long long arraySize = triangles.size();
     float median = FLT_MAX;
-    if (node->axis == 0)
+    if (kdNodes->at(node).axis == 0)
     {
-        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), node->axis).x :
-            (getCenter(triangles.at(arraySize / 2), node->axis).x + getCenter(triangles.at(arraySize / 2 - 1), node->axis).x) / 2;
+        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), kdNodes->at(node).axis).x :
+            (getCenter(triangles.at(arraySize / 2), kdNodes->at(node).axis).x + getCenter(triangles.at(arraySize / 2 - 1), kdNodes->at(node).axis).x) / 2;
     }
-    else if (node->axis == 1)
+    else if (kdNodes->at(node).axis == 1)
     {
-        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), node->axis).y :
-            (getCenter(triangles.at(arraySize / 2), node->axis).y + getCenter(triangles.at(arraySize / 2 - 1), node->axis).y) / 2;
+        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), kdNodes->at(node).axis).y :
+            (getCenter(triangles.at(arraySize / 2), kdNodes->at(node).axis).y + getCenter(triangles.at(arraySize / 2 - 1), kdNodes->at(node).axis).y) / 2;
     }
     else
     {
-        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), node->axis).z :
-            (getCenter(triangles.at(arraySize / 2), node->axis).z + getCenter(triangles.at(arraySize / 2 - 1), node->axis).z) / 2;
+        median = (arraySize % 2 == 1) ? getCenter(triangles.at(arraySize / 2), kdNodes->at(node).axis).z :
+            (getCenter(triangles.at(arraySize / 2), kdNodes->at(node).axis).z + getCenter(triangles.at(arraySize / 2 - 1), kdNodes->at(node).axis).z) / 2;
     }
 
     // split the triangles by the axis-median
@@ -119,11 +122,11 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
     for (auto& triangle : triangles)
     {
         float comparison = FLT_MAX;
-        if (node->axis == 0)
+        if (kdNodes->at(node).axis == 0)
             comparison = getCenter(triangle, 0).x;
-        if (node->axis == 1)
+        if (kdNodes->at(node).axis == 1)
             comparison = getCenter(triangle, 1).y;
-        if (node->axis == 2)
+        if (kdNodes->at(node).axis == 2)
             comparison = getCenter(triangle, 2).z;
 
         if (comparison < median)
@@ -133,21 +136,21 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
     }
 
     // create the two children nodes
-    kdNodes->push_back(std::make_unique<KDNode>());
-    node->leftChild = kdNodes->back().get();
-    kdNodes->push_back(std::make_unique<KDNode>());
-    node->rightChild = kdNodes->back().get();
+    kdNodes->push_back(KDNode());
+    kdNodes->at(node).leftChild = kdNodes->size() - 1;
+    kdNodes->push_back(KDNode());
+    kdNodes->at(node).rightChild = kdNodes->size() - 1;
 
     // update children node axis
-    if (node->axis < 2)
+    if (kdNodes->at(node).axis < 2)
     {
-        node->leftChild->axis = node->axis + 1;
-        node->rightChild->axis = node->axis + 1;
+        kdNodes->at(kdNodes->at(node).leftChild).axis = kdNodes->at(node).axis + 1;
+        kdNodes->at(kdNodes->at(node).rightChild).axis = kdNodes->at(node).axis + 1;
     }
     else
     {
-        node->leftChild->axis = 0;
-        node->rightChild->axis = 0;
+        kdNodes->at(kdNodes->at(node).leftChild).axis = 0;
+        kdNodes->at(kdNodes->at(node).rightChild).axis = 0;
     }
 
     // recursively call function
@@ -157,24 +160,24 @@ void buildTree(KDNode* node, std::vector<std::array<glm::vec3, 3>>& triangles, s
         if (lsize == 1)
         {
             // leaf node 
-            node->leftChild->particles.
-                insert(node->leftChild->particles.end(), ltriangles.begin(), ltriangles.end());
+            kdNodes->at(kdNodes->at(node).leftChild).particles.
+                insert(kdNodes->at(kdNodes->at(node).leftChild).particles.end(), ltriangles.begin(), ltriangles.end());
         }
-            
+
     }
     else
-        buildTree(node->leftChild, ltriangles, kdNodes);
+        buildTree(kdNodes->at(node).leftChild, ltriangles, kdNodes);
 
     if (rsize <= 1)
     {
         if (rsize == 1)
         {
             // leaf node 
-            node->rightChild->particles.
-                insert(node->rightChild->particles.end(), rtriangles.begin(), rtriangles.end());
+            kdNodes->at(kdNodes->at(node).rightChild).particles.
+                insert(kdNodes->at(kdNodes->at(node).rightChild).particles.end(), rtriangles.begin(), rtriangles.end());
         }
-            
+
     }
     else
-        buildTree(node->rightChild, rtriangles, kdNodes);
+        buildTree(kdNodes->at(node).rightChild, rtriangles, kdNodes);
 }

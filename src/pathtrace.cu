@@ -79,6 +79,7 @@ static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
 static KDTree* dev_kdTrees = NULL;
+static KDNode* dev_kdNodes = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
@@ -104,6 +105,9 @@ void pathtraceInit(Scene *scene) {
   cudaMalloc(&dev_kdTrees, scene->kdTrees.size() * sizeof(KDTree));
   cudaMemcpy(dev_kdTrees, scene->kdTrees.data(), scene->kdTrees.size() * sizeof(KDTree), cudaMemcpyHostToDevice);
 
+  cudaMalloc(&dev_kdNodes, scene->kdNodes.size() * sizeof(KDNode));
+  cudaMemcpy(dev_kdNodes, scene->kdNodes.data(), scene->kdNodes.size() * sizeof(KDNode), cudaMemcpyHostToDevice);
+
   cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
@@ -122,6 +126,7 @@ void pathtraceInit(Scene *scene) {
 void pathtraceFree() {
   cudaFree(dev_image);  // no-op if dev_image is null
   cudaFree(dev_paths);
+  cudaFree(dev_kdNodes);
   cudaFree(dev_kdTrees);
   cudaFree(dev_geoms);
   cudaFree(dev_materials);
@@ -188,6 +193,7 @@ __global__ void computeIntersections(
   , int geoms_size
   , KDTree* kdTrees
   , int kdTrees_size
+  , KDNode* kdNodes
   , ShadeableIntersection * intersections
   )
 {
@@ -241,33 +247,52 @@ __global__ void computeIntersections(
       // iterate through all kdTrees
       for (int i = 0; i < kdTrees_size; i++)
       {
-          KDNode* kdNode = kdTrees[i].root;
+          KDTree& kdTree = kdTrees[i];
+          KDNode* kdNode = &kdNodes[kdTree.kdNodes];
           float intersection = 0.0f;
           while (kdNode != nullptr)
           {
               float t = boxIntersectionTest(kdNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-              if (t > 0.0)
+              if (t > 0.0 && t < t_min)
               {
                   // intersection
-                  KDNode* leftNode = kdNode->leftChild, *rightNode = kdNode->rightChild;
-                  kdNode = nullptr; 
-                  if (leftNode == nullptr && rightNode == nullptr)
+                  if (kdNode->leftChild == -1 && kdNode->rightChild == -1)
                   {
                       // primitive found
-                      //if (kdNode->triangle.type == GeomType::TRIANGLE) 
-                        //intersection = triangleIntersectionTest(kdNode->triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                      if (kdNode->triangle.type == GeomType::TRIANGLE) 
+                        intersection = triangleIntersectionTest(kdNode->triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
                   }
-                  else if (leftNode != nullptr)
+                  else
                   {
-                      t = boxIntersectionTest(leftNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                      if (t > 0.0)
+                      float lt = -1, rt = -1;
+                      KDNode *leftNode, *rightNode;
+                      if (kdNode->leftChild != -1)
+                      {
+                          leftNode = &kdNodes[(kdNode->leftChild)];
+                          lt = boxIntersectionTest(leftNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                      }
+                      if (kdNode->rightChild != -1)
+                      {
+                          rightNode = &kdNodes[kdNode->rightChild];
+                          rt = boxIntersectionTest(rightNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                      }
+
+                      if (lt > 0.0 && rt > 0.0)
+                      {
+                          kdNode = lt < rt ? leftNode : rightNode;
+                      }
+                      else if (lt > 0.0)
+                      {
                           kdNode = leftNode;
-                  }
-                  else if (rightNode != nullptr)
-                  {
-                      t = boxIntersectionTest(rightNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                      if (t > 0.0)
+                      }
+                      else if (rt > 0.0)
+                      {
                           kdNode = rightNode;
+                      }
+                      else
+                      {
+                          kdNode = nullptr; // no intersection?
+                      }
                   }
               }
               else
@@ -277,7 +302,7 @@ __global__ void computeIntersections(
               }
           }
 
-          /*if (intersection > 0.0f && t_min > intersection)
+         /* if (intersection > 0.0f && t_min > intersection)
           {
               t_min = t;
               hit_geom_index = -2;
@@ -507,6 +532,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       hst_scene->geoms.size(),
       dev_kdTrees,
       hst_scene->kdTrees.size(),
+      dev_kdNodes,
 #ifdef CACHE_FIRST_INTERSECTION
       intersectionPtr
 #else

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 #include "glm/glm.hpp"
+#include "utilities.h"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
@@ -19,6 +20,13 @@ enum GeomType {
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+};
+
+struct Transform
+{
+    glm::vec3 translate;
+    glm::vec3 rotate;
+    glm::vec3 scale;
 };
 
 struct Geom {
@@ -86,14 +94,11 @@ struct ShadeableIntersection {
 
 struct KDNode
 {
-    KDNode() : leftChild(nullptr), rightChild(nullptr), axis(0), particles() {}
-    ~KDNode() {
-        delete leftChild;
-        delete rightChild;
-    }
+    KDNode() : leftChild(-1), rightChild(-1), axis(0), particles() {}
+    ~KDNode() {}
 
-    KDNode* leftChild; // TODO: remove pointer and replace with index
-    KDNode* rightChild; // TODO: remove pointer and replace with index
+    int leftChild; 
+    int rightChild; 
     unsigned int axis; // Which axis split this node represents
     Geom boundingBox;
     Geom triangle; // only initialized if this is a leaf node
@@ -106,31 +111,38 @@ bool ySort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b);
 bool zSort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b);
 
 void buildTree(
-    KDNode* node, 
+    int node, 
     std::vector<std::array<glm::vec3, 3>>& triangles, 
-    std::vector<std::unique_ptr<KDNode>>* kdNodes);
+    std::vector<KDNode>* kdNodes);
+
+Geom createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
 
 struct KDTree
 {
-    KDTree() : root(nullptr) {}
-    ~KDTree() {
-        delete root;
-    }
+    KDTree(int inx) : kdNodes(inx)
+    {}
+    ~KDTree() {}
 
-    void build(std::vector<std::array<glm::vec3, 3>>& triangles)
+    void updateLeafNodes(std::vector<KDNode>* kdNodes, Transform& transform, int materialId)
     {
-        root = new KDNode();
-        root->axis = 0;
-
-        buildTree(root, triangles, &kdNodes);
+        for (auto& kdNode : *kdNodes)
+        {
+            if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
+            {
+                if (kdNode.particles.size() != 0) // TODO: why does this sometimes NOT happen?
+                    kdNode.triangle = createTriangle(kdNode.particles.at(0), transform, materialId);
+            }
+        }
     }
-    void clear()
+
+    void build(std::vector<KDNode>* kdNodes, std::vector<std::array<glm::vec3, 3>>& triangles, Transform& transform, int materialId)
     {
-        delete root;
-        root = nullptr;
+        KDNode root = KDNode();
+        root.axis = 0;
+        kdNodes->push_back(root);
+        buildTree(0, triangles, kdNodes);
+        updateLeafNodes(kdNodes, transform, materialId);
     }
-
-    KDNode* root; // TODO: remove pointer and replace with index
-    std::vector<std::unique_ptr<KDNode>> kdNodes;
+    int kdNodes;
 };
 

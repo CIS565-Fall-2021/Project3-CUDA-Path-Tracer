@@ -34,7 +34,7 @@ Scene::Scene(string filename) {
     }
 }
 
-bool Scene::LoadObj(string filename, Transform transform, int materialId, bool kdTree)
+bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool kdTree)
 {
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig reader_config;
@@ -115,18 +115,8 @@ bool Scene::LoadObj(string filename, Transform transform, int materialId, bool k
         }
 
         // build a kdtree
-        kdTrees.push_back(std::make_unique<KDTree>());
-        kdTrees.back().get()->build(triangles);
-
-        // update all leaf nodes
-        for (auto& kdNode : kdTrees.back().get()->kdNodes)
-        {
-            if (kdNode->leftChild == nullptr && kdNode->rightChild == nullptr)
-            {
-                if (kdNode->particles.size() != 0) // TODO: why does this sometimes NOT happen?
-                    kdNode->triangle = createTriangle(kdNode->particles.at(0), transform, materialId);
-            }
-        }
+        kdTrees.push_back(KDTree(0));
+        kdTrees.back().build(&kdNodes, triangles, transform, materialId);
     }
     else
     {
@@ -194,26 +184,6 @@ int Scene::loadGeom(string objectid) {
         geoms.push_back(newGeom);
         return 1;
     }
-}
-
-Geom Scene::createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
-{
-    Geom geom;
-    geom.type = GeomType::TRIANGLE;
-    geom.materialid = materialId;
-    geom.translation = transform.translate;
-    geom.rotation = transform.rotate;
-    geom.scale = transform.scale;
-    geom.transform = utilityCore::buildTransformationMatrix(
-        geom.translation, geom.rotation, geom.scale);
-    //geom.inverseTransform = glm::inverse(geom.transform);
-    //geom.invTranspose = glm::inverseTranspose(geom.transform);
-
-    geom.pos1 = glm::vec3(geom.transform * glm::vec4(triangle[0], 1.f));
-    geom.pos2 = glm::vec3(geom.transform * glm::vec4(triangle[1], 1.f));
-    geom.pos3 = glm::vec3(geom.transform * glm::vec4(triangle[2], 1.f));
-
-    return geom;
 }
 
 int Scene::loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
@@ -321,4 +291,24 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+Geom createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)
+{
+    Geom geom;
+    geom.type = GeomType::TRIANGLE;
+    geom.materialid = materialId;
+    geom.translation = transform.translate;
+    geom.rotation = transform.rotate;
+    geom.scale = transform.scale;
+    geom.transform = utilityCore::buildTransformationMatrix(
+        geom.translation, geom.rotation, geom.scale);
+    //geom.inverseTransform = glm::inverse(geom.transform);
+    //geom.invTranspose = glm::inverseTranspose(geom.transform);
+
+    geom.pos1 = glm::vec3(geom.transform * glm::vec4(triangle[0], 1.f));
+    geom.pos2 = glm::vec3(geom.transform * glm::vec4(triangle[1], 1.f));
+    geom.pos3 = glm::vec3(geom.transform * glm::vec4(triangle[2], 1.f));
+
+    return geom;
 }
