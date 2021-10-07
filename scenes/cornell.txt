@@ -155,7 +155,7 @@ SCALE       .01 10 10
 // Custom Object
 OBJECT 6
 custom_obj
-material 6
-TRANS       1 0 -1
+material 7
+TRANS       -1 4 -1
 ROTAT       0 0 0
-SCALE       30 30 30
+SCALE       2 2 2
