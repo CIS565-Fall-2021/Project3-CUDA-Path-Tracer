@@ -68,7 +68,7 @@ You will need to implement the following features:
   * See notes on diffuse/specular in `scatterRay` and on imperfect specular below.
 * Path continuation/termination using Stream Compaction from Project 2.
 * After you have a [basic pathtracer up and running](img/REFERENCE_cornell.5000samp.png),
-implement a means of making rays/pathSegments/intersections contiguous in memory by material type. This should be easily toggleable.
+  implement a means of making rays/pathSegments/intersections contiguous in memory by material type. This should be easily toggleable.
   * Consider the problems with coloring every path segment in a buffer and performing BSDF evaluation using one big shading kernel: different materials/BSDF evaluations within the kernel will take different amounts of time to complete.
   * Sort the rays/path segments so that rays/paths interacting with the same material are contiguous in memory before shading. How does this impact performance? Why?
 * A toggleable option to cache the first bounce intersections for re-use across all subsequent iterations. Provide performance benefit analysis across different max ray depths.
@@ -149,7 +149,7 @@ For each extra feature, you must provide the following analysis:
 
 You'll be working in the following files. Look for important parts of the code:
 
-* Search for `CHECKITOUT`.
+* Search for `CHECKITOUT`. (`interactions.h`, `intersections.h` and `main.cpp`)
 * You'll have to implement parts labeled with `TODO`. (But don't let these constrain you - you have free rein!)
 
 * `src/pathtrace.cu`: path tracing kernels, device functions, and calling code
