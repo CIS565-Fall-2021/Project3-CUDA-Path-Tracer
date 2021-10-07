@@ -108,11 +108,11 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 }
 
 
-void generateProcedural()
+void generateProcedural(vector<Geom> &geoms, vector<Material>& mats)
 {
 	vector<glm::vec3> posValues;
-	Turtle buildingTurtle1 = Turtle(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
-		glm::vec3(0, 1, 0), 1, 1);
+	Turtle buildingTurtle1 = Turtle(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
+		glm::vec3(0, 1, 0), 0.5f, 1);
 	buildingTurtle1.m_rotateAngle = 90.0f;
 	buildingTurtle1.m_takeRandomRotationsForward = false;
 	LSystem *BuildingSystem1 = new LSystem(buildingTurtle1);
@@ -120,9 +120,9 @@ void generateProcedural()
 	Rule F_Rule1(F_Conditions);
 	BuildingSystem1->AddRule('F', F_Rule1);
 	BuildingSystem1->AssignAxiom("-F");
-	BuildingSystem1->LSystemParse(3);
+	BuildingSystem1->LSystemParse(2);
 	BuildingSystem1->PrintParsedSystem();
-	BuildingSystem1->CarveBuilding(posValues);
+	BuildingSystem1->CarveBuilding(posValues, geoms, mats);
 }
 //-------------------------------
 //-------------MAIN--------------
@@ -135,12 +135,13 @@ int main(int argc, char** argv) {
 		printf("Usage: %s SCENEFILE.txt\n", argv[0]);
 		return 1;
 	}
-	generateProcedural();
 	const char* sceneFile = argv[1];
 
 	// Load scene file
 	scene = new Scene(sceneFile);
 
+
+	generateProcedural(scene->geoms, scene->materials);
 	// Set up camera stuff from loaded path tracer settings
 	iteration = 0;
 	renderState = &scene->state;

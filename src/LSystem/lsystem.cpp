@@ -156,13 +156,70 @@ bool ContainsPos(std::vector<glm::vec3> &posBuffer, glm::vec3 a_position)
     return false;
 }
 
-void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape)
+
+inline double random_double() {
+    static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    static std::mt19937 generator;
+    return distribution(generator);
+}
+
+int CreateNewMaterial(std::vector<Material> &materials) {
+        
+
+        int start = materials.size();
+        //load static properties
+        for (int i = start; i < start +  3; i++) {
+            Material newMaterial;
+            newMaterial.color = glm::vec3(random_double(), random_double(), random_double());
+            
+            newMaterial.specular.exponent = random_double();
+            newMaterial.specular.color = glm::vec3(random_double(), random_double(), random_double());
+            double reflect = random_double();
+            if (reflect > 0.7)
+            {
+                newMaterial.hasReflective = 1;
+            }
+            else
+            {
+                newMaterial.hasReflective = 0;
+            }
+            if (i == start)
+            {
+                newMaterial.hasRefractive = 1;
+            }
+           
+            newMaterial.indexOfRefraction = 1 + reflect;
+            
+                newMaterial.emittance = 0;
+                materials.push_back(newMaterial);
+        }
+        return start;
+    }
+
+
+Geom createNewGeom(glm::vec3 currPos, int materialID) {
+        Geom newGeom;
+        newGeom.type = SPHERE;
+        newGeom.materialid = materialID;
+
+        newGeom.translation = currPos;
+        newGeom.rotation = glm::vec3(0, 0, 0);
+        newGeom.scale = glm::vec3(0.5, 0.5, 0.5);
+        newGeom.transform = utilityCore::buildTransformationMatrix(
+            newGeom.translation, newGeom.rotation, newGeom.scale);
+        newGeom.inverseTransform = glm::inverse(newGeom.transform);
+        newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+        return newGeom;
+}
+
+
+void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape, std::vector<Geom> &geoms, std::vector<Material>& materials)
 {
     Symbol* currSym = rootSymbol;
     glm::vec3 a = currTurtle->m_Position;
     glm::vec3 b = currTurtle->m_Position;
 
-
+    int startIdxMat = CreateNewMaterial(materials);
     float r1 = currTurtle->radius;
     float r2 = currTurtle->radius;
 
@@ -196,7 +253,17 @@ void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape)
                             {
                                 if (!ContainsPos(procShape, currpos))
                                 {
+                                    auto choose_mat = random_double();
                                     procShape.push_back(currpos);
+                                    if (choose_mat < 0.8) {
+                                        geoms.push_back(createNewGeom(currpos, startIdxMat));
+                                    }
+                                    else if (choose_mat < 0.95) {
+                                        geoms.push_back(createNewGeom(currpos, startIdxMat+1));
+                                    }
+                                    else {
+                                        geoms.push_back(createNewGeom(currpos, startIdxMat + 2));
+                                    }
                                 }
                                /* if (y < 210)
                                 {

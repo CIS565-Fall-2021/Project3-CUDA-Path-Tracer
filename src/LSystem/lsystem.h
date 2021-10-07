@@ -12,9 +12,13 @@
 #include "rule.h"
 #include"turtle.h"
 #include"glm/glm.hpp"
-
+#include"glm/gtc/matrix_inverse.hpp"
+#include "../sceneStructs.h"
+#include "../utilities.h"
 #pragma once
 #include <memory>
+#include<random>
+
 
 // A collection of preprocessor definitions to
 // save time in writing out smart pointer syntax
@@ -48,7 +52,7 @@ public:
     void ClearParsedString();
     void ApplyRule(Symbol* a_prevSym, Symbol* a_currSym, Symbol* a_endSym, char a_ruleKey, int iteration);
     void GetRandomRule(char a_ruleKey);
-    void CarveBuilding(std::vector<glm::vec3>& procShape);
+    void CarveBuilding(std::vector<glm::vec3>& procShape, std::vector<Geom> &geoms, std::vector<Material>& materials);
     void AddDefaultFuncPointer();
     void PrintParsedSystem();
     //void digBlock(int x, int z, int depth);
