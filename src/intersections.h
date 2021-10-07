@@ -1,3 +1,4 @@
+// ray intersection functions
 #pragma once
 
 #include <glm/glm.hpp>
@@ -22,7 +23,7 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
 // CHECKITOUT
 /**
  * Compute a point at parameter value `t` on ray `r`.
- * Falls slightly short so that it doesn't intersect the object it's hitting.
+ * Falls slightly short so that it doesn't intersect the object it's hitting. (for shadow acne???)
  */
 __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
     return r.origin + (t - .0001f) * glm::normalize(r.direction);

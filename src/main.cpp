@@ -94,6 +94,8 @@ void saveImage() {
 
     std::string filename = renderState->imageName;
     std::ostringstream ss;
+    // Every image will get a different filename based on current
+    // time on the author's machine
     ss << filename << "." << startTimeString << "." << samples << "samp";
     filename = ss.str();
 

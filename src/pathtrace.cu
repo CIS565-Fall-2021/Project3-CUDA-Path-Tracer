@@ -5,6 +5,9 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
+#include <thrust/partition.h>
+// #include <thrust/execution_policy.h>
+
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
@@ -76,6 +79,8 @@ static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
+// initializes the path tracer state - it should copy scene data 
+// (e.g. geometry, materials) from `Scene`.
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
     const Camera &cam = hst_scene->state.camera;
@@ -100,6 +105,7 @@ void pathtraceInit(Scene *scene) {
     checkCUDAError("pathtraceInit");
 }
 
+// frees memory allocated by `pathtraceInit`
 void pathtraceFree() {
     cudaFree(dev_image);  // no-op if dev_image is null
     cudaFree(dev_paths);
@@ -139,10 +145,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
             );
-#if 0
-        float3 tempValue = make_float3(segment.ray.direction.x, segment.ray.direction.y,
-            segment.ray.direction.z);
-#endif
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
@@ -214,6 +216,7 @@ __global__ void computeIntersections(
             intersections[path_index].t = t_min;
             intersections[path_index].materialId = geoms[hit_geom_index].materialid;
             intersections[path_index].surfaceNormal = normal;
+            intersections[path_index].intersectionPoint = intersect_point;
         }
     }
 }
@@ -235,58 +238,46 @@ __global__ void shadeFakeMaterial (
     , Material * materials
     )
 {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < num_paths)
-  {
-    ShadeableIntersection intersection = shadeableIntersections[idx];
-    if (intersection.t > 0.0f) { // if the intersection exists...
-      // Set up the RNG
-      // LOOK: this is how you use thrust's RNG! Please look at
-      // makeSeededRandomEngine as well.
-      thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
-      thrust::uniform_real_distribution<float> u01(0, 1);
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths)
+    {
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > 0.0f) { // if the intersection exists...
+            // Set up the RNG
+            // LOOK: this is how you use thrust's RNG! Please look at
+            // makeSeededRandomEngine as well. 
+            // (iter, ray) has a unique random engine
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+            thrust::uniform_real_distribution<float> u01(0, 1);
 
-      Material material = materials[intersection.materialId];
-      glm::vec3 materialColor = material.color;
-      // could use material.specular.color, etc
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+            // could use material.specular.color, etc
 
-      // If the material indicates that the object was a light, "light" the ray
-      if (material.emittance > 0.0f) {
-        pathSegments[idx].color *= (materialColor * material.emittance);
-      }
-      // Otherwise, do some pseudo-lighting computation. This is actually more
-      // like what you would expect from shading in a rasterizer like OpenGL.
-      // TODO: replace this! you should be able to start with basically a one-liner
-      else {
-          glm::vec3 pointOfIntersect = pathSegments[idx].ray.evaluate(intersection.t);
-          scatterRay(pathSegments[idx], pointOfIntersect, intersection.surfaceNormal,
-              material, rng);
-          //
-#if 0
-              if (material.hasReflective)
-              {
-
-      }
-              else {
-              }
-          // 
-          Ray& thisRay = pathSegments[idx].ray;
-          glm::vec3& thisColor = pathSegments[idx].color;
-          int thisPixelIndex = pathSegments[idx].pixelIndex;
-          int thisRemainingBounces = pathSegments[idx].remainingBounces;
-        float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-        pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-        pathSegments[idx].color *= u01(rng); // apply some noise because why not
-#endif
-      }
-    // If there was no intersection, color the ray black.
-    // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
-    // used for opacity, in which case they can indicate "no opacity".
-    // This can be useful for post-processing and image compositing.
-    } else {
-      pathSegments[idx].color = glm::vec3(0.0f);
+            // If the material indicates that the object was a light, "light" the ray
+            if (material.emittance > 0.0f) {
+                pathSegments[idx].color *= (materialColor * material.emittance);
+                pathSegments[idx].remainingBounces = 0;
+            }
+            // Otherwise, do some pseudo-lighting computation. This is actually more
+            // like what you would expect from shading in a rasterizer like OpenGL.
+            // TODO: replace this! you should be able to start with basically a one-liner
+            else {
+                scatterRay(pathSegments[idx],
+                           intersection.intersectionPoint,
+                           intersection.surfaceNormal,
+                           material,
+                           rng);
+            }
+        // If there was no intersection, color the ray black.
+        // Lots of renderers use 4 channel color, RGBA, where A = alpha, often
+        // used for opacity, in which case they can indicate "no opacity".
+        // This can be useful for post-processing and image compositing.
+        } else {
+            pathSegments[idx].color = glm::vec3(0.0f);
+            pathSegments[idx].remainingBounces = 0;
+        }
     }
-  }
 }
 
 // Add the current iteration's output to the overall image
@@ -300,6 +291,7 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
         image[iterationPath.pixelIndex] += iterationPath.color;
     }
 }
+
 
 
 
@@ -335,7 +327,8 @@ __global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterati
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
- * Perform one iteration of path tracing
+ * performs one iteration of the rendering - 
+ * it handles kernel launches, memory copies, transferring some data, etc.
  */
 void pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
@@ -373,12 +366,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
-    
+
     // * For each depth:
     bool iterationComplete = false;
     while (!iterationComplete) {
-        // clean shading chunks
-        // observation: pixelcount needs to changed after stream compaction?? or not
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
         // tracing
@@ -411,11 +402,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // TODO:
         // --- Sort rays by material Stage ---
 
-
-
-
-
-
         // TODO:
         // --- Shading Stage (will genereate new rays in shader(s) ---
         //     * TODO: Shade the rays that intersected something or didn't bottom out.
@@ -437,8 +423,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         dev_paths,
         dev_materials
         );
-
-
+        cudaDeviceSynchronize();
+        
 
         // --- Stream Compaction Stage ---
         //     * TODO: Stream compact away all of the terminated paths.
@@ -449,8 +435,17 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // Ray terminates when:
         // There is no intersection
         // There is intersection, but it hits light
-        iterationComplete = true; // TODO: should be based off stream compaction results.
+        PathSegment* newEnd = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, isTerminated());
+        num_paths = newEnd - dev_paths;
+        if (num_paths > 0) {
+            iterationComplete = false;
+        }
+        else {
+            iterationComplete = true;
+        }
     }
+
+    num_paths = dev_path_end - dev_paths;
 
     // * Finally, add this iteration's results to the image. This has been done
     //   for you.

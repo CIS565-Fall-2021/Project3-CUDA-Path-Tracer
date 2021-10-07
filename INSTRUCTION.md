@@ -150,7 +150,7 @@ For each extra feature, you must provide the following analysis:
 You'll be working in the following files. Look for important parts of the code:
 
 * Search for `CHECKITOUT`. (`interactions.h`, `intersections.h` and `main.cpp`)
-* You'll have to implement parts labeled with `TODO`. (But don't let these constrain you - you have free rein!)
+* You'll have to implement parts labeled with `TODO`. (But don't let these constrain you - you have free rein!)  (`interactions.h`, `pathtrace.cu`)
 
 * `src/pathtrace.cu`: path tracing kernels, device functions, and calling code
   * `pathtraceInit` initializes the path tracer state - it should copy scene data (e.g. geometry, materials) from `Scene`.

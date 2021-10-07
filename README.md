@@ -1,6 +1,14 @@
 CUDA Path Tracer
 ================
 
+
+
+## Progress
+
+Stuck at ![](img/stuck.png)
+
+
+
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
 * (TODO) YOUR NAME HERE
@@ -22,3 +30,8 @@ project, and we will not be able to grade you without a good README.
 | Registers (```regsPerMultiprocessor```): 32-bit registers available per multiprocessor | 65536                                     |
 | Shared memory (```sharedMemPerMultiprocessor```): Shared memory available per multiprocessor in bytes | 102400 bytes                              |
 
+
+
+Bug
+
+1. read access violation when using thrust::remove_if. Fix: use thrust::device as the first parameter to indicate the correct execution policy because dev_paths is in device memory
