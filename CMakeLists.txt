@@ -76,6 +76,11 @@ set(headers
     src/MeshLoading/tiny_obj_loader.h
     src/MeshLoading/polygon.h
     src/MeshLoading/BVH.h
+    src/LSystem/lsystem.h
+    src/LSystem/postcondition.h
+    src/LSystem/rule.h
+    src/LSystem/symbol.h
+    src/LSystem/turtle.h
     )
 
 set(sources
@@ -89,6 +94,12 @@ set(sources
     src/utilities.cpp
 	src/MeshLoading/tiny_obj_loader.cc
     src/MeshLoading/polygon.cpp
+src/MeshLoading/BVH.cpp
+src/LSystem/lsystem.cpp
+    src/LSystem/postcondition.cpp
+    src/LSystem/rule.cpp
+    src/LSystem/symbol.cpp
+    src/LSystem/turtle.cpp
     )
 
 list(SORT headers)
