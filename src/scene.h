@@ -4,9 +4,12 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 #include "glm/glm.hpp"
 #include "utilities.h"
 #include "sceneStructs.h"
+
+#define MESH_CULL 1
 
 using namespace std;
 
@@ -16,7 +19,7 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
-    int loadMesh(string meshid);
+    int loadMesh(string objectid, unsigned int meshId);
 
 public:
     Scene(string filename);
@@ -25,4 +28,8 @@ public:
     std::vector<Geom> geoms;
     std::vector<Material> materials;
     RenderState state;
+
+#if MESH_CULL
+    std::unordered_map<unsigned int, Mesh> meshes;
+#endif
 };

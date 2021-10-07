@@ -13,6 +13,12 @@ enum GeomType {
     TRIANGLE,
 };
 
+struct Mesh {
+    unsigned int id;
+    glm::vec3 minCorner;
+    glm::vec3 maxCorner;
+};
+
 struct Triangle {
     glm::vec3 p1;
     glm::vec3 p2;

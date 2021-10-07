@@ -19,6 +19,8 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
+    
+    unsigned int currMeshId = 0;
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -34,7 +36,7 @@ Scene::Scene(string filename) {
                 loadCamera();
                 cout << " " << endl;
             } else if (strcmp(tokens[0].c_str(), "MESH") == 0) {
-                loadMesh(tokens[1]);
+                loadMesh(tokens[1], currMeshId++);
                 cout << " " << endl;
             }
         }
@@ -196,8 +198,8 @@ int Scene::loadMaterial(string materialid) {
     }
 }
 
-int Scene::loadMesh(string meshid) {
-    int id = atoi(meshid.c_str());
+int Scene::loadMesh(string objectid, unsigned int meshId) {
+    int id = atoi(objectid.c_str());
     cout << "Loading Mesh " << id << " as Geom..." << endl;
 
     string line;
@@ -300,7 +302,10 @@ int Scene::loadMesh(string meshid) {
     glm::mat4 invTranspose = glm::inverseTranspose(transform);
 
     // Process triangles into scene geometries
-    unsigned int numTriangles = 0;
+#if MESH_CULL
+    float min_x = FLT_MAX, min_y = FLT_MAX, min_z = FLT_MAX;
+    float max_x = -FLT_MAX, max_y = -FLT_MIN, max_z = -FLT_MIN;
+#endif
     for (Triangle &t : triangles) {
         Geom newGeom;
         newGeom.type = GeomType::TRIANGLE;
@@ -316,6 +321,70 @@ int Scene::loadMesh(string meshid) {
         newGeom.triangleCoords.p2 = glm::vec3(transform * glm::vec4(t.p2, 1.f));
         newGeom.triangleCoords.p3 = glm::vec3(transform * glm::vec4(t.p3, 1.f));
 
+#if MESH_CULL
+        min_x = glm::min(min_x, newGeom.triangleCoords.p1.x);
+        min_x = glm::min(min_x, newGeom.triangleCoords.p2.x);
+        min_x = glm::min(min_x, newGeom.triangleCoords.p3.x);
+
+        max_x = glm::max(max_x, newGeom.triangleCoords.p1.x);
+        max_x = glm::max(max_x, newGeom.triangleCoords.p2.x);
+        max_x = glm::max(max_x, newGeom.triangleCoords.p3.x);
+
+        min_y = glm::min(min_y, newGeom.triangleCoords.p1.y);
+        min_y = glm::min(min_y, newGeom.triangleCoords.p2.y);
+        min_y = glm::min(min_y, newGeom.triangleCoords.p3.y);
+
+        max_y = glm::max(max_y, newGeom.triangleCoords.p1.y);
+        max_y = glm::max(max_y, newGeom.triangleCoords.p2.y);
+        max_y = glm::max(max_y, newGeom.triangleCoords.p3.y);
+
+        min_z = glm::min(min_z, newGeom.triangleCoords.p1.z);
+        min_z = glm::min(min_z, newGeom.triangleCoords.p2.z);
+        min_z = glm::min(min_z, newGeom.triangleCoords.p3.z);
+
+        max_z = glm::max(max_z, newGeom.triangleCoords.p1.z);
+        max_z = glm::max(max_z, newGeom.triangleCoords.p2.z);
+        max_z = glm::max(max_z, newGeom.triangleCoords.p3.z);
+#endif
+
         geoms.push_back(newGeom);
     }
+
+#if MESH_CULL
+    glm::vec3 minCoords = glm::vec3(min_x, min_y, min_z);
+    glm::vec3 maxCoords = glm::vec3(max_x, max_y, max_z);
+
+    // Create a new object to track mesh details
+    Mesh newMesh;
+    newMesh.id = meshId;
+    newMesh.minCorner = minCoords;
+    newMesh.maxCorner = maxCoords;
+
+    // Use center and displacement between corners of box for Geom construction
+    translation = 0.5f * (minCoords + maxCoords);
+    scale = maxCoords - minCoords;
+    rotation = glm::vec3(0.f);
+
+    transform = utilityCore::buildTransformationMatrix(
+        translation, rotation, scale);
+    inverseTransform = glm::inverse(transform);
+    invTranspose = glm::inverseTranspose(transform);
+
+    meshes[meshId] = newMesh;
+
+    // Create cube geometry to represent bounding box (so Box test can be reused)
+    Geom boundingBox;
+    boundingBox.type = GeomType::CUBE;
+    boundingBox.materialid = 8;     // For debug; change to 0
+    boundingBox.translation = translation;
+    boundingBox.rotation = glm::vec3(0.f);
+    boundingBox.scale = scale;
+    boundingBox.transform = transform;
+    boundingBox.inverseTransform = inverseTransform;
+    boundingBox.invTranspose = invTranspose;
+
+    geoms.push_back(boundingBox);
+
+
+#endif
 }
