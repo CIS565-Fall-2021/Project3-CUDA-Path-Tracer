@@ -88,7 +88,7 @@ int cacheNumPaths = 0;
 
 
 bool usingCache = false;
-bool usingDOF= false;
+bool usingDOF = false;
 bool useBVH = true;
 
 void pathtraceInit(Scene* scene) {
@@ -102,7 +102,7 @@ void pathtraceInit(Scene* scene) {
 	cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
 
 
-	for (int i = 0; i < scene->geoms.size() ; i++)
+	for (int i = 0; i < scene->geoms.size(); i++)
 	{
 		if (scene->geoms[i].type == OBJ)
 		{
@@ -113,7 +113,7 @@ void pathtraceInit(Scene* scene) {
 			//Copy Bound Volume Data
 			for (int i = 0; i < 14; i++)
 			{
-				std::cout << currGeom.Host_BVH[i]<<"\n";
+				std::cout << currGeom.Host_BVH[i] << "\n";
 			}
 			cudaMalloc(&currGeom.Device_BVH, 14 * sizeof(float));
 			cudaMemcpy(currGeom.Device_BVH, currGeom.Host_BVH, 14 * sizeof(float), cudaMemcpyHostToDevice);
@@ -152,7 +152,7 @@ void pathtraceFree() {
 	cudaFree(dev_intersections);
 	cudaFree(dev_Stencil);
 	// TODO: clean up any extra device memory you created
-	
+
 	cudaFree(dev_cache_paths);
 	cudaFree(dev_cache_intersections);
 
@@ -160,10 +160,10 @@ void pathtraceFree() {
 }
 
 __device__ glm::vec3 random_in_unit_disk(thrust::default_random_engine& rng) {
-		thrust::uniform_real_distribution<float> u01(0, 1);
-		glm::vec3 p = glm::vec3(u01(rng), u01(rng), 0);
-		p = glm::normalize(p);
-		return p;
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	glm::vec3 p = glm::vec3(u01(rng), u01(rng), 0);
+	p = glm::normalize(p);
+	return p;
 }
 
 /**
@@ -187,8 +187,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
 		if (!usingCache)
-		{   
-			
+		{
+
 			/// Using Anti ALiasing with Jittering
 			thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
 			thrust::uniform_real_distribution<float> u01(0, 1);
@@ -221,8 +221,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 			//Focal Point 
 			glm::vec3 focalPoint = segment.ray.origin + (float)cam.focus_dist * segment.ray.direction;
 
-			
-			
+
+
 			segment.ray.origin = rayOrigin;
 			segment.ray.direction = glm::normalize(focalPoint - rayOrigin);
 		}
@@ -361,17 +361,17 @@ __global__ void shadeFakeMaterial(
 			else {
 				pathSegments[idx].remainingBounces -= 1;
 				glm::vec3 intersectPt = getPointOnRay(pathSegments[idx].ray, intersection.t);
-				
+
 
 				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
-			/*	if (material.hasRefractive > 0.0f)
-				{
-					pathSegments[idx].color = pathSegments[idx].color;
-				}
-				else
-				{
-					pathSegments[idx].color *= materialColor;
-				}*/
+				/*	if (material.hasRefractive > 0.0f)
+					{
+						pathSegments[idx].color = pathSegments[idx].color;
+					}
+					else
+					{
+						pathSegments[idx].color *= materialColor;
+					}*/
 				pathSegments[idx].color *= materialColor;
 				//float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
 				//pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
@@ -434,10 +434,10 @@ __global__ void shadeBSDFMaterial(
 					{
 						pathSegments[idx].color *= materialColor;
 					}*/
-				pathSegments[idx].color *= materialColor;
-				//float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-				//pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-				//pathSegments[idx].color *= u01(rng); // apply some noise because why not
+
+					//float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
+					//pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
+					//pathSegments[idx].color *= u01(rng); // apply some noise because why not
 			}
 			// If there was no intersection, color the ray black.
 			// Lots of renderers use 4 channel color, RGBA, where A = alpha, often
@@ -500,7 +500,7 @@ void SetCacheState(bool a_state)
 struct ShadeableIntersectionComparator
 {
 	__host__ __device__
-		inline bool operator() (const ShadeableIntersection &a, const ShadeableIntersection &b)
+		inline bool operator() (const ShadeableIntersection& a, const ShadeableIntersection& b)
 	{
 		return a.materialId < b.materialId;
 
@@ -557,7 +557,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	{
 		if (!cacheAvailable)
 		{
-			generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache, usingDOF );
+			generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths, usingCache, usingDOF);
 			checkCUDAError("generate camera ray");
 		}
 		else
@@ -576,7 +576,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	cudaDeviceSynchronize();
 	PathSegment* dev_path_end = dev_paths + pixelcount;
 	int num_paths = dev_path_end - dev_paths;
-	
+
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
@@ -646,7 +646,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 		PathSegment* itr = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, dev_Stencil, hasTerminated());
 		int n = itr - dev_paths;
 		num_paths = n;
-	
+
 		if (num_paths == 0)
 		{
 			iterationComplete = true; // TODO: should be based off stream compaction results.

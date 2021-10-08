@@ -140,6 +140,13 @@ int main(int argc, char** argv) {
 	// Load scene file
 	scene = new Scene(sceneFile);
 
+	/*for (int i = 0; i < scene->geoms.size(); i++)
+	{
+		if (scene->geoms[i].type == SPHERE)
+		{
+			scene->materials[scene->geoms[i].materialid].usingProcTex = true;
+		}
+	}*/
 
 	generateProcedural(scene->geoms, scene->materials);
 	// Set up camera stuff from loaded path tracer settings

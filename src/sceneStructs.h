@@ -29,13 +29,13 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-    glm::vec4 * Host_Triangle_points_normals;
-    glm::vec4 * Device_Triangle_points_normals;
+    glm::vec4* Host_Triangle_points_normals;
+    glm::vec4* Device_Triangle_points_normals;
 
-    float *Host_BVH;
-    float *Device_BVH;
+    float* Host_BVH;
+    float* Device_BVH;
     int triangleCount;
-   // glm::vec3* points;
+    // glm::vec3* points;
 };
 
 
@@ -49,6 +49,7 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    bool usingProcTex = false;
 };
 
 struct Camera {
@@ -83,8 +84,8 @@ struct PathSegment {
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
 struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+    float t;
+    glm::vec3 surfaceNormal;
+    int materialId;
 
 };

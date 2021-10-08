@@ -185,7 +185,8 @@ int CreateNewMaterial(std::vector<Material> &materials) {
             }
             if (i == start)
             {
-                newMaterial.hasRefractive = 1;
+                //newMaterial.hasRefractive = 1;
+                newMaterial.usingProcTex = 1;
             }
            
             newMaterial.indexOfRefraction = 1 + reflect;

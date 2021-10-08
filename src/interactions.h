@@ -69,10 +69,10 @@ glm::vec3 DielectricScatter(
     PathSegment& pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material& m, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
     normal = glm::normalize(normal);
-    bool  front_face = glm::dot(pathSegment.ray.direction, normal) <0.0f;
+    bool  front_face = glm::dot(pathSegment.ray.direction, normal) < 0.0f;
     double refraction_ratio = front_face ? (1.0f / m.indexOfRefraction) : m.indexOfRefraction;
-    
-   glm::vec3 unit_direction = glm::normalize(pathSegment.ray.direction);
+
+    glm::vec3 unit_direction = glm::normalize(pathSegment.ray.direction);
     double cos_theta = fmin(glm::dot(-unit_direction, normal), 1.0f);
     double sin_theta = sqrt(1.0f - cos_theta * cos_theta);
 
@@ -91,6 +91,35 @@ inline  bool near_zero(glm::vec3 vec) {
     // Return true if the vector is close to zero in all dimensions.
     const auto s = 1e-8;
     return (fabs(vec[0]) < EPSILON) && (fabs(vec[1]) < EPSILON) && (fabs(vec[2]) < EPSILON);
+}
+
+__device__
+glm::vec3 colorValue(double u, double v, const glm::vec3 p) {
+    glm::vec3 odd(0.2, 0.3, 0.1);
+    glm::vec3  even(0.9, 0.9, 0.9);
+    auto sines = sin(10 * p.x) * sin(10 * p.y) * sin(10 * p.z);
+    if (sines < 0)
+        return odd;
+    else
+        return even;
+}
+
+__device__
+void get_sphere_uv(const glm::vec3& p, double& u, double& v) {
+    // p: a given point on the sphere of radius one, centered at the origin.
+    // u: returned value [0,1] of angle around the Y axis from X=-1.
+    // v: returned value [0,1] of angle from Y=-1 to Y=+1.
+    //     <1 0 0> yields <0.50 0.50>       <-1  0  0> yields <0.00 0.50>
+    //     <0 1 0> yields <0.50 1.00>       < 0 -1  0> yields <0.50 0.00>
+    //     <0 0 1> yields <0.25 0.50>       < 0  0 -1> yields <0.75 0.50>
+
+    glm::vec3 p_copy = p;
+    p_copy = glm::normalize(p_copy);
+    auto theta = acos(-p_copy.y);
+    auto phi = atan2(-p_copy.z, p_copy.x) + PI;
+
+    u = phi / (2 * PI);
+    v = theta / PI;
 }
 
 /**
@@ -151,5 +180,16 @@ void scatterRay(
 
     pathSegment.ray.origin = intersect;
     pathSegment.ray.direction = scatter_direction;
-
+    if (m.usingProcTex)
+    {
+        double u, v;
+        glm::vec3 testInter = intersect;
+        get_sphere_uv(intersect, u, v);
+        glm::vec3 colorValue1 = colorValue(u, v, intersect);
+        pathSegment.color *= colorValue1;
+    }
+    else
+    {
+        pathSegment.color *= m.color;
+    }
 }
