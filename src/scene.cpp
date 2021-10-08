@@ -349,7 +349,7 @@ int Scene::loadSceneSettings() {
     RenderState &state = this->state;
 
     //load static properties
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         string line;
         utilityCore::safeGetline(fp_in, line);
         vector<string> tokens = utilityCore::tokenizeString(line);
@@ -364,6 +364,9 @@ int Scene::loadSceneSettings() {
         }
         else if (strcmp(tokens[0].c_str(), "ANTIALIAS") == 0) {
             state.antialias = atoi(tokens[1].c_str());
+        }
+        else if (strcmp(tokens[0].c_str(), "USE_BBOX") == 0) {
+            state.useBBox = atoi(tokens[1].c_str());
         }
     }
     return 1;
