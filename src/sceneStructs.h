@@ -80,6 +80,7 @@ struct RenderState {
     bool cacheFirstBounce = false;
     bool useDOF = false;
     bool antialias = false;
+    bool useBBox = true;
 };
 
 struct PathSegment {

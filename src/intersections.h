@@ -149,19 +149,42 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
 											   glm::vec3 &normal, 
 											   bool &outside,
                                                Tri * tris,
-                                               int numTris) {
+                                               int numTris,
+                                               Tri * bboxTris,
+                                               bool useBBox) {
     Ray q;
     q.origin =    multiplyMV(geom.inverseTransform, glm::vec4(r.origin   , 1.0f));
     q.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-    float tmin = 1e38f;
-    //float tmax = 1e38f;
-    glm::vec3 tmin_n;
+
+    // --- check for intersections with the mesh's bounding box
+	glm::vec3 baryPos;
+    bool hit = false;
     Tri tri;
+    if (useBBox) {
+        for (int i = 0; i < 12; i++) {
+            tri = bboxTris[i];
+            hit = glm::intersectRayTriangle(q.origin,
+                q.direction,
+                tri.v1,
+                tri.v2,
+                tri.v3,
+                baryPos);
+            if (hit) {
+                break;
+            }
+        }
+        if (!hit) {
+            return -1;
+        }
+    }
+
+
+    // --- iterate over the triangles in our mesh looking for intersections
+    float tmin = 1e38f;
+    glm::vec3 tmin_n;
+	float t; 
     for (int i = 0; i < numTris; i++) {
-        glm::vec3 baryPos;
-        bool hit;
-        float t; 
         tri = tris[i];
         glm::vec3 v1 = tri.v1;
         glm::vec3 v2 = tri.v2;

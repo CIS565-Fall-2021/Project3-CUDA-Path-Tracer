@@ -41,24 +41,24 @@ Scene::Scene(string filename) {
     }
 }
 
-int Scene::loadMesh(string filePath, Geom *geom) {
+int Scene::loadMesh(string filePath, Geom* geom) {
     // Much of the following was adapted from tinyobjloader's example code:
     // https://github.com/tinyobjloader/tinyobjloader
-	tinyobj::ObjReaderConfig reader_config;
-	tinyobj::ObjReader reader;
+    tinyobj::ObjReaderConfig reader_config;
+    tinyobj::ObjReader reader;
 
-	if (!reader.ParseFromFile(filePath, reader_config)) {
-	  if (!reader.Error().empty()) {
-		  std::cerr << "TinyObjReader: " << reader.Error();
-	  }
-	  exit(1);
-	}
-	if (!reader.Warning().empty()) {
-	  std::cout << "TinyObjReader: " << reader.Warning();
-	}
+    if (!reader.ParseFromFile(filePath, reader_config)) {
+        if (!reader.Error().empty()) {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+        exit(1);
+    }
+    if (!reader.Warning().empty()) {
+        std::cout << "TinyObjReader: " << reader.Warning();
+    }
 
-	auto& attrib = reader.GetAttrib();
-	auto& shapes = reader.GetShapes();
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
 
     // set up our mesh geom struct
     long totalNumTris = 0;
@@ -70,49 +70,109 @@ int Scene::loadMesh(string filePath, Geom *geom) {
 
     // Loop over shapes
     int iTri = 0;
-	for (size_t s = 0; s < shapes.size(); s++) {
-	  // Loop over faces(polygon)
-	  size_t index_offset = 0;
-	  for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
-		size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
-        Tri T;
+    glm::vec3 bboxMin = glm::vec3(std::numeric_limits<float>::max());
+    glm::vec3 bboxMax = glm::vec3(std::numeric_limits<float>::min());
+    glm::vec3 newVert;
+    for (size_t s = 0; s < shapes.size(); s++) {
+        // Loop over faces(polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+            Tri T;
 
-        // for each face loaded, place that vertex and vertexNormal data
-        // into a tri in our new geometry
-        glm::vec3* vertVecs[3] = { &T.v1,
-                                &T.v2,
-                                &T.v3 };
-        glm::vec3* normVecs[3] = { &T.n1,
-                                &T.n2,
-                                &T.n3 };
-		// Loop over vertices in the face.
-		for (size_t v = 0; v < fv; v++) {
-		  // access to vertex
-		  tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-		  float vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
-		  float vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
-		  float vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+            // for each face loaded, place that vertex and vertexNormal data
+            // into a tri in our new geometry
+            glm::vec3* vertVecs[3] = { &T.v1,
+                                    &T.v2,
+                                    &T.v3 };
+            glm::vec3* normVecs[3] = { &T.n1,
+                                    &T.n2,
+                                    &T.n3 };
+            // Loop over vertices in the face.
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                float vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                float vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                float vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
 
-          // do these want to be created with `new`?
-          *vertVecs[v] = glm::vec3(vx, vy, vz);
+                // create new vert with these coordinates
+                newVert = glm::vec3(vx, vy, vz);
+                // keep track of the min x,y, and z
+                bboxMax = glm::max(bboxMax, newVert);
+                bboxMin = glm::min(bboxMin, newVert);
+                // add new vert
+                *vertVecs[v] = newVert;
 
-		  // Check if `normal_index` is zero or positive. negative = no normal data
-		  if (idx.normal_index >= 0) {
-			float nx = attrib.normals[3*size_t(idx.normal_index)+0];
-			float ny = attrib.normals[3*size_t(idx.normal_index)+1];
-			float nz = attrib.normals[3*size_t(idx.normal_index)+2];
-            *normVecs[v] = glm::vec3(nx, ny, nz);
-		  }
+                // Check if `normal_index` is zero or positive. negative = no normal data
+                if (idx.normal_index >= 0) {
+                    float nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+                    float ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+                    float nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+                    *normVecs[v] = glm::vec3(nx, ny, nz);
+                }
 
-		}
-		geom->tris[iTri] = T;
-		iTri++;
-		index_offset += fv;
+            }
+            geom->tris[iTri] = T;
+            iTri++;
+            index_offset += fv;
 
-		// per-face material
-		shapes[s].mesh.material_ids[f];
-	  }
-	} 
+            // per-face material
+            shapes[s].mesh.material_ids[f];
+        }
+    }
+
+    // create a mesh bounding box
+    // why a mesh instead of a boxGeom? because nested geometry and 
+    // manipulating transforms does not sound at all enjoyable
+    float minX = bboxMin.x;
+    float minY = bboxMin.y;
+    float minZ = bboxMin.z;
+    float maxX = bboxMax.x;
+    float maxY = bboxMax.y;
+    float maxZ = bboxMax.z;
+
+    // create vertices
+    glm::vec3 bboxVerts[9];
+    // ignore slot 0, it throws off my math
+    bboxVerts[1] = glm::vec3(maxX, maxY, minZ);
+    bboxVerts[2] = glm::vec3(maxX, minY, minZ);
+    bboxVerts[3] = glm::vec3(maxX, maxY, maxZ);
+    bboxVerts[4] = glm::vec3(maxX, minY, maxZ);
+    bboxVerts[5] = glm::vec3(minX, maxY, minZ);
+    bboxVerts[6] = glm::vec3(minX, minY, minZ);
+    bboxVerts[7] = glm::vec3(minX, maxY, maxZ);
+    bboxVerts[8] = glm::vec3(minX, minY, maxZ);
+
+    // create tris from those vertices
+    // pre-calculated based on the faces
+    // in a cube obj I created
+    int3 bboxVertIndices[12] = {make_int3(5, 3, 1),
+								make_int3(3, 8, 4),
+								make_int3(7, 6, 8),
+								make_int3(2, 8, 6),
+								make_int3(1, 4, 2),
+								make_int3(5, 2, 6),
+								make_int3(5, 7, 3),
+								make_int3(3, 7, 8),
+								make_int3(7, 5, 6),
+								make_int3(2, 4, 8),
+								make_int3(1, 3, 4),
+								make_int3(5, 1, 2)};
+
+    // use the indices to set verts in the tris of
+    // out bounding box
+    geom->boundingBox = new Tri[12];
+    for (int vi = 0; vi < 12; vi++) {
+        Tri tri;
+        tri.v1 = bboxVerts[bboxVertIndices[vi].x];
+        tri.v2 = bboxVerts[bboxVertIndices[vi].y];
+        tri.v3 = bboxVerts[bboxVertIndices[vi].z];
+
+        geom->boundingBox[vi] = tri;
+    }
+
+
     return 0;
 }
 

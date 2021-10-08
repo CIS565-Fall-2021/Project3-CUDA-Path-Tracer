@@ -38,6 +38,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    glm::vec3 v1 = glm::vec3(4, 2, 8);
+    glm::vec3 v2 = glm::vec3(4, 3, 6);
+    glm::vec3 v3 = glm::min(v1, v2);
+
     const char *sceneFile = argv[1];
 
     // Load scene file

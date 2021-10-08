@@ -82,9 +82,10 @@ static PathSegment * dev_pathBounce1Cache = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections2 = NULL;
 static ShadeableIntersection * dev_itxnBounce1Cache = NULL;
-static Tri * dev_allTris = NULL;
+static Tri * dev_meshTris = NULL;
 static int* dev_meshStartIndices = NULL;
 static int* dev_meshEndIndices = NULL;
+static Tri * dev_bboxTris = NULL;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -122,9 +123,10 @@ void pathtraceInit(Scene *scene) {
 
     // if there are any meshes in the 
     if (numMeshes) {
-        cudaMalloc(&dev_allTris, totalTris * sizeof(Tri));
+        cudaMalloc(&dev_meshTris, totalTris * sizeof(Tri));
         cudaMalloc(&dev_meshStartIndices, numMeshes * sizeof(int));
         cudaMalloc(&dev_meshEndIndices, numMeshes * sizeof(int));
+        cudaMalloc(&dev_bboxTris, 12 * numMeshes * sizeof(Tri));
 
         // add the tris from all our geo
         int startIndex = 0;
@@ -134,7 +136,7 @@ void pathtraceInit(Scene *scene) {
 
                 // copy the tris from this geo, offset the
                 // start index for the next copy
-				cudaMemcpy(dev_allTris + startIndex, 
+				cudaMemcpy(dev_meshTris + startIndex, 
 						   g.tris + startIndex, 
 						   g.numTris * sizeof(Tri), 
 						   cudaMemcpyHostToDevice);
@@ -154,6 +156,12 @@ void pathtraceInit(Scene *scene) {
 						   &startIndex,
 						   sizeof(int),
 						   cudaMemcpyHostToDevice);
+
+                // copy the bounding box tris
+				cudaMemcpy(dev_bboxTris + 12 * meshNum, 
+						   g.boundingBox, 
+						   12 * sizeof(Tri), 
+						   cudaMemcpyHostToDevice);
 			}
     }
 
@@ -161,9 +169,10 @@ void pathtraceInit(Scene *scene) {
     else {
         // declare an empty (nearly) array just because it needs to exist
         // for freeing/reference etc. 
-        cudaMalloc(&dev_allTris, sizeof(Tri));
+        cudaMalloc(&dev_meshTris, sizeof(Tri));
         cudaMalloc(&dev_meshStartIndices, numMeshes * sizeof(int));
         cudaMalloc(&dev_meshEndIndices, numMeshes * sizeof(int));
+        cudaMalloc(&dev_bboxTris, sizeof(Tri));
     }
 
     checkCUDAError("pathtraceInit");
@@ -179,9 +188,10 @@ void pathtraceFree() {
     cudaFree(dev_intersections2);
     cudaFree(dev_itxnBounce1Cache);
     cudaFree(dev_pathBounce1Cache);
-    cudaFree(dev_allTris);
+    cudaFree(dev_meshTris);
     cudaFree(dev_meshStartIndices);
     cudaFree(dev_meshEndIndices);
+    cudaFree(dev_bboxTris);
 
     checkCUDAError("pathtraceFree");
 }
@@ -326,9 +336,11 @@ __global__ void computeIntersections(int depth,
 									 Geom * geoms, 
 									 int geoms_size, 
 									 ShadeableIntersection * intersections,
-                                     Tri * dev_allTris,
+                                     Tri * dev_meshTris,
                                      int * dev_meshStartIndices,
-                                     int * dev_meshEndIndices)
+                                     int * dev_meshEndIndices,
+                                     Tri * dev_bboxTris,
+                                     bool useBBox)
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -369,8 +381,10 @@ __global__ void computeIntersections(int depth,
 									 tmp_intersect, 
 									 tmp_normal, 
 									 outside,
-									 dev_allTris + dev_meshStartIndices[meshNum],
-									 numTris);
+									 dev_meshTris + dev_meshStartIndices[meshNum],
+									 numTris,
+                                     dev_bboxTris,
+                                     useBBox);
 
                 meshNum++;
             }
@@ -684,9 +698,11 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 																			dev_geoms,
 																			hst_scene->geoms.size(),
 																			dev_intersections,
-                                                                            dev_allTris,
+                                                                            dev_meshTris,
                                                                             dev_meshStartIndices,
-                                                                            dev_meshEndIndices);
+                                                                            dev_meshEndIndices,
+                                                                            dev_bboxTris,
+                                                                            hst_scene->state.useBBox);
 		depth++;
 
 

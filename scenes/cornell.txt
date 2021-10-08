@@ -2,6 +2,8 @@
 SETTINGS
 SORT_MATERIALS 1
 CACHE_BOUNCE 0
+USE_DOF 0
+ANTIALIAS 0
 
 // Emissive material (light)
 MATERIAL 0
@@ -80,16 +82,27 @@ REFRIOR		1.5
 FRESNELPOW  2.75
 EMITTANCE   0
 
-// grid lines
+// teapot
 MATERIAL 7
-RGB         .5 .1 .5
+RGB         .8 .2 .8
 SPECEX      0
 SPECRGB     0 0 0
 REFL        0
 REFR        0
-REFRIOR     0
+REFRIOR     1
 FRESNELPOW  5
 EMITTANCE   0
+
+// purple glass
+//MATERIAL 7
+//RGB         .8 .2 .8
+//SPECEX      0
+//SPECRGB     .98 .98 .98
+//REFL        1
+//REFR        1
+//REFRIOR     1.5
+//FRESNELPOW  2.5
+//EMITTANCE   0
 
 
 //// Oren-Nayar?
@@ -181,6 +194,14 @@ material 5
 TRANS       -3 1.25 -1
 ROTAT       0 0 0
 SCALE       3 2.5 7
+
+// teapot
+OBJECT 8
+C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\teapotTris.obj
+material 7
+TRANS       0 0 -2
+ROTAT       0 0 0
+SCALE       .4 .6 .4 
 
 //// glass Sphere
 //OBJECT 8
