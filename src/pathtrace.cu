@@ -16,6 +16,7 @@
 #include "interactions.h"
 
 #define SORT_BY_MATERIAL 0
+static bool useCachedFirstBounce = true;
 
 #define ERRORCHECK 1
 
@@ -76,6 +77,7 @@ static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
+static ShadeableIntersection* dev_intersections_first_bounce = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -101,6 +103,10 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // TODO: initialize any extra device memeory you need
+    cudaMalloc(&dev_intersections_first_bounce, pixelcount * sizeof(ShadeableIntersection));
+    cudaMemset(dev_intersections_first_bounce, 0, pixelcount * sizeof(ShadeableIntersection));
+
+
 
     checkCUDAError("pathtraceInit");
 }
@@ -113,6 +119,7 @@ void pathtraceFree() {
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
     // TODO: clean up any extra device memory you created
+    cudaFree(dev_intersections_first_bounce);
 
     checkCUDAError("pathtraceFree");
 }
@@ -370,33 +377,84 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // * For each depth:
     bool iterationComplete = false;
     while (!iterationComplete) {
-        cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-
         // tracing
         // observation: num_paths most definitely needs to be changed after stream compaction
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-        //   * Compute an intersection in the scene for each path ray.
-        //     A very naive version of this has been implemented for you, but feel
-        //     free to add more primitives and/or a better algorithm.
-        //     Currently, intersection distance is recorded as a parametric distance,
-        //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
-        //     * Color is attenuated (multiplied) by reflections off of any object
-        computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
-            depth
-            , num_paths
-            , dev_paths
-            , dev_geoms
-            , hst_scene->geoms.size()
-            , dev_intersections
-            );
-        // after this kernel, dev_intersections will be populated with pixelcount 
-        // (640,000 by default)'s ShadableIntersection. 
-        // Each ShadableIntersection contains:
-        // 1) t: -1 if no intersection. Others if intersection
-        // 2) surfaceNormal
-        // 3) materialId
-        checkCUDAError("trace one bounce");
-        cudaDeviceSynchronize();
+        if (useCachedFirstBounce)
+        {
+            bool firstBounceInFirstIteration = iter == 1 && depth == 0;
+            bool firstbounceInAnyIteration = iter != 1 && depth == 0;
+            if (firstBounceInFirstIteration)
+            {
+                cudaMemset(dev_intersections_first_bounce, 0, pixelcount * sizeof(ShadeableIntersection));
+                computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+                    depth
+                    , num_paths
+                    , dev_paths
+                    , dev_geoms
+                    , hst_scene->geoms.size()
+                    , dev_intersections
+                    );
+                cudaMemcpy(dev_intersections_first_bounce, dev_intersections,
+                    pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+            }
+            else if(firstbounceInAnyIteration)
+            {
+                cudaMemcpy(dev_intersections, dev_intersections_first_bounce,
+                    pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+            }
+            else {
+                cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+                //   * Compute an intersection in the scene for each path ray.
+                //     A very naive version of this has been implemented for you, but feel
+                //     free to add more primitives and/or a better algorithm.
+                //     Currently, intersection distance is recorded as a parametric distance,
+                //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
+                //     * Color is attenuated (multiplied) by reflections off of any object
+                computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+                    depth
+                    , num_paths
+                    , dev_paths
+                    , dev_geoms
+                    , hst_scene->geoms.size()
+                    , dev_intersections
+                    );
+                // after this kernel, dev_intersections will be populated with pixelcount 
+                // (640,000 by default)'s ShadableIntersection. 
+                // Each ShadableIntersection contains:
+                // 1) t: -1 if no intersection. Others if intersection
+                // 2) surfaceNormal
+                // 3) materialId
+                checkCUDAError("trace one bounce");
+                cudaDeviceSynchronize();
+            }
+        }
+        else {
+            cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+            //   * Compute an intersection in the scene for each path ray.
+            //     A very naive version of this has been implemented for you, but feel
+            //     free to add more primitives and/or a better algorithm.
+            //     Currently, intersection distance is recorded as a parametric distance,
+            //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
+            //     * Color is attenuated (multiplied) by reflections off of any object
+            computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+                depth
+                , num_paths
+                , dev_paths
+                , dev_geoms
+                , hst_scene->geoms.size()
+                , dev_intersections
+                );
+            // after this kernel, dev_intersections will be populated with pixelcount 
+            // (640,000 by default)'s ShadableIntersection. 
+            // Each ShadableIntersection contains:
+            // 1) t: -1 if no intersection. Others if intersection
+            // 2) surfaceNormal
+            // 3) materialId
+            checkCUDAError("trace one bounce");
+            cudaDeviceSynchronize();
+        }
+
         depth++;
 
         // TODO:

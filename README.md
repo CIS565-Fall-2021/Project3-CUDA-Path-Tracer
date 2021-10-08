@@ -34,11 +34,15 @@ project, and we will not be able to grade you without a good README.
 
 1000 iteration took 21 seconds without sort by material
 
+1000 iteration took 21 seconds without sort by material with caching the first bounce
+
 
 
 5000 iteration  took 285.831 seconds with sort by material
 
 5000 iteration took 110.662 seconds. seconds without sort by material
+
+5000 iteration took 104.159 seconds without sort by material with caching the first bounce
 
 
 
