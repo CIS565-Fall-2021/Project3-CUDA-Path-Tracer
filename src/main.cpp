@@ -1,6 +1,10 @@
+#define TINYOBJLOADER_IMPLEMENTATION
+
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include "tiny_obj_loader.h"
+#include "polygon.h"
 
 static std::string startTimeString;
 
@@ -26,6 +30,69 @@ int iteration;
 int width;
 int height;
 
+void LoadOBJ(const char* file, Geom& geom)
+{
+    Polygon p;
+    std::vector<tinyobj::shape_t> shapes; std::vector<tinyobj::material_t> materials;
+    std::string errors = tinyobj::LoadObj(shapes, materials, file);
+    std::cout << errors << std::endl;
+    if (errors.size() == 0)
+    {
+        int min_idx = 0;
+        //Read the information from the vectxor of shape_ts
+        for (int i = 0; i < shapes.size(); i++)
+        {
+            std::vector<glm::vec4> pos, nor;
+            std::vector<float>& positions = shapes[i].mesh.positions;
+            std::vector<float>& normals   = shapes[i].mesh.normals;
+            for (int j = 0; j < positions.size() / 3; j++)
+            {
+                pos.push_back(glm::vec4(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2], 1));
+            }
+            for (int j = 0; j < normals.size() / 3; j++)
+            {
+                nor.push_back(glm::vec4(normals[j * 3], normals[j * 3 + 1], normals[j * 3 + 2], 0));
+            }
+            for (int j = 0; j < pos.size(); j++)
+            {
+                p.AddVertex(Vertex(pos[j], glm::vec3(255, 255, 255), nor[j]));
+            }
+
+            std::vector<unsigned int> indices = shapes[i].mesh.indices;
+            for (unsigned int j = 0; j < indices.size(); j += 3)
+            {
+                Triangle t;
+                t.m_indices[0] = indices[j] + min_idx;
+                t.m_indices[1] = indices[j + 1] + min_idx;
+                t.m_indices[2] = indices[j + 2] + min_idx;
+                p.AddTriangle(t);
+            }
+
+            min_idx += pos.size();
+        }
+    }
+    else
+    {
+        //An error loading the OBJ occurred!
+        std::cout << errors << std::endl;
+        return;
+    }
+    
+    geom.triCount = p.m_tris.size(); 
+
+    geom.host_VecNorArr = (glm::vec4*) malloc(p.m_tris.size() * 6 * sizeof(glm::vec4));
+    cudaMalloc(&geom.dev_VecNorArr, p.m_tris.size() * 6 * sizeof(glm::vec4));
+
+    for (int i = 0; i < p.m_tris.size(); i++) {
+        for (int j = 0; j < 3; j++) {
+            geom.host_VecNorArr[6 * i + 2 * j]     = p.m_verts[p.m_tris[i].m_indices[j]].m_pos;
+            geom.host_VecNorArr[6 * i + 2 * j + 1] = p.m_verts[p.m_tris[i].m_indices[j]].m_normal;
+        }
+    }
+    cudaMemcpy(geom.dev_VecNorArr, geom.host_VecNorArr, p.m_tris.size() * 6 * sizeof(glm::vec4), cudaMemcpyHostToDevice);
+    free(geom.host_VecNorArr);
+}
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -39,9 +106,28 @@ int main(int argc, char** argv) {
     }
 
     const char *sceneFile = argv[1];
+    
+    const char* objFile = NULL; 
+    if (argc > 2 && USE_MESH_LOADING) {
+        objFile = argv[2];
+    }
 
+    std::cout << objFile << std::endl;
     // Load scene file
     scene = new Scene(sceneFile);
+
+#if USE_MESH_LOADING
+    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/cube.OBJ";
+    for (int i = 0; i < scene->geoms.size(); i++) {
+        if (scene->geoms[i].type == GeomType::OBJ) {
+            scene->geoms[i].usedForOBJ = true;
+            LoadOBJ(objPath, scene->geoms[i]);
+        } 
+        else {
+            scene->geoms[i].usedForOBJ = false;
+        }
+    }
+#endif // USE_MESH_LOADING
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;

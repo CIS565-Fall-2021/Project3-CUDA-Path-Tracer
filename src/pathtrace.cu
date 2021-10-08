@@ -152,7 +152,14 @@ void pathtraceFree() {
 #if USE_PARTITION
     cudaFree(dev_stencil);
 #endif // USE_PARTITION
-
+#if USE_MESH_LOADING
+    /*for (int i = 0; i < hst_scene->geoms.size(); i++) {
+        if (hst_scene->geoms[i].usedForOBJ) {
+            hst_scene->geoms[i].usedForOBJ = false; 
+            cudaFree(hst_scene->geoms[i].dev_VecNorArr);
+        }
+    }*/
+#endif // USE_MESH_LOADING
     checkCUDAError("pathtraceFree");
 }
 
@@ -177,10 +184,18 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
-        segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-            );
+        float probX = 0.0f, probY = 0.0f; 
+#if ANTIALIASING & !USE_CACHE
+        thrust::default_random_engine            rng = makeSeededRandomEngine(iter, index, 0);
+        thrust::uniform_real_distribution<float> uhh(-0.5f, 0.5f);
+        probX = uhh(rng); probY = uhh(rng); 
+#endif // ANTIALIASING
+        
+
+        segment.ray.direction = glm::normalize(
+                cam.view - 
+                cam.right * cam.pixelLength.x * ((float)x + probX - (float)cam.resolution.x * 0.5f) - 
+                cam.up    * cam.pixelLength.y * ((float)y + probY - (float)cam.resolution.y * 0.5f));
 
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
@@ -345,7 +360,6 @@ __global__ void shadeMaterialCore(
         // LOOK: this is how you use thrust's RNG! Please look at
         // makeSeededRandomEngine as well.
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-
         Material material = materials[intersection.materialId];
 
         // If the material indicates that the object was a light, "light" the ray

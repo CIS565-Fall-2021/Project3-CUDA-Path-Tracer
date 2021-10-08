@@ -2,16 +2,7 @@
 
 #include "intersections.h"
 
-
 #define EPSILON_SCALE 10.0f
-
-#define SCHLICK         1
-#define USE_CACHE       1
-#define USE_SORT        0
-#define USE_PARTITION   0
-#define USE_REMOVE_IF   0
-#define PRINT           0
-#define ERRORCHECK      1
 
 // CHECKITOUT
 /**

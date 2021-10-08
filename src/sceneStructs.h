@@ -7,9 +7,20 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
+#define USE_MESH_LOADING    1
+#define ANTIALIASING        1
+#define SCHLICK             1
+#define USE_CACHE           0
+#define USE_SORT            0
+#define USE_PARTITION       0
+#define USE_REMOVE_IF       0
+#define PRINT               0
+#define ERRORCHECK          1
+
 enum GeomType {
     SPHERE,
     CUBE,
+    OBJ,
 };
 
 struct Ray {
@@ -26,6 +37,11 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+    int triCount; 
+    bool usedForOBJ = false; 
+    glm::vec4* host_VecNorArr; 
+    glm::vec4* dev_VecNorArr;
 };
 
 struct Material {
