@@ -64,13 +64,21 @@ void buildTree(
     int startInx, int endInx, // TODO: change name to be clearer
     Transform& transform)
 {
+    // update indices of node
+    kdNodes->at(node).startIndex = startInx;
+    kdNodes->at(node).endIndex = endInx;
+
+    // copy primitives to transform them
+    std::vector<Triangle> prims;
+    prims.assign(primitives->begin(), primitives->end());
+
     // update the min and max corner of parent node
     // update the min and max corners
     float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX;
     float maxX = FLT_MIN, maxY = FLT_MIN, maxZ = FLT_MIN;
     for (int i = startInx; i <= endInx; i++)
     {
-        Triangle& triangle = primitives->at(i);
+        Triangle& triangle = prims.at(i);
         // transform triangle
         glm::mat4 tm = utilityCore::buildTransformationMatrix(transform.translate, transform.rotate, transform.scale);
         triangle[0] = glm::vec3(tm * glm::vec4(triangle[0], 1.f));
@@ -101,7 +109,7 @@ void buildTree(
     // create bounding box geom
     kdNodes->at(node).boundingBox.type = GeomType::CUBE;
     kdNodes->at(node).boundingBox.translation = (maxCorner + minCorner) / 2.f;
-    kdNodes->at(node).boundingBox.scale = (maxCorner- kdNodes->at(node).boundingBox.translation) / 0.5f;
+    kdNodes->at(node).boundingBox.scale = (maxCorner - kdNodes->at(node).boundingBox.translation) / 0.5f;
     kdNodes->at(node).boundingBox.scale += 0.01f; // epsilon addition
     kdNodes->at(node).boundingBox.rotation = glm::vec3(0);
     kdNodes->at(node).boundingBox.transform = utilityCore::buildTransformationMatrix(
@@ -115,13 +123,18 @@ void buildTree(
         std::vector<TriangleStruct> mTriangleStructs;
         for (int i = startInx; i <= endInx; i++)
         {
-            mTriangleStructs.push_back(TriangleStruct(primitives->at(i), i));
+            mTriangleStructs.push_back(TriangleStruct(prims.at(i), i));
         }
         std::sort(mTriangleStructs.begin(), mTriangleStructs.end(), kdNodes->at(node).axis == 0 ? xSort : kdNodes->at(node).axis == 1 ? ySort : zSort);
         std::vector<int> triangles;
+        for (int i = 0; i < mTriangleStructs.size(); i++)
+        {
+            // revert back to untransformed primitive.
+            mTriangleStructs.at(i).arr = primitives->at(mTriangleStructs.at(i).index);
+        }
         for (int i = startInx, j = 0; i <= endInx; i++, j++)
         {
-            primitives->at(i) = mTriangleStructs.at(j).arr;
+            primitives->at(i) = mTriangleStructs.at(j).arr; // very important
         }
 
         // create the two children nodes

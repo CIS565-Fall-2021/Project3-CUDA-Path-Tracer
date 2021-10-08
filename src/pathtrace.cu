@@ -105,8 +105,8 @@ void pathtraceInit(Scene *scene) {
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
-  cudaMalloc(&dev_primitives, scene->geoms.size() * sizeof(Triangle));
-  cudaMemcpy(dev_primitives, scene->geoms.data(), scene->geoms.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
+  cudaMalloc(&dev_primitives, scene->primitives.size() * sizeof(Triangle));
+  cudaMemcpy(dev_primitives, scene->primitives.data(), scene->primitives.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
   cudaMalloc(&dev_kdTrees, scene->kdTrees.size() * sizeof(KDTree));
   cudaMemcpy(dev_kdTrees, scene->kdTrees.data(), scene->kdTrees.size() * sizeof(KDTree), cudaMemcpyHostToDevice);
@@ -259,6 +259,7 @@ __global__ void computeIntersections(
           KDTree& kdTree = kdTrees[i];
           KDNode* kdNode = &kdNodes[kdTree.kdNodes];
           float intersection = 0.0f;
+          glm::vec3 intersectionPoint;
           while (kdNode != nullptr)
           {
               float t = boxIntersectionTest(kdNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
@@ -270,30 +271,29 @@ __global__ void computeIntersections(
                       // primitive found
                       materialId = kdTree.materialId;
                       //Geom triangle = createTriangle(primitives[kdNode->startIndex], kdTree.transform, kdTree.materialId);
-                      Geom geom;
-                      geom.type = GeomType::TRIANGLE;
-                      geom.materialid = materialId;
-                      geom.translation = kdTree.transform.translate;
-                      geom.rotation = kdTree.transform.rotate;
-                      geom.scale = kdTree.transform.scale;
+                      Geom triangle;
+                      triangle.type = GeomType::TRIANGLE;
+                      triangle.materialid = materialId;
+                      triangle.translation = kdTree.transform.translate;
+                      triangle.rotation = kdTree.transform.rotate;
+                      triangle.scale = kdTree.transform.scale;
 
-                      glm::mat4 translationMat = glm::translate(glm::mat4(), geom.translation);
-                      glm::mat4 rotationMat = glm::rotate(glm::mat4(), geom.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
-                      rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
-                      rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
-                      glm::mat4 scaleMat = glm::scale(glm::mat4(), geom.scale);
-                      geom.transform = translationMat * rotationMat * scaleMat;
-                      //geom.transform = utilityCore::buildTransformationMatrix(
-                      //    geom.translation, geom.rotation, geom.scale);
+                      glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
+                      glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
+                      rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
+                      rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
+                      glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
+                      triangle.transform = translationMat * rotationMat * scaleMat;
+                      //triangle.transform = utilityCore::buildTransformationMatrix(
+                      //    triangle.translation, triangle.rotation, triangle.scale);
 
-                      //geom.inverseTransform = glm::inverse(geom.transform);
-                      //geom.invTranspose = glm::inverseTranspose(geom.transform);
+                      //triangle.inverseTransform = glm::inverse(triangle.transform);
+                      //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
 
-                      geom.pos1 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p1, 1.f));
-                      geom.pos2 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p2, 1.f));
-                      geom.pos3 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p3, 1.f));
+                      triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode->startIndex].p1, 1.f));
+                      triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode->startIndex].p2, 1.f));
+                      triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode->startIndex].p3, 1.f));
 
-                     Geom& triangle = geom;
                       if (triangle.type == GeomType::TRIANGLE) 
                         intersection = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
                       kdNode = nullptr;
@@ -316,71 +316,79 @@ __global__ void computeIntersections(
                       if (lt > 0.0 && rt > 0.0)
                       {
                           // we have overlaps, have to search all the triangles now
+                          kdNode = nullptr;
+
                           for (int i = leftNode->startIndex; i < leftNode->endIndex; i++)
                           {
                               // TODO: refactor
                               //Geom triangle;// = createTriangle(primitives[i], kdTree.transform, kdTree.materialId);
-                              Geom geom;
-                              geom.type = GeomType::TRIANGLE;
-                              geom.materialid = materialId;
-                              geom.translation = kdTree.transform.translate;
-                              geom.rotation = kdTree.transform.rotate;
-                              geom.scale = kdTree.transform.scale;
+                              Geom triangle;
+                              triangle.type = GeomType::TRIANGLE;
+                              triangle.materialid = materialId;
+                              triangle.translation = kdTree.transform.translate;
+                              triangle.rotation = kdTree.transform.rotate;
+                              triangle.scale = kdTree.transform.scale;
 
-                              glm::mat4 translationMat = glm::translate(glm::mat4(), geom.translation);
-                              glm::mat4 rotationMat = glm::rotate(glm::mat4(), geom.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
-                              glm::mat4 scaleMat = glm::scale(glm::mat4(), geom.scale);
-                              geom.transform = translationMat * rotationMat * scaleMat;
-                              //geom.transform = utilityCore::buildTransformationMatrix(
-                              //    geom.translation, geom.rotation, geom.scale);
+                              glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
+                              glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
+                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
+                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
+                              glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
+                              triangle.transform = translationMat * rotationMat * scaleMat;
+                              //triangle.transform = utilityCore::buildTransformationMatrix(
+                              //    triangle.translation, triangle.rotation, triangle.scale);
 
-                              //geom.inverseTransform = glm::inverse(geom.transform);
-                              //geom.invTranspose = glm::inverseTranspose(geom.transform);
+                              //triangle.inverseTransform = glm::inverse(triangle.transform);
+                              //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
 
-                              geom.pos1 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p1, 1.f));
-                              geom.pos2 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p2, 1.f));
-                              geom.pos3 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p3, 1.f));
+                              triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p1, 1.f));
+                              triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p2, 1.f));
+                              triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p3, 1.f));
 
-                              Geom& triangle = geom;
                               if (triangle.type == GeomType::TRIANGLE)
                               {
-                                  int temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                                  intersection = temp < intersection ? temp : intersection;
+                                  float temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                                  if (temp > 0.0)
+                                  {
+                                      intersection = temp < intersection ? temp : intersection;
+                                      intersectionPoint = tmp_intersect;
+                                  }
                               }
                           }
                           for (int i = rightNode->startIndex; i < rightNode->endIndex; i++)
                           {
                               //Geom triangle;// = createTriangle(primitives[i], kdTree.transform, kdTree.materialId);
-                              Geom geom;
-                              geom.type = GeomType::TRIANGLE;
-                              geom.materialid = materialId;
-                              geom.translation = kdTree.transform.translate;
-                              geom.rotation = kdTree.transform.rotate;
-                              geom.scale = kdTree.transform.scale;
+                              Geom triangle;
+                              triangle.type = GeomType::TRIANGLE;
+                              triangle.materialid = materialId;
+                              triangle.translation = kdTree.transform.translate;
+                              triangle.rotation = kdTree.transform.rotate;
+                              triangle.scale = kdTree.transform.scale;
 
-                              glm::mat4 translationMat = glm::translate(glm::mat4(), geom.translation);
-                              glm::mat4 rotationMat = glm::rotate(glm::mat4(), geom.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
-                              glm::mat4 scaleMat = glm::scale(glm::mat4(), geom.scale);
-                              geom.transform = translationMat * rotationMat * scaleMat;
-                              //geom.transform = utilityCore::buildTransformationMatrix(
-                              //    geom.translation, geom.rotation, geom.scale);
+                              glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
+                              glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
+                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
+                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
+                              glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
+                              triangle.transform = translationMat * rotationMat * scaleMat;
+                              //triangle.transform = utilityCore::buildTransformationMatrix(
+                              //    triangle.translation, triangle.rotation, triangle.scale);
 
-                              //geom.inverseTransform = glm::inverse(geom.transform);
-                              //geom.invTranspose = glm::inverseTranspose(geom.transform);
+                              //triangle.inverseTransform = glm::inverse(triangle.transform);
+                              //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
 
-                              geom.pos1 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p1, 1.f));
-                              geom.pos2 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p2, 1.f));
-                              geom.pos3 = glm::vec3(geom.transform * glm::vec4(primitives[kdNode->startIndex].p3, 1.f));
+                              triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p1, 1.f));
+                              triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p2, 1.f));
+                              triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p3, 1.f));
 
-                              Geom& triangle = geom;
                               if (triangle.type == GeomType::TRIANGLE)
                               {
-                                  int temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                                  intersection = temp < intersection ? temp : intersection;
+                                  float temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                                  if (temp > 0.0)
+                                  {
+                                      intersection = temp < intersection ? temp : intersection;
+                                      intersectionPoint = tmp_intersect;
+                                  }
                               }
                           }
                       }

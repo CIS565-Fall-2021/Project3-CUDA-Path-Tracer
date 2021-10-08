@@ -157,7 +157,7 @@ __host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
         );
 
     if (!intersected)
-        return false;
+        return -1.f;
 
     intersectionPoint = getPointOnRay(r, glm::length(intersection - r.origin));
     normal = glm::normalize(glm::cross(triangle.pos2 - triangle.pos1, triangle.pos3 - triangle.pos1));
