@@ -7,7 +7,6 @@
 #include "utilities.h"
 #include "interactions.h"
 
-
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -174,7 +173,7 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
 // triangle degined by vertices v0, v1 and  v2
 // returns (t, u, v) where p = v0 + u(v1-v0) + v(v2-v0)
-__host__ __device__ glm::vec3 triIntersect(Ray const &r, Triangle const &tri, glm::vec3 &norm)
+__host__ __device__ glm::vec3 triIntersect(Ray const &r, Triangle const &tri)
 {
     using namespace glm;
     vec3 ro = r.origin;
@@ -192,8 +191,9 @@ __host__ __device__ glm::vec3 triIntersect(Ray const &r, Triangle const &tri, gl
     //           x = {p-a},
     //           s = {t, alpha, beta}Transpose
 
-    vec3 triNorm = cross(aToB, aToC); // Triangle normal from points
-    norm = triNorm;
+    // vec3 triNorm = cross(aToB, aToC); // Triangle normal from points
+    // norm = triNorm;
+    vec3 triNorm = tri.planarNorm;
     vec3 q = cross(aToRo, rd); // used for scalar triple product
     float negDet = dot(rd, triNorm);
     float negReciporicalDet = 1.f / negDet;
@@ -212,27 +212,28 @@ __host__ __device__ float triangleIntersectionTest(Geom const &tri, Ray r, glm::
     Ray q; // in triangle space
     q.origin = multiplyMV(tri.inverseTransform, glm::vec4(r.origin, 1.0f));
     q.direction = glm::normalize(multiplyMV(tri.inverseTransform, glm::vec4(r.direction, 0.0f)));
-    glm::vec3 norm;
+
+    // glm::vec3 norm;
     struct Triangle t = tris[index];
-    glm::vec3 tuv = triIntersect(q, t, norm);
+    // glm::vec3 tuv = triIntersect(q, t, norm);
+    glm::vec3 tuv = triIntersect(q, t);
     if (tuv.x <= 0.f)
     {
         return -1.f;
     }
+    outside = glm::dot(t.planarNorm, q.direction) < 0.f;
+    // back from triangle space
+    intersectionPoint = multiplyMV(tri.transform, glm::vec4(getPointOnRay(q, tuv.x), 1.f));
+    uv = (1.f - tuv.y - tuv.z) * t.uv[0] +
+         tuv.y * t.uv[1] +
+         tuv.z * t.uv[2];
     glm::vec3 normalTri(
         (1.f - tuv.y - tuv.z) * t.norm[0] +
         tuv.y * t.norm[1] +
         tuv.z * t.norm[2]);
-    // normalTri = norm; // Test no normal interp
-    outside = glm::dot(norm, q.direction) < 0.f;
-    // back from triangle space
-    intersectionPoint = multiplyMV(tri.transform, glm::vec4(getPointOnRay(q, tuv.x), 1.f));
+    // glm::Vec3 normalTri()
     normalTri *= (outside ? 1.f : -1.f);
     normal = glm::normalize(multiplyMV(tri.invTranspose, glm::vec4(normalTri, 0.f)));
-    uv = (1.f - tuv.y - tuv.z) * t.uv[0] +
-         tuv.y * t.uv[1] +
-         tuv.z * t.uv[2];
-    // uv = t.uv[0]; // Test no normal interp
     return glm::length(r.origin - intersectionPoint);
 }
 
@@ -296,7 +297,7 @@ __host__ __device__ bool aabbIntersectionTest(Geom const g, Ray r)
     return tmin <= tmax;
 }
 
-__host__ __device__ float meshIntersectionTest(Geom const &mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, glm::vec2 &uv, struct Triangle *tri)
+__host__ __device__ float meshIntersectionTest(Geom const &mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, glm::vec2 &uv, struct Triangle *tri, glm::mat3 &tbn)
 {
 #ifdef BV_CULL
     if (!aabbIntersectionTest(mesh, r))
@@ -322,6 +323,7 @@ __host__ __device__ float meshIntersectionTest(Geom const &mesh, Ray r, glm::vec
                 outside = tmpOut;
                 uv = tmpUv;
                 t = tmpT;
+                tbn = glm::mat3(tri[idx].tangent, tri[idx].bitangent, tri[idx].planarNorm);
             }
         }
         return t == 1e38f ? -1.f : t;

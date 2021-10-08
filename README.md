@@ -117,3 +117,9 @@ https://wallpaperaccess.com/star-wars-hyperspace
 pbrIsh
 DOF
 fix aabb
+
+to set scene, change camera lookfrom rather than rotating the mesh
+
+glm::vec2
+
+based https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-binormal

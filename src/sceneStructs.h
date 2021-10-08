@@ -20,9 +20,9 @@
 
 //! At most one debug flag at a time
 // try loading texture base color onto cube
-#define DEBUG_TEX_BASE_COLOR
+// #define DEBUG_TEX_BASE_COLOR
 // Sets color to the surface normal for debug
-// #define DEBUG_SURFACE_NORMAL
+#define DEBUG_SURFACE_NORMAL
 // Sets to grayscale representing the t value
 // #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
@@ -65,6 +65,10 @@ struct Triangle
     glm::vec3 pos[3] = {glm::vec3(), glm::vec3(), glm::vec3()};
     glm::vec3 norm[3] = {glm::vec3(), glm::vec3(), glm::vec3()};
     glm::vec2 uv[3] = {glm::vec2(), glm::vec2(), glm::vec2()};
+    // To go from tan space to obj space, col(t), col(b), col(n)
+    glm::vec3 tangent = glm::vec3();
+    glm::vec3 bitangent = glm::vec3();
+    glm::vec3 planarNorm = glm::vec3();
 };
 
 struct TexData

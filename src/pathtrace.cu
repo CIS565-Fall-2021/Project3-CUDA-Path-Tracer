@@ -118,18 +118,22 @@ void pathtraceInit(Scene *scene)
     cudaMalloc(&dev_tris, scene->triangles.size() * sizeof(struct Triangle));
     cudaMemcpy(dev_tris, scene->triangles.data(), scene->triangles.size() * sizeof(struct Triangle), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&dev_background, scene->backTex.size() * sizeof(glm::vec3));
-    cudaMemcpy(dev_background, scene->backTex.data(), scene->backTex.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
-    cudaMalloc(&dev_backHeight, sizeof(int));
-    cudaMemcpy(dev_backHeight, &(scene->backHeight), sizeof(int), cudaMemcpyHostToDevice);
-    cudaMalloc(&dev_backWidth, sizeof(int));
-    cudaMemcpy(dev_backWidth, &(scene->backWidth), sizeof(int), cudaMemcpyHostToDevice);
+    if (scene->backTex.size() > 0)
+    {
+        cudaMalloc(&dev_background, scene->backTex.size() * sizeof(glm::vec3));
+        cudaMemcpy(dev_background, scene->backTex.data(), scene->backTex.size() * sizeof(glm::vec3), cudaMemcpyHostToDevice);
+        cudaMalloc(&dev_backHeight, sizeof(int));
+        cudaMemcpy(dev_backHeight, &(scene->backHeight), sizeof(int), cudaMemcpyHostToDevice);
+        cudaMalloc(&dev_backWidth, sizeof(int));
+        cudaMemcpy(dev_backWidth, &(scene->backWidth), sizeof(int), cudaMemcpyHostToDevice);
+    }
 
     checkCUDAError("pathtraceInit");
 }
 
 void pathtraceFree()
 {
+
     cudaFree(dev_image); // no-op if dev_image is null
     cudaFree(dev_paths);
     cudaFree(dev_geoms);
@@ -139,11 +143,24 @@ void pathtraceFree()
     cudaFree(dev_intersectionCache);
     cudaFree(dev_texData);
     cudaFree(dev_tris);
-    cudaFree(dev_background);
-    cudaFree(dev_backHeight);
-    cudaFree(dev_backWidth);
+    if (dev_background != NULL)
+    {
+        cudaFree(dev_background);
+        cudaFree(dev_backHeight);
+        cudaFree(dev_backWidth);
+    }
 
     checkCUDAError("pathtraceFree");
+}
+
+__host__ __device__ __forceinline__ int uv2Idx(glm::vec2 uv, int w, int h)
+{
+    return (glm::floor(uv.x * w) + w * glm::floor(uv.y * h));
+}
+
+__host__ __device__ __forceinline__ glm::vec3 texCol2Color(uint8_t *cols)
+{
+    return glm::vec3(cols[0] / 255.f, cols[1] / 255.f, cols[2] / 255.f);
 }
 
 /**
@@ -201,7 +218,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 // Generating new rays is handled in your shader(s).
 // Feel free to modify the code below.
 __global__ void computeIntersections(
-    int depth, int num_paths, PathSegment *pathSegments, Geom *geoms, int geoms_size, ShadeableIntersection *intersections, struct Triangle *tri)
+    int depth, int num_paths, PathSegment *pathSegments, Geom *geoms, int geoms_size, ShadeableIntersection *intersections, struct Triangle *tri, struct TexData *texArr, Material *mats)
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -220,6 +237,8 @@ __global__ void computeIntersections(
         glm::vec3 tmp_normal;
         glm::vec2 tmp_uv;
         glm::vec2 uv;
+
+        glm::mat3 tan2ObjMat;
 
         // naive parse through global geoms
 
@@ -240,7 +259,7 @@ __global__ void computeIntersections(
             // TODO: add more intersection tests here... triangle? metaball? CSG?
             else if (geom.type == MESH)
             {
-                t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv, tri);
+                t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, tmp_uv, tri, tan2ObjMat);
             }
             // else if (geom.type == TRIANGLE)
             // {
@@ -254,9 +273,30 @@ __global__ void computeIntersections(
                 t_min = t;
                 hit_geom_index = i;
                 intersect_point = tmp_intersect;
-                normal = tmp_normal;
                 // uv = geom.type == TRIANGLE ? tmp_uv : glm::vec2(-1.f);
                 uv = tmp_uv;
+                // normal = tmp_normal;
+                normal = geom.type == MESH && geom.useTexture
+                             ? glm::vec3(
+                                   // transform from obj space to scene space
+                                   glm::normalize(
+                                       geom.invTranspose *
+                                       glm::vec4(
+                                           // transform from tan space to obj space
+                                           (tan2ObjMat *
+                                            // convert normal to glmvec3 from -1 to 1
+                                            (2.f * texCol2Color(
+                                                       // get normal from normmap
+                                                       texArr[uv2Idx(
+                                                                  uv,
+                                                                  mats[geom.materialid].texWidth,
+                                                                  mats[geom.materialid].texHeight)]
+                                                           .bump) -
+                                             glm::vec3(1.f))),
+                                           0.f)))
+                             : tmp_normal;
+                //                          normalTri *= (outside ? 1.f : -1.f);
+                // normal = glm::normalize(multiplyMV(tri.invTranspose, glm::vec4(normalTri, 0.f)));
             }
         }
 
@@ -306,6 +346,12 @@ __global__ void shadeRealMaterial(
         }
         else // case thing isnt light so calculate
         {
+            // height lines of width pixels ->
+            //    u * width, v * height, floor both
+            //    nU, nV -> nU + width * nV
+            int w = material.texWidth;
+            int h = material.texHeight;
+            long long tmpidx = uv2Idx(intersection.uvs, w, h);
 #ifdef DEBUG_SURFACE_NORMAL
             pathSegments[idx].color = intersection.surfaceNormal; // Debug only
             pathSegments[idx].remainingBounces = 0;
@@ -313,18 +359,14 @@ __global__ void shadeRealMaterial(
             pathSegments[idx].color = glm::vec3(intersection.t * 0.01); // Debug only
             pathSegments[idx].remainingBounces = 0;
 #elif defined(DEBUG_TEX_BASE_COLOR)
-            // height lines of width pixels ->
-            //    u * width, v * height, floor both
-            //    nU, nV -> nU + width * nV
-            int w = material.texWidth;
-            int h = material.texHeight;
-            long long tmpidx = (int)(glm::floor(intersection.uvs.x * w) + w * glm::floor(intersection.uvs.y * h));
+            // long long tmpidx = (int)(glm::floor(intersection.uvs.x * w) + w * glm::floor(intersection.uvs.y * h));
             pathSegments[idx].color =
                 tmpidx < (w * h) &&
                         intersection.uvs.x >= 0 &&
                         intersection.uvs.y >= 0 &&
                         intersection.useTexture
-                    ? glm::vec3(baseColor[tmpidx].bCol[0] / 255.f, baseColor[tmpidx].bCol[1] / 255.f, baseColor[tmpidx].bCol[2] / 255.f)
+                    // ? glm::vec3(baseColor[tmpidx].bCol[0] / 255.f, baseColor[tmpidx].bCol[1] / 255.f, baseColor[tmpidx].bCol[2] / 255.f)
+                    ? texCol2Color(baseColor[tmpidx].bCol)
                     // : intersection.surfaceNormal;
                     : material.color;
             // pathSegments[idx].color = baseColor[tmpidx] / 255.f;
@@ -343,9 +385,16 @@ __global__ void shadeRealMaterial(
         // pathSegments[idx].color = glm::vec3(0.1f);
         // pathSegments[idx].color *= glm::vec3(0.1f);
         // pathSegments[idx].color = glm::vec3(0.f);
-        glm::vec3 q = 0.5f * pathSegments[idx].ray.direction + 0.5f;
-        int index = glm::floor(q.x * (*backWidth)) + (*backWidth) * glm::floor(q.y * (*backHeight));
-        pathSegments[idx].color *= backData[index];
+        if (backData == NULL)
+        {
+            pathSegments[idx].color = glm::vec3(0.f);
+        }
+        else
+        {
+            glm::vec3 q = 0.5f * pathSegments[idx].ray.direction + 0.5f;
+            int index = glm::floor(q.x * (*backWidth)) + (*backWidth) * glm::floor(q.y * (*backHeight));
+            pathSegments[idx].color *= backData[index];
+        }
         pathSegments[idx].remainingBounces = 0;
     }
 }
@@ -470,7 +519,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 #endif
         {
             computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
-                depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections, dev_tris);
+                depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections, dev_tris, dev_texData, dev_materials);
             checkCUDAError("trace one bounce");
             cudaDeviceSynchronize();
         }

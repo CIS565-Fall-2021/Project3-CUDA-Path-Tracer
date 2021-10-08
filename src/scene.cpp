@@ -211,11 +211,32 @@ int Scene::loadGeom(string objectid)
                             }
                         }
                         index_offset += fv;
+                        // precalc tan, bitan, plannorm
+                        // ABC, HKL uvs
+                        // D = B-A
+                        // E = C-A
+                        // F = K-H
+                        // G = L-H
+                        // D = F.s * T + F.t * U
+                        // E = G.s * T + G.t * U
+                        // | D.x D.y D.z |   | F.s F.t | | T.x T.y T.z |
+                        // |             | = |         | |             |
+                        // | E.x E.y E.z |   | G.s G.t | | U.x U.y U.z |
+                        glm::vec3 d = tri.pos[1] - tri.pos[0];
+                        glm::vec3 e = tri.pos[2] - tri.pos[0];
+                        glm::vec2 uvF = tri.uv[1] - tri.uv[0];
+                        glm::vec2 uvG = tri.uv[2] - tri.uv[0];
+                        auto tmpMatSquare = glm::inverse(glm::transpose(glm::mat2(uvF, uvG)));
+                        auto tmpMatRectan = glm::transpose(glm::mat2x3(d, e));
+                        auto prodMat = glm::transpose(tmpMatSquare * tmpMatRectan);
+                        tri.planarNorm = glm::cross(d, e);
+                        tri.tangent = prodMat[0];
+                        tri.bitangent = prodMat[1];
                         // triangs.push_back(tri);
                         meshTris.push_back(tri);
 
                         // per-face material
-                        shapes[s].mesh.material_ids[f];
+                        //shapes[s].mesh.material_ids[f];
                     }
                     // meshVec[s].ts = meshTris;
                     meshVec[s].useTexture = s != 0;
