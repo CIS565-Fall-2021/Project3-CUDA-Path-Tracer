@@ -5,7 +5,7 @@ CUDA Path Tracer
 
 * Aditya Hota
   * [LinkedIn](https://www.linkedin.com/in/aditya-hota)
-* Tested on: Windows 11, i7-8750H @ 2.20 GHz 20 GB, GTX 1070 eGPU 6 GB (personal laptop)
+* Tested on: Windows 11, i7-8750H @ 2.20 GHz 20 GB, GTX 1070 eGPU 8 GB (personal laptop)
 
 # Overview
 <p align="middle">
