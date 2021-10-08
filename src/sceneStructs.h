@@ -87,3 +87,11 @@ struct isTerminated
         return p.remainingBounces > 0;
     }
 };
+
+struct sortMaterial 
+{
+    __host__ __device__ 
+    bool operator()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
+        return a.materialId < b.materialId;
+    }
+};

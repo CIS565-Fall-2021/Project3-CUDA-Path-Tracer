@@ -3,10 +3,8 @@
 #include <cmath>
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
-#include <thrust/remove.h>
-
 #include <thrust/partition.h>
-// #include <thrust/execution_policy.h>
+
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -16,6 +14,8 @@
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"
+
+#define SORT_BY_MATERIAL 0
 
 #define ERRORCHECK 1
 
@@ -240,7 +240,7 @@ __global__ void shadeFakeMaterial (
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths)
-    {
+    { 
         ShadeableIntersection intersection = shadeableIntersections[idx];
         if (intersection.t > 0.0f) { // if the intersection exists...
             // Set up the RNG
@@ -401,7 +401,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
         // TODO:
         // --- Sort rays by material Stage ---
-
+#if SORT_BY_MATERIAL
+        thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, sortMaterial());
+#endif
         // TODO:
         // --- Shading Stage (will genereate new rays in shader(s) ---
         //     * TODO: Shade the rays that intersected something or didn't bottom out.
@@ -423,7 +425,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         dev_paths,
         dev_materials
         );
-        cudaDeviceSynchronize();
         
 
         // --- Stream Compaction Stage ---

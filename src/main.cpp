@@ -104,8 +104,11 @@ void saveImage() {
     //img.saveHDR(filename);  // Save a Radiance HDR file
 }
 
+clock_t start, stop;
+
 void runCuda() {
     if (camchanged) {
+        start = clock();
         iteration = 0;
         Camera &cam = renderState->camera;
         cameraPosition.x = zoom * sin(phi) * sin(theta);
@@ -148,6 +151,10 @@ void runCuda() {
         saveImage();
         pathtraceFree();
         cudaDeviceReset();
+        stop = clock();
+        double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
+        std::cerr << "took " << timer_seconds << " seconds.\n";
+
         exit(EXIT_SUCCESS);
     }
 }
