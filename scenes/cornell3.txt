@@ -7,6 +7,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+usingProcTex 0
 
 // Diffuse white
 MATERIAL 1
@@ -17,7 +18,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-
+usingProcTex 0
 
 // Diffuse red
 MATERIAL 2
@@ -28,6 +29,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+usingProcTex 0
 
 // Diffuse green
 MATERIAL 3
@@ -38,27 +40,40 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+usingProcTex 0
 
 // Specular white
 MATERIAL 4
 RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
-REFL        0.6
+REFL        1
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-
+usingProcTex 0
 
 // Refractive white
 MATERIAL 5
 RGB         .98 .98 .98
-SPECEX      0
-SPECRGB     .98 .98 .98
+SPECEX      1
+SPECRGB     .8 .8 .98
 REFL        0
-REFR        0.5
-REFRIOR     1.5
+REFR        1
+REFRIOR     1.2
 EMITTANCE   0
+usingProcTex 0
+
+// ProcTexture white
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+usingProcTex 1
 
 // Camera
 CAMERA
@@ -139,7 +154,7 @@ SCALE       3 3 3
 // Sphere3
 OBJECT 8
 sphere
-material 1
+material 6
 TRANS       2 7 0
 ROTAT       0 0 0
 SCALE       3 3 3

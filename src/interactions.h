@@ -1,7 +1,7 @@
 #pragma once
 
 #include "intersections.h"
-
+#include "ProceduralTextures.h"
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -67,6 +67,9 @@ __device__ glm::vec3 refract(const glm::vec3& uv, const glm::vec3& n, float etai
 __device__
 glm::vec3 DielectricScatter(
     PathSegment& pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material& m, thrust::default_random_engine& rng) {
+    
+   
+
     thrust::uniform_real_distribution<float> u01(0, 1);
     normal = glm::normalize(normal);
     bool  front_face = glm::dot(pathSegment.ray.direction, normal) < 0.0f;
@@ -80,9 +83,22 @@ glm::vec3 DielectricScatter(
     glm::vec3 direction;
 
     if (cannot_refract || reflectance(cos_theta, refraction_ratio) > u01(rng))
+    {
+        float scale = m.hasRefractive <= 0.0 ? 0.0 : 1.0 / (1-m.hasRefractive);
         direction = glm::reflect(unit_direction, normal);
+        if (!m.usingProcTex)
+        {
+            pathSegment.color *= m.color;
+        }
+    }
     else
+    {
+        float scale = m.hasRefractive <= 0.0 ? 0.0 : 1.0 / (m.hasRefractive);
         direction = refract(unit_direction, normal, u01(rng));
+        if (m.specular.exponent > 0 && !m.usingProcTex) {
+            pathSegment.color *= m.specular.color ;
+        }
+    }
 
     return glm::normalize(direction);
 }
@@ -93,77 +109,6 @@ inline  bool near_zero(glm::vec3 vec) {
     return (fabs(vec[0]) < EPSILON) && (fabs(vec[1]) < EPSILON) && (fabs(vec[2]) < EPSILON);
 }
 
-__device__
-float noise2D(glm::vec2 p) {
-    return glm::fract(glm::sin(glm::dot(p, glm::vec2(127.1, 311.7))) *
-        43758.5453);
-}
-
-__device__
-float interpNoise2D(float x, float y) {
-    int intX = int(floor(x));
-    float fractX = glm::fract(x);
-    int intY = int(floor(y));
-    float fractY = glm::fract(y);
-
-    float v1 = noise2D(glm::vec2(intX, intY));
-    float v2 = noise2D(glm::vec2(intX + 1, intY));
-    float v3 = noise2D(glm::vec2(intX, intY + 1));
-    float v4 = noise2D(glm::vec2(intX + 1, intY + 1));
-
-    float i1 = glm::mix(v1, v2, fractX);
-    float i2 = glm::mix(v3, v4, fractX);
-    return glm::mix(i1, i2, fractY);
-}
-
-__device__
-float fbm(glm::vec2 p) {
-    float total = 0;
-    float persistence = 0.5f;
-    int octaves = 8;
-    float freq = 2.f;
-    float amp = 0.5f;
-    for (int i = 1; i <= octaves; i++) {
-        freq *= 2.f;
-        amp *= persistence;
-
-        total += interpNoise2D(p.x * freq,
-            p.y * freq) * amp;
-    }
-    return total;
-}
-
-__device__
-float pattern(glm::vec2 p)
-{
-    glm::vec2 q = glm::vec2(fbm(p + glm::vec2(0.0, 0.0)),
-        fbm(p + glm::vec2(5.2, 1.3)));
-
-    glm::vec2 r = glm::vec2(fbm(p + 4.0f * q + glm::vec2(1.7, 9.2)),
-        fbm(p + 4.0f * q + glm::vec2(8.3, 2.8)));
-
-    return fbm(p + 4.0f * r);
-}
-__device__
-glm::vec3 colorValue2(double u, double v, const glm::vec3 p) {
-    glm::vec3 odd(0.98, 0.98, 0.98);
-    glm::vec3  even(0.1, 0.1, 0.1);
-    float pac = pattern(glm::vec2(u, v));
-    return glm::normalize(glm::vec3(1,1,1) * pattern(glm::vec2(u,v)) * 2.0f);
-}
-
-
-
-__device__
-glm::vec3 colorValue(double u, double v, const glm::vec3 p) {
-    glm::vec3 odd(0.2, 0.3, 0.1);
-    glm::vec3  even(0.9, 0.9, 0.9);
-    auto sines = sin(10 * p.x) * sin(10 * p.y) * sin(10 * p.z);
-    if (sines < 0)
-        return odd;
-    else
-        return even;
-}
 
 __device__
 void get_sphere_uv(const glm::vec3& p, double& u, double& v) {
@@ -219,38 +164,51 @@ void scatterRay(
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
     glm::vec3 scatter_direction;
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float random = u01(rng);
 
-    if (m.hasReflective > 0)
+    float scale = 1.0f;
+
+
+    if (random <=m.hasReflective )
     {
         scatter_direction = glm::reflect(pathSegment.ray.direction, normal);
+        scale = m.hasReflective <= 0.0 ? 0.0 : 1.0 / m.hasReflective;
+        if (!m.usingProcTex)
+        {
+            if (m.specular.exponent > 0 && random > 0.7)
+            {
+                pathSegment.color *= m.specular.color;
+            }
+            else
+            {
+                pathSegment.color *= m.color;
+            }
+        }
     }
-    else if (m.hasRefractive == 1)
+    else if (random <= m.hasRefractive + m.hasReflective )
     {
         scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
-
-        pathSegment.ray.origin = intersect + scatter_direction * EPSILON2;
-        pathSegment.ray.direction = scatter_direction;
-        return;
+       
     }
-
     else
     {
-        //scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
+        scale = m.hasReflective <= 0.0 ? 0.0 : 1.0 / (1 - m.hasReflective);
         scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
+        if (!m.usingProcTex)
+        {
+            pathSegment.color *= m.color;
+        }
     }
-
-    pathSegment.ray.origin = intersect;
-    pathSegment.ray.direction = scatter_direction;
     if (m.usingProcTex)
     {
         double u, v;
         glm::vec3 testInter = intersect;
         get_sphere_uv(intersect, u, v);
         glm::vec3 colorValue1 = colorValue2(u, v, intersect);
-        pathSegment.color *= colorValue1;
+        pathSegment.color *= colorValue1 * 2.0f;
     }
-    else
-    {
-        pathSegment.color *= m.color;
-    }
+    pathSegment.ray.origin = intersect + scatter_direction * EPSILON2;
+    pathSegment.ray.direction = scatter_direction;
+   
 }
