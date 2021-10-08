@@ -6,11 +6,6 @@ CUDA Path Tracer
 * Richard Chen
 * Tested on: Windows 11, i7-10875H @ 2.3GHz 16GB, RTX 2060 MAX-Q 6GB (PC)
 
-### (TODO: Your README)
-
-*DO NOT* leave the README to the last minute! It is a crucial part of the
-project, and we will not be able to grade you without a good README.
-
 ## Overview
 
 ![](finalRenders/cornell_demo1.png)
@@ -127,3 +122,7 @@ based https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-b
 https://schuttejoe.github.io/post/disneybsdf/
 https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-binormal
 file:///C:/Users/richa/AppData/Local/Temp/normal_mapping_tangent.pdf
+
+illegal array idxs in gpu kernel
+
+something something shinyness

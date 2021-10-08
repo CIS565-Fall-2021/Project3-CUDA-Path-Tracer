@@ -86,6 +86,7 @@ static struct Triangle *dev_tris = NULL;
 static int *dev_backWidth = NULL;
 static int *dev_backHeight = NULL;
 static glm::vec3 *dev_background = NULL;
+int matSize = 0;
 // ...
 
 void pathtraceInit(Scene *scene)
@@ -112,6 +113,12 @@ void pathtraceInit(Scene *scene)
     cudaMalloc(&dev_intersectionCache, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersectionCache, 0, pixelcount * sizeof(ShadeableIntersection));
 
+    // std::cout << "texdatasize " << scene->texData.size() << std::endl;
+    // for (const auto &x : scene->geoms)
+    // {
+    //     std::cout << "geomUseTex " << x.useTexture;
+    // }
+    // std::cout << std::endl;
     cudaMalloc(&dev_texData, scene->texData.size() * sizeof(struct TexData));
     cudaMemcpy(dev_texData, scene->texData.data(), scene->texData.size() * sizeof(struct TexData), cudaMemcpyHostToDevice);
 
@@ -127,6 +134,7 @@ void pathtraceInit(Scene *scene)
         cudaMalloc(&dev_backWidth, sizeof(int));
         cudaMemcpy(dev_backWidth, &(scene->backWidth), sizeof(int), cudaMemcpyHostToDevice);
     }
+    matSize = scene->materials.size();
 
     checkCUDAError("pathtraceInit");
 }
@@ -179,25 +187,28 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
+        glm::vec2 off = glm::vec2(
+            (float)x - (float)cam.resolution.x * 0.5f,
+            (float)y - (float)cam.resolution.y * 0.5f);
+#ifdef ANTIALIASING
+        off += glm::vec2(u01(rng) - 0.5f, u01(rng) - 0.5f);
+#endif
         segment.ray.direction = glm::normalize(
             cam.view -
-            cam.right * cam.pixelLength.x * ((float)x
-#ifdef ANTIALIASING
-                                             + u01(rng) - 0.5f
-#endif
-                                             - (float)cam.resolution.x * 0.5f) -
-            cam.up * cam.pixelLength.y * ((float)y
-#ifdef ANTIALIASING
-                                          + u01(rng) - 0.5f
-#endif
-                                          - (float)cam.resolution.y * 0.5f));
+            cam.right * cam.pixelLength.x * off.x -
+            cam.up * cam.pixelLength.y * off.y);
 
+#ifdef DEPTH_OF_FIELD
+        float rad = LENS_RAD;
+        float focD = FOCAL_DIST;
+        glm::vec3 lens = rad * randomInUnitDisk(rng);
+        glm::vec3 focPoint = cam.position + (focD / glm::dot(cam.view, segment.ray.direction)) * segment.ray.direction;
+        segment.ray.origin += cam.right * lens.x + cam.up * lens.y;
+        segment.ray.direction = glm::normalize(focPoint - segment.ray.origin);
 #ifdef ANTIALIASING
-        segment.ray.direction = glm::normalize(
-            cam.view - cam.right * cam.pixelLength.x * ((float)x + u01(rng) - 0.5f - (float)cam.resolution.x * 0.5f) -
-            cam.up * cam.pixelLength.y * ((float)y + u01(rng) - 0.5f - (float)cam.resolution.y * 0.5f));
+        segment.ray.direction = glm::normalize(segment.ray.direction + glm::vec3(SMALL_OFFSET * glm::vec2(u01(rng) - 0.5f, u01(rng) - 0.5f), 0));
 #endif
-
+#endif
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
@@ -267,6 +278,10 @@ __global__ void computeIntersections(
                 uv = tmp_uv;
                 // normal = tmp_normal;
                 // sorry not sorry this got out of control
+                auto tmpidx2 = uv2Idx(
+                    uv,
+                    mats[geom.materialid].texWidth,
+                    mats[geom.materialid].texHeight);
                 normal = geom.type == MESH && geom.useTexture
                              ? glm::vec3(
                                    // transform from obj space to scene space
@@ -278,14 +293,13 @@ __global__ void computeIntersections(
                                             // convert normal to glmvec3 from -1 to 1
                                             (2.f * texCol2Color(
                                                        // get normal from normmap
-                                                       texArr[uv2Idx(
-                                                                  uv,
-                                                                  mats[geom.materialid].texWidth,
-                                                                  mats[geom.materialid].texHeight)]
+                                                       texArr[tmpidx2]
                                                            .bump) -
                                              glm::vec3(1.f))),
                                            0.f)))
                              : tmp_normal;
+                // normal *= -1.f * outside ? 1.f : -1.f; // unknown
+                // normal *= outside ? 1.f : -1.f;
                 //                          normalTri *= (outside ? 1.f : -1.f);
                 // normal = glm::normalize(multiplyMV(tri.invTranspose, glm::vec4(normalTri, 0.f)));
             }
@@ -317,7 +331,7 @@ __global__ void computeIntersections(
  * @param materials array of materials
  */
 __global__ void shadeRealMaterial(
-    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth, struct TexData *baseColor, glm::vec3 *backData, int *backWidth, int *backHeight)
+    int iter, int num_paths, ShadeableIntersection *shadeableIntersections, PathSegment *pathSegments, Material *materials, int depth, struct TexData *baseColor, glm::vec3 *backData, int *backWidth, int *backHeight, int matSize)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= num_paths)
@@ -328,6 +342,10 @@ __global__ void shadeRealMaterial(
     ShadeableIntersection intersection = shadeableIntersections[idx];
     if (intersection.t > 0.0f)
     {
+        if (intersection.materialId < 0 || intersection.materialId >= matSize) // check materialsize too
+        {
+            return;
+        }
         Material material = materials[intersection.materialId];
         // height lines of width pixels ->
         //    u * width, v * height, floor both
@@ -335,6 +353,10 @@ __global__ void shadeRealMaterial(
         int w = material.texWidth;
         int h = material.texHeight;
         long long tmpidx = uv2Idx(intersection.uvs, w, h);
+        if (intersection.useTexture && (tmpidx < 0 || tmpidx >= w * h))
+        {
+            return;
+        }
         if (material.emittance > 0.f) // case thing is light
         {
             glm::vec3 materialColor = material.color;
@@ -343,13 +365,36 @@ __global__ void shadeRealMaterial(
         }
         else if (intersection.useTexture && baseColor[tmpidx].emit) // case texel is emmisive
         {
-            pathSegments[idx].color *= 3.f * texCol2Color(baseColor[tmpidx].bCol);
+            pathSegments[idx].color *= 2.f * texCol2Color(baseColor[tmpidx].bCol);
             pathSegments[idx].remainingBounces = 0;
         }
         else // case thing isnt light so calculate
         {
 #ifdef DEBUG_SURFACE_NORMAL
-            pathSegments[idx].color = intersection.surfaceNormal; // Debug only
+            // pathSegments[idx].color = intersection.surfaceNormal * 0.5f + glm::vec3(0.5f); // Debug only
+            pathSegments[idx].color = intersection.surfaceNormal;
+            pathSegments[idx].remainingBounces = 0;
+#elif defined(DEBUG_ROUGH)
+            pathSegments[idx].color =
+                tmpidx < (w * h) &&
+                        intersection.uvs.x >= 0 &&
+                        intersection.uvs.y >= 0 &&
+                        intersection.useTexture
+                    // ? glm::vec3(baseColor[tmpidx].bCol[0] / 255.f, baseColor[tmpidx].bCol[1] / 255.f, baseColor[tmpidx].bCol[2] / 255.f)
+                    ? glm::vec3(uShort2Float(baseColor[tmpidx].rogh))
+                    // : intersection.surfaceNormal;
+                    : glm::vec3(0.f);
+            pathSegments[idx].remainingBounces = 0;
+#elif defined(DEBUG_METAL)
+            pathSegments[idx].color =
+                tmpidx < (w * h) &&
+                        intersection.uvs.x >= 0 &&
+                        intersection.uvs.y >= 0 &&
+                        intersection.useTexture
+                    // ? glm::vec3(baseColor[tmpidx].bCol[0] / 255.f, baseColor[tmpidx].bCol[1] / 255.f, baseColor[tmpidx].bCol[2] / 255.f)
+                    ? glm::vec3(uShort2Float(baseColor[tmpidx].metl))
+                    // : intersection.surfaceNormal;
+                    : glm::vec3(0.f);
             pathSegments[idx].remainingBounces = 0;
 #elif defined(DEBUG_T_VAL)
             pathSegments[idx].color = glm::vec3(intersection.t * 0.01); // Debug only
@@ -370,7 +415,8 @@ __global__ void shadeRealMaterial(
             pathSegments[idx].remainingBounces = 0;
 #else
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-            scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng, baseColor[tmpidx], intersection.useTexture);
+            struct TexData tmpStrct;
+            scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng, intersection.useTexture ? baseColor[tmpidx] : tmpStrct, intersection.useTexture);
             pathSegments[idx].remainingBounces--;
 #endif
         }
@@ -389,7 +435,14 @@ __global__ void shadeRealMaterial(
         {
             glm::vec3 q = 0.5f * pathSegments[idx].ray.direction + 0.5f;
             int index = glm::floor(q.x * (*backWidth)) + (*backWidth) * glm::floor(q.y * (*backHeight));
+            if (index < 0 || index >= (*backWidth) * (*backHeight))
+            {
+                return;
+            }
             pathSegments[idx].color *= backData[index];
+            // pathSegments[idx].color *= backData[index] * backData[index];
+            // pathSegments[idx].color *= glm::length(backData[index]) < 0.5f ? glm::vec3(0.f) : backData[index];
+            // pathSegments[idx].color *= glm::mix(glm::vec3(0.f), backData[index], glm::length(backData[index]));
         }
         pathSegments[idx].remainingBounces = 0;
     }
@@ -536,7 +589,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
         // path segments that have been reshuffled to be contiguous in memory.
 
         // shadeFakeMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials);
-        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth, dev_texData, dev_background, dev_backWidth, dev_backHeight);
+        shadeRealMaterial<<<numblocksPathSegmentTracing, blockSize1d>>>(iter, num_paths, dev_intersections, dev_paths, dev_materials, depth, dev_texData, dev_background, dev_backWidth, dev_backHeight, matSize);
         checkCUDAError("my shader");
         depth++;
 #ifdef COMPACT_RAYS

@@ -70,17 +70,17 @@ NORMALMAP
 
 // chrome
 MATERIAL 5
-RGB         .35 .35 .85
+RGB         .35 .85 .85
 SPECEX      0
 SPECRGB     .98 .98 .98
-REFL        1
+REFL        0
 REFR        0
 REFRIOR     1.5
 EMITTANCE   0
-COLORMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_baseColor.png
+COLORMAP ../scenes/resize_stwing.png
 EMITMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_emissive.png
 ROUGHMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_normal.png 
+NORMALMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_normal.png
 
 // Camera
 CAMERA
@@ -152,7 +152,7 @@ SCALE       1 1 1
 
 // cube
 OBJECT 7
-mesh ../scenes/cube.obj
+mesh ../scenes/cube2.obj
 material 5
 TRANS       0 5 0
 ROTAT       30 45 0

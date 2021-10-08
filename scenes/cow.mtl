@@ -1,8 +1,0 @@
-newmtl cow:initialShadingGroup
-	Ka 0.2 0.2 0.2
-	Kd 0.7241664348743744 0.38082699022272768 0.00178208301015399
-	d 1
-	Tr 0
-	illum 2
-	Ks 0.2 0.2 0.2
-	Ns 20

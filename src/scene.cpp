@@ -88,13 +88,15 @@ int Scene::loadBackground()
                     // t.bCol[0] = imgBuff[tmpIdx];
                     // t.bCol[1] = imgBuff[tmpIdx + 1];
                     // t.bCol[2] = imgBuff[tmpIdx + 2];
-                    backTex.push_back(t);
+                    // backTex.push_back(t);
+                    backTex.push_back(glm::mix(glm::vec3(0.f), t, glm::length(t))); // my specific background is too bright
                 }
                 cout << "vector size " << backTex.size() << endl;
                 stbi_image_free(imgBuff);
             }
         }
     }
+    return 1;
 }
 
 int Scene::loadGeom(string objectid)
@@ -239,7 +241,7 @@ int Scene::loadGeom(string objectid)
                         //shapes[s].mesh.material_ids[f];
                     }
                     // meshVec[s].ts = meshTris;
-                    meshVec[s].useTexture = s != 0;
+                    meshVec[s].useTexture = meshVec[s].numTris > 20000 ? s != 0 : 1;
                     meshVec[s].type = MESH;
                     // meshVec[s].meshIdx = s;
                     //TODO: Calculate AABBs
@@ -479,7 +481,7 @@ int Scene::loadMaterial(string materialid)
                     texData.reserve((size_t)width * (size_t)height);
                     for (int idx = 0; idx < width * height; idx++)
                     {
-                        int tmpIdx = idx * 3;
+                        int tmpIdx = idx * byteStride;
                         struct TexData t;
                         t.bCol[0] = imgBuff[tmpIdx];
                         t.bCol[1] = imgBuff[tmpIdx + 1];
@@ -505,7 +507,8 @@ int Scene::loadMaterial(string materialid)
                     }
                     for (int idx = 0; idx < width * height; idx++)
                     {
-                        texData[idx].emit = imgBuff[idx]; // assumes emitmap is 1 byte per pixel
+                        int tmpIdx = idx * byteStride;
+                        texData[idx].emit = imgBuff[tmpIdx]; // assumes emitmap is 1 byte per pixel
                     }
                     stbi_image_free(imgBuff);
                 }
@@ -524,13 +527,23 @@ int Scene::loadMaterial(string materialid)
                     }
                     for (int idx = 0; idx < width * height; idx++)
                     {
-                        int tmpIdx = idx * 3;
+                        int tmpIdx = idx * byteStride;
                         texData[idx].amOc = imgBuff[tmpIdx];
                         texData[idx].rogh = imgBuff[tmpIdx + 1];
                         texData[idx].metl = imgBuff[tmpIdx + 2];
                     }
                     stbi_image_free(imgBuff);
                 }
+                // else if (newMaterial.useTex)
+                // {
+                //     for (int idx = 0; idx < newMaterial.texWidth * newMaterial.texHeight; idx++)
+                //     {
+                //         int tmpIdx = idx * 3;
+                //         texData[idx].amOc = imgBuff[tmpIdx];
+                //         texData[idx].rogh = imgBuff[tmpIdx + 1];
+                //         texData[idx].metl = imgBuff[tmpIdx + 2];
+                //     }
+                // }
             }
             else if (strcmp(tokens[0].c_str(), "NORMALMAP") == 0)
             {

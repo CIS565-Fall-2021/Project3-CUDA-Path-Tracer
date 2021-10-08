@@ -31,18 +31,29 @@ __host__ __device__ __forceinline__ float retF0(float reflectance, uint8_t metal
 }
 __host__ __device__ glm::vec3 randomOnUnitSphere(thrust::default_random_engine &rng)
 {
-    thrust::uniform_real_distribution<float> u11(-1, 1);
+    thrust::uniform_real_distribution<float> u01(0, 1);
     float x1, x2;
     do
     {
-        x1 = u11(rng);
-        x2 = u11(rng);
+        x1 = u01(rng) * 2.f - 1.f;
+        x2 = u01(rng) * 2.f - 1.f;
     } while (x1 * x1 + x2 * x2 > 1.f);
     return glm::vec3(2 * x1 * glm::sqrt(1.f - x1 * x1 - x2 * x2),
                      2 * x2 * glm::sqrt(1.f - x1 * x1 - x2 * x2),
                      1 - 2 * (x1 * x1 + x2 * x2));
 }
 
+__host__ __device__ glm::vec3 randomInUnitDisk(thrust::default_random_engine &rng)
+{
+    thrust::uniform_real_distribution<float> u11(-1.f, 1.f);
+    while (true)
+    {
+        auto p = glm::vec3(u11(rng), u11(rng), 0.f);
+        if (p.x * p.x + p.y * p.y + p.z * p.z >= 1.f)
+            continue;
+        return p;
+    }
+}
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -153,11 +164,15 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment, glm::vec3 intersec
     float randomFloat = (u01(rng));
     if (m.useTex && useTexture)
     {
+        // glm::vec3 normal = -1.f * normal;
         float rough = uShort2Float(texel.rogh);
         float metal = uShort2Float(texel.metl);
-        float albedo = uShort2Float(texel.bCol[0]);
+        // float albedo = uShort2Float(glm::max(glm::max(texel.bCol[0], texel.bCol[1]), texel.bCol[2]));
+        float albedo = 0.98f;
         float f0 = glm::mix(0.04f, albedo, metal);
+        // float f0 = metal > 0.f ? albedo : 0.04f; // test no blending partial metals
         float fresnelF = reflectance(glm::dot(normal, pathSegment.ray.direction), f0);
+        // fresnelF *= metal;
         float tmpRand = u01(rng);
         //  F0 as mix(0.04, albedo, metalness)
         // Fresnel reflectance F using F0
@@ -166,18 +181,22 @@ __host__ __device__ void scatterRay(PathSegment &pathSegment, glm::vec3 intersec
         // specular attenuation use F, so color of that ray becomes F * color(specular_direction)
 
         if (tmpRand < fresnelF)
+        // if (tmpRand < 0.5f)
         {
             //specular
-            pathSegment.color *= texCol2Color(texel.bCol); // maybe also add attenuation of fresnelF
+            pathSegment.color *= texCol2Color(texel.bCol); // + glm::vec3(0.05f); // maybe also add attenuation of fresnelF
             pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
-            pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal) + rough * randomOnUnitSphere(rng));
+            pathSegment.ray.direction = glm::normalize((1 - rough) * glm::reflect(pathSegment.ray.direction, normal) + rough * 0.375f * calculateRandomDirectionInHemisphere(normal, rng));
+            // pathSegment.ray.direction = glm::normalize(glm::reflect(pathSegment.ray.direction, normal));
         }
         else
         {
             // diffuse if not metal
-            if (metal <= 0.05f)
+            // if (metal <= 0.05f)
+            if (metal == 0.f)
+            // if (true)
             {
-                pathSegment.color *= texCol2Color(texel.bCol) + glm::vec3(0.2f); // attenuation of (1-fresnelF)*(1-metal)*albedo/pi
+                pathSegment.color *= texCol2Color(texel.bCol); // + glm::vec3(0.2f); // attenuation of (1-fresnelF)*(1-metal)*albedo/pi
                 pathSegment.ray.origin = intersect + OFFSET_VECTOR(normal);
                 pathSegment.ray.direction = glm::normalize((1 - rough) * calculateRandomDirectionInHemisphere(normal, rng) + rough * -1.f * pathSegment.ray.direction);
             }

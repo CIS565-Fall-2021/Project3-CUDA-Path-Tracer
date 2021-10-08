@@ -23,6 +23,10 @@
 // #define DEBUG_TEX_BASE_COLOR
 // Sets color to the surface normal for debug
 // #define DEBUG_SURFACE_NORMAL
+// grayscale representing roughness
+// #define DEBUG_ROUGH
+// grayscale representing metalness
+// #define DEBUG_METAL
 // Sets to grayscale representing the t value
 // #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
@@ -34,7 +38,7 @@
 // Jitter the ray directions slightly to trade noise for jagged edges
 #define ANTIALIASING
 // Use thin lens to randomize ray origin to approximate depth of field
-// #define DEPTH_OF_FIELD
+#define DEPTH_OF_FIELD
 #if defined(ANTIALIASING) || defined(DEPTH_OF_FIELD)
 #else
 // Cache first iter; only if first rays cast are deterministic
@@ -42,6 +46,11 @@
 #endif
 // Use AABBs to quick check mesh intersections
 #define BV_CULL
+
+#ifdef DEPTH_OF_FIELD
+#define LENS_RAD 0.5f
+#define FOCAL_DIST 10.5f
+#endif
 
 #define SMALL_OFFSET 0.001f
 #define OFFSET_VECTOR(newDir) SMALL_OFFSET *newDir
