@@ -147,7 +147,7 @@ __host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
     glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
 
     glm::vec3 intersection;
-    bool interesected = glm::intersectRayTriangle(
+    bool intersected = glm::intersectRayTriangle(
         r.origin, 
         r.direction, 
         triangle.pos1, 
@@ -156,7 +156,7 @@ __host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
         intersection
         );
 
-    if (!interesected)
+    if (!intersected)
         return false;
 
     intersectionPoint = getPointOnRay(r, glm::length(intersection - r.origin));

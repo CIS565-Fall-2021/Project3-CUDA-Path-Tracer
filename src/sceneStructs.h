@@ -115,6 +115,7 @@ void buildTree(
     std::vector<std::array<glm::vec3, 3>>& triangles, 
     std::vector<KDNode>* kdNodes);
 
+Geom createTriangle(const std::array<glm::vec3, 3>& triangle, int materialId);
 Geom createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
 
 struct KDTree
@@ -123,25 +124,25 @@ struct KDTree
     {}
     ~KDTree() {}
 
-    void updateLeafNodes(std::vector<KDNode>* kdNodes, Transform& transform, int materialId)
+    void updateLeafNodes(std::vector<KDNode>* kdNodes, int materialId)
     {
         for (auto& kdNode : *kdNodes)
         {
             if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
             {
                 if (kdNode.particles.size() != 0) // TODO: why does this sometimes NOT happen?
-                    kdNode.triangle = createTriangle(kdNode.particles.at(0), transform, materialId);
+                    kdNode.triangle = createTriangle(kdNode.particles.at(0), materialId);
             }
         }
     }
 
-    void build(std::vector<KDNode>* kdNodes, std::vector<std::array<glm::vec3, 3>>& triangles, Transform& transform, int materialId)
+    void build(std::vector<KDNode>* kdNodes, std::vector<std::array<glm::vec3, 3>>& triangles, int materialId)
     {
         KDNode root = KDNode();
         root.axis = 0;
         kdNodes->push_back(root);
         buildTree(0, triangles, kdNodes);
-        updateLeafNodes(kdNodes, transform, materialId);
+        updateLeafNodes(kdNodes, materialId);
     }
     int kdNodes;
 };

@@ -62,12 +62,19 @@ int main(int argc, char** argv) {
     triangle[2] = glm::vec3(0.f, 0.5f, 0);
     scene->loadTriangle(triangle, transform, 2);*/
 
+    // load cube
+   /* Transform transform;
+    transform.rotate = glm::vec3(0);
+    transform.scale = glm::vec3(1.f);
+    transform.translate = glm::vec3(0, 2.5f, 0);
+    scene->LoadObj("../objs/cube.obj", transform, 2, true);*/
+
     // load bunny :3
     Transform transform;
     transform.rotate = glm::vec3(0);
     transform.scale = glm::vec3(30.f);
     transform.translate = glm::vec3(0);
-    scene->LoadObj("../objs/cube.obj", transform, 4, true);
+    scene->LoadObj("../objs/bunny.obj", transform, 4, true);
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;

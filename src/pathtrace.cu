@@ -261,6 +261,7 @@ __global__ void computeIntersections(
                       // primitive found
                       if (kdNode->triangle.type == GeomType::TRIANGLE) 
                         intersection = triangleIntersectionTest(kdNode->triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                      kdNode = nullptr;
                   }
                   else
                   {
@@ -279,7 +280,36 @@ __global__ void computeIntersections(
 
                       if (lt > 0.0 && rt > 0.0)
                       {
-                          kdNode = lt < rt ? leftNode : rightNode;
+                          if (abs(lt - rt) < 0.0001f)
+                          {
+                              // check axis of division
+                              if (kdNode->axis == 0)
+                              {
+                                  Geom lnode = leftNode->boundingBox;
+                                  float minX = lnode.translation.x - lnode.transform[3][0] / 2.f;
+                                  float maxX = lnode.translation.x + lnode.transform[3][0] / 2.f;
+
+                                  kdNode = tmp_intersect.x > ((maxX - minX) / 2.f) ? leftNode : rightNode;
+                              }
+                              else if (kdNode->axis == 1)
+                              {
+                                  Geom lnode = leftNode->boundingBox;
+                                  float minY = lnode.translation.y - lnode.transform[3][1] / 2.f;
+                                  float maxY = lnode.translation.y + lnode.transform[3][1] / 2.f;
+
+                                  kdNode = tmp_intersect.y > ((maxY - minY) / 2.f) ? leftNode : rightNode;
+                              }
+                              else
+                              {
+                                  Geom lnode = leftNode->boundingBox;
+                                  float minZ = lnode.translation.z - lnode.transform[3][2] / 2.f;
+                                  float maxZ = lnode.translation.z + lnode.transform[3][2] / 2.f;
+
+                                  kdNode = tmp_intersect.z > ((maxZ - minZ) / 2.f) ? leftNode : rightNode;
+                              }
+                          }
+                          else
+                            kdNode = lt < rt ? leftNode : rightNode;
                       }
                       else if (lt > 0.0)
                       {
@@ -302,14 +332,15 @@ __global__ void computeIntersections(
               }
           }
 
-         /* if (intersection > 0.0f && t_min > intersection)
+          if (intersection > 0.0f && t_min > intersection)
           {
-              t_min = t;
+              t_min = intersection;
               hit_geom_index = -2;
               intersect_point = tmp_intersect;
               normal = tmp_normal;
-          }*/
+          }
       }
+      
 
       if (hit_geom_index == -1)
       {
@@ -319,7 +350,8 @@ __global__ void computeIntersections(
       {
           //The ray hits something
           intersections[path_index].t = t_min;
-          intersections[path_index].materialId = (hit_geom_index == -2) ? 4 : geoms[hit_geom_index].materialid;
+          //intersections[path_index] = geoms[hit_geom_index]; 
+          intersections[path_index].materialId = (hit_geom_index == -2) ? 1 : geoms[hit_geom_index].materialid; // TODO: update
           intersections[path_index].surfaceNormal = normal;
       }
   }

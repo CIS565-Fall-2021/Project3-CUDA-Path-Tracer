@@ -114,9 +114,15 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
             triangle[2] = glm::vec3(transformMtx * glm::vec4(triangle[2], 1.f));
         }
 
+        // Build Identity transform
+        Transform identityTransform;
+        identityTransform.rotate = glm::vec3(0);
+        identityTransform.scale = glm::vec3(1);
+        identityTransform.translate = glm::vec3(0);
+
         // build a kdtree
         kdTrees.push_back(KDTree(0));
-        kdTrees.back().build(&kdNodes, triangles, transform, materialId);
+        kdTrees.back().build(&kdNodes, triangles, materialId);
     }
     else
     {
@@ -291,6 +297,19 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+Geom createTriangle(const std::array<glm::vec3, 3>& triangle, int materialId)
+{
+    Geom geom;
+    geom.type = GeomType::TRIANGLE;
+    geom.materialid = materialId;
+
+    geom.pos1 = triangle[0];
+    geom.pos2 = triangle[1];
+    geom.pos3 = triangle[2];
+
+    return geom;
 }
 
 Geom createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId)

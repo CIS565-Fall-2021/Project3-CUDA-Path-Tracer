@@ -86,8 +86,9 @@ void buildTree(
 
     // create box geom
     kdNodes->at(node).boundingBox.type = GeomType::CUBE;
-    kdNodes->at(node).boundingBox.translation = (maxCorner - minCorner) / 2.f;
-    kdNodes->at(node).boundingBox.scale = maxCorner / 0.5f;
+    kdNodes->at(node).boundingBox.translation = (maxCorner + minCorner) / 2.f;
+    kdNodes->at(node).boundingBox.scale = (maxCorner- kdNodes->at(node).boundingBox.translation) / 0.5f;
+    kdNodes->at(node).boundingBox.scale += 0.01f; // epsilon addition
     kdNodes->at(node).boundingBox.rotation = glm::vec3(0);
     kdNodes->at(node).boundingBox.transform = utilityCore::buildTransformationMatrix(
         kdNodes->at(node).boundingBox.translation, kdNodes->at(node).boundingBox.rotation, kdNodes->at(node).boundingBox.scale);
