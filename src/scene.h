@@ -11,6 +11,10 @@
 
 using namespace std;
 
+__host__ __device__ Geom createTriangle(Triangle& triangle, int materialId);
+
+__host__ __device__ Geom createTriangle(Triangle& triangle, const Transform& transform, int materialId);
+
 class Scene {
 private:
     ifstream fp_in;
@@ -21,11 +25,12 @@ public:
     Scene(string filename);
     ~Scene();
 
-    int loadTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId); // TODO: make private
+    int loadTriangle(Triangle& triangle, const Transform& transform, int materialId); // TODO: make private
 
     bool LoadObj(string filename, Transform& transform, int materialId, bool kdTree);
 
     std::vector<Geom> geoms;
+    std::vector<Triangle> primitives;
     std::vector<KDTree> kdTrees;
     std::vector<KDNode> kdNodes;
     std::vector<Material> materials;

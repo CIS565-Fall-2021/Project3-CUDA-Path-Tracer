@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
     scene->loadTriangle(triangle, transform, 2);*/
 
     // load cube
-   /* Transform transform;
+ /*   Transform transform;
     transform.rotate = glm::vec3(0);
     transform.scale = glm::vec3(1.f);
     transform.translate = glm::vec3(0, 2.5f, 0);

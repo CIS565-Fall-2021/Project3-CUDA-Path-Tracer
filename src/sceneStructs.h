@@ -91,59 +91,79 @@ struct ShadeableIntersection {
   int materialId;
 };
 
+struct Triangle
+{
+    glm::vec3 p1, p2, p3;
+    Triangle(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) : p1(p1), p2(p2), p3(p3) {}
+    glm::vec3& operator[](int i)
+    {
+        if (i > 2)
+            return p1;
+        else
+        {
+            if (i == 0)
+                return p1;
+            else if (i == 1)
+                return p2;
+            else
+                return p3;
+        }
+    }
+};
+
 
 struct KDNode
 {
-    KDNode() : leftChild(-1), rightChild(-1), axis(0), particles() {}
+    KDNode() : leftChild(-1), rightChild(-1), axis(0), startIndex(-1), endIndex(-1) {}
     ~KDNode() {}
 
     int leftChild; 
     int rightChild; 
     unsigned int axis; // Which axis split this node represents
+    //glm::vec3 minCorner, maxCorner;
     Geom boundingBox;
-    Geom triangle; // only initialized if this is a leaf node
-    std::vector<std::array<glm::vec3, 3>> particles; // A collection of pointers to the particles contained in this node.
+    //Geom triangle; // only initialized if this is a leaf node
+    // TODO: remove this vector and replace with start and stop index
+    int startIndex; // start index to primitives array
+    int endIndex;
+    //std::vector<int> primitives; // A collection of pointers to the particles contained in this node.
 };
 
-// TODO: use getMinVertex to clean up code
-bool xSort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b);
-bool ySort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b);
-bool zSort(std::array<glm::vec3, 3> a, std::array<glm::vec3, 3> b);
-
 void buildTree(
-    int node, 
-    std::vector<std::array<glm::vec3, 3>>& triangles, 
-    std::vector<KDNode>* kdNodes);
-
-Geom createTriangle(const std::array<glm::vec3, 3>& triangle, int materialId);
-Geom createTriangle(const std::array<glm::vec3, 3>& triangle, const Transform& transform, int materialId);
+    int node,
+    std::vector<KDNode>* kdNodes,
+    std::vector<Triangle>* primitives,
+    int startInx, int endInx,
+    Transform& transform);
 
 struct KDTree
 {
-    KDTree(int inx) : kdNodes(inx)
+    KDTree(int inx, Transform& transform, int materialId) : kdNodes(inx), transform(transform), materialId(materialId)
     {}
     ~KDTree() {}
 
-    void updateLeafNodes(std::vector<KDNode>* kdNodes, int materialId)
-    {
-        for (auto& kdNode : *kdNodes)
-        {
-            if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
-            {
-                if (kdNode.particles.size() != 0) // TODO: why does this sometimes NOT happen?
-                    kdNode.triangle = createTriangle(kdNode.particles.at(0), materialId);
-            }
-        }
-    }
+    //void updateLeafNodes(std::vector<KDNode>* kdNodes, int materialId)
+    //{
+    //    for (auto& kdNode : *kdNodes)
+    //    {
+    //        if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
+    //        {
+    //            if (kdNode.primitives.size() != 0) // TODO: why does this sometimes NOT happen?
+    //                kdNode.triangle = createTriangle(kdNode.primitives.at(0), materialId);
+    //        }
+    //    }
+    //}
 
-    void build(std::vector<KDNode>* kdNodes, std::vector<std::array<glm::vec3, 3>>& triangles, int materialId)
+    void build(std::vector<KDNode>* kdNodes, std::vector<Triangle>* primitives, int startInx, int endInx)
     {
         KDNode root = KDNode();
         root.axis = 0;
         kdNodes->push_back(root);
-        buildTree(0, triangles, kdNodes);
-        updateLeafNodes(kdNodes, materialId);
+        buildTree(0, kdNodes, primitives, startInx, endInx, transform); // TODO: update the 0 root index
+        //updateLeafNodes(kdNodes, materialId);
     }
     int kdNodes;
+    Transform transform;
+    int materialId;
 };
 
