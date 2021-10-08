@@ -8,26 +8,55 @@ CUDA Path Tracer
 
 ## Overview
 
+Path tracing is a rendering technique where light rays are shot out from the "camera" 
+into the scene. Whenever it meets a surface, we track how the ray gets attenuated and scattered.
+This allows for more accurate rendering at the cost of requiring vast amounts of computation.
+Fortunately, since photons do not (ignoring relativity) interact with each other,
+this is very parallelizable, a perfect fit for running on a GPU. 
+
 ![](finalRenders/cornell_demo1.png)
-![](finalRenders/cornell_demo2.png)
-![](finalRenders/cornell_demo_tilt.png)
+<!-- ![](finalRenders/cornell_demo2.png)
+![](finalRenders/cornell_demo_tilt.png) -->
 
 ## Features
 
 * Diffuse surfaces
 ![](finalRenders/cornell_dfl.png)
+<br>
+Since most surfaces are not microscopically smooth, incoming light can leave in any direction.
+<br>
 
 * Specular reflection
 ![](finalRenders/cornell_specular.png)
+<br>
+Smooth surfaces reflect light neatly about the surface normal, like a mirror does. 
+<br>
 
-* Refraction with Snell's Law
-
-* Dielectrics with Schlick's Approximation
+* Dielectrics with Schlick's Approximation and Snell's Law
 ![](finalRenders/cornell_dielectric.png)
+<br>
+Light moves at different speeds through different mediums and this can cause light 
+to refract and/or reflect. In these examples, glass and air are used with indices of refractions
+of 1.5 and 1, respectively. The further the incoming light is from the surface normal, the more likely
+it is to reflect. 
+<br>
 
 * Anti Aliasing via Stochastic Sampling
 ![](finalRenders/cornell_antialiasing.png)
-TODO: noise vs aliasing trade off, notice the sphere's left edge is not nearly as jagged
+<br>
+As opposed to classical antialiasing which involves super-sampling an image and is thus very computationally
+expensive, stochastic sampling wiggles the outgoing ray directions slightly. This reduces the jagged artifacts
+from aliasing at the cost of more noise, but does not involve shooting extra photons per pixel. 
+Notice how the left edge of the sphere is not nearly as jagged in the anti-aliased version
+<br>
+
+* Depth of Field/Defocus Blur
+![](finalRenders/defocus_blur.png)
+<br>
+Despite modelling the rays as shooting out from an infinitesimal point, real life cameras have a lens 
+through which the light passes. Further, the laws of physics also prevent light from being infinitely focused.
+With cameras, this means that objects further away from the focal length will be blurrier. In ray tracing, the origin points of the light rays are wiggled in a manner consistent with approximating a lens. 
+<br>
 
 * Obj Mesh Loading
 ![](finalRenders/cow_shiny.png)
