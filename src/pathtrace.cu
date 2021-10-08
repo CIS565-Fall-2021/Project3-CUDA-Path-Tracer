@@ -18,7 +18,8 @@
 
 #define SORT_MATERIAL 1
 #define CACHE_INTERSECTION 1
-#define DEPTH_OF_FIELD 0
+#define DEPTH_OF_FIELD 1
+#define MESH_BOUND_CHECK 1
 
 #define ERRORCHECK 1
 

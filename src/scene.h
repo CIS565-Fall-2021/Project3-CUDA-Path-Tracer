@@ -9,7 +9,6 @@
 #include "sceneStructs.h"
 
 using namespace std;
-#define MESH_BOUND_CHECK 1
 
 class Scene {
 private:
