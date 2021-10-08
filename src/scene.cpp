@@ -48,6 +48,15 @@ Scene::Scene(string filename)
     }
 }
 
+void findBoundingBox(glm::vec3 v, Geom &g) {
+    g.maxBounding.x = g.maxBounding.x < v.x ? v.x : g.maxBounding.x;
+    g.maxBounding.y = g.maxBounding.y < v.y ? v.y : g.maxBounding.y;
+    g.maxBounding.z = g.maxBounding.z < v.z ? v.z : g.maxBounding.z;
+    g.minBounding.x = g.minBounding.x > v.x ? v.x : g.minBounding.x;
+    g.minBounding.y = g.minBounding.y > v.y ? v.y : g.minBounding.y;
+    g.minBounding.z = g.minBounding.z > v.z ? v.z : g.minBounding.z;
+}
+
 int Scene::loadGLTF()
 {
     string line;
@@ -103,9 +112,21 @@ int Scene::loadGLTF()
             printf("Failed to parse glTF\n");
             return -1;
         }
-        std::cout << line.c_str() << "\n";
+        
+        std::vector<int> meshTriIndices;
+
         for (const tinygltf::Mesh &mesh : model.meshes)
         {
+            Geom newGeom;
+            newGeom.type = MESH;
+            newGeom.minBounding = glm::vec3(FLT_MAX);
+            newGeom.maxBounding = glm::vec3(FLT_MIN);
+            newGeom.materialid = 4;
+            newGeom.transform = utilityCore::buildTransformationMatrix(translation, rotation, scale);
+            newGeom.inverseTransform = glm::inverse(newGeom.transform);
+            newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+            newGeom.triStartIdx = triIdx;            
+
             for (const tinygltf::Primitive &primitive : mesh.primitives)
             {
 
@@ -118,13 +139,10 @@ int Scene::loadGLTF()
                 const tinygltf::BufferView &posBufferView = model.bufferViews[posAccessor.bufferView];
                 const tinygltf::Buffer &posBuffer = model.buffers[posBufferView.buffer];
                 const float *positions = reinterpret_cast<const float *>(&posBuffer.data[posBufferView.byteOffset + posAccessor.byteOffset]);
-                //std::cout << primitive.attributes.at("NORMAL") << "\n";
 
                 const float *normals = nullptr;
                 if (primitive.attributes.count("NORMAL"))
                 {
-                    std::cout << "hi"
-                              << "\n";
                     const tinygltf::Accessor &norAccessor = model.accessors[primitive.attributes.at("NORMAL")];
                     const tinygltf::BufferView &norBufferView = model.bufferViews[norAccessor.bufferView];
                     const tinygltf::Buffer &norBuffer = model.buffers[norBufferView.buffer];
@@ -135,29 +153,26 @@ int Scene::loadGLTF()
                 for (size_t i = 0; i < idxAccessor.count; i += 3)
                 {
 
-                    Geom newGeom;
-                    newGeom.type = TRIANGLE;
-                    newGeom.materialid = 0;
+                    Triangle tri;
                     for (int j = 0; j < 3; j++)
                     {
-                        int idx = indices[j + i]; // indices[j + i];
-                                                  //  std::cout << idx << "\n";
-                        newGeom.vertices[j] = glm::vec3(positions[idx * 3 + 0], positions[idx * 3 + 1], positions[idx * 3 + 2]);
-                        //std::cout << glm::to_string(newGeom.vertices[j]) << '\n';
-                        if (normals) {
-                            newGeom.n1 = glm::vec3(normals[idx * 3 + 0], normals[idx * 3 + 1], normals[idx * 3 + 2]);
-                            newGeom.n2 = glm::vec3(normals[idx * 3 + 3], normals[idx * 3 + 4], normals[idx * 3 + 5]);
-                            newGeom.n3 = glm::vec3(normals[idx * 3 + 6], normals[idx * 3 + 7], normals[idx * 3 + 8]);
-                            }
+                        int idx = indices[j + i];
+                        tri.vertices[j] = glm::vec3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
+                        findBoundingBox(tri.vertices[j], newGeom);
+                        if (normals)
+                        {
+                            tri.normals[j] = glm::vec3(normals[idx * 3], normals[idx * 3 + 1], normals[idx * 3 + 2]);
+                        }
                     }
-
-                    
-                    newGeom.transform = utilityCore::buildTransformationMatrix(translation, rotation, scale);
-                    newGeom.inverseTransform = glm::inverse(newGeom.transform);
-                    newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
-                    geoms.push_back(newGeom);
+                    triangles.push_back(tri);
+                    triIdx++;
                 }
             }
+            std::cout << glm::to_string(newGeom.minBounding) << " : " << glm::to_string(newGeom.maxBounding) << "\n";
+
+            newGeom.triEndIdx = triIdx;
+            std::cout<< "mesh index: " << newGeom.triStartIdx << " : " << newGeom.triEndIdx << "\n";
+            geoms.push_back(newGeom);
         }
     }
 
