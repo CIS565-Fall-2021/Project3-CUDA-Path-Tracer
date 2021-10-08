@@ -30,6 +30,8 @@ project, and we will not be able to grade you without a good README.
 | Registers (```regsPerMultiprocessor```): 32-bit registers available per multiprocessor | 65536                                     |
 | Shared memory (```sharedMemPerMultiprocessor```): Shared memory available per multiprocessor in bytes | 102400 bytes                              |
 
+800x800 default cornell box: 
+
 1000 iteration took 55.934 seconds with sort by material
 
 1000 iteration took 21 seconds without sort by material
@@ -43,6 +45,11 @@ project, and we will not be able to grade you without a good README.
 5000 iteration took 110.662 seconds. seconds without sort by material
 
 5000 iteration took 104.159 seconds without sort by material with caching the first bounce
+
+
+
+Saved cornell.2021-10-07_21-32-24z.5000samp.png.
+took 349.176 seconds.
 
 
 
