@@ -3,8 +3,8 @@ CUDA Path Tracer
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
-* (TODO) YOUR NAME HERE
-* Tested on: (TODO) Windows 22, i7-2222 @ 2.22GHz 22GB, GTX 222 222MB (Moore 2222 Lab)
+* Xiao Wei
+* Tested on: Windows 10, i9-9900k @ 3.6GHz 16.0GB, RTX 2080 SUPER 16GB
 
 ### (TODO: Your README)
 
