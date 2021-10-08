@@ -18,7 +18,7 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define INSTRUMENT 1
+#define INSTRUMENT 0
 #define STREAM_COMPACTION 1
 #define MATERIAL_SORT 0
 #define FIRST_BOUNCE_CACHE 0

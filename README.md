@@ -100,6 +100,16 @@ When anti-aliasing is disabled, the first bounce for each pixel from the camera 
 * Meshes must be placed after any objects in the scene file and their numbering must continue from the numbering scheme used for any objects.
 * Despite decrementing the number of remaining bounces for rays on each bounce, the check for whether a ray has 0 remaining bounces did not seem to work with `thrust::remove_if`. Therefore, I am checking whether the color is 0 (meaning any future bounces would just color pixels black).
 
+## Flags
+The following flags can be used to toggle various options.
+* `INSTRUMENT` in `pathtrace.cu` enables kernel timing measurements and console printing
+* `STREAM_COMPACTION` in `pathtrace.cu` enables stream compaction
+* `MATERIAL_SORT` in `pathtrace.cu` enables material sorting
+* `FIRST_BOUNCE_CACHE` in `pathtrace.cu` enables first bounce caching
+* `ANTI_ALIASING` in `pathtrace.cu` enables anti-aliasing
+* `INSTRUMENT` in `pathtrace.cu` enables DoF. Use `R` and `T` to increase/decrease lens radius, and `F` and `G` to increase/decrease focal distance.
+* `MESH_CULL` in `scene.h` enables OBJ mesh intersection culling
+
 # References
 * Loading in .OBJ files using TinyOBJLoader
   * https://github.com/tinyobjloader/tinyobjloader#example-code-new-object-oriented-api
