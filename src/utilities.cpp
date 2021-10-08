@@ -70,6 +70,13 @@ void utilityCore::xformVec3(glm::vec3& v, glm::mat4 m) {
     v.z = v_tmp.z;
 }
 
+glm::mat4 utilityCore::buildTransformationMatrix(glm::vec3 translation, glm::quat rotation, glm::vec3 scale) {
+    glm::mat4 translationMat = glm::translate(glm::mat4(), translation);
+    glm::mat4 rotationMat = glm::mat4_cast(rotation);
+    glm::mat4 scaleMat = glm::scale(glm::mat4(), scale);
+    return translationMat * rotationMat * scaleMat;
+}
+
 glm::mat4 utilityCore::buildTransformationMatrix(glm::vec3 translation, glm::vec3 rotation, glm::vec3 scale) {
     glm::mat4 translationMat = glm::translate(glm::mat4(), translation);
     glm::mat4 rotationMat =   glm::rotate(glm::mat4(), rotation.x * (float) PI / 180, glm::vec3(1, 0, 0));

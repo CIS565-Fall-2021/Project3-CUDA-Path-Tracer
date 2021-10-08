@@ -263,6 +263,7 @@ __global__ void computeIntersections(
         glm::vec3 tmp_normal;
         glm::vec2 tmp_uv;
         glm::vec4 tmp_tangent;
+        int tmp_materialId = -1;
 
         // naive parse through global geoms
 
@@ -273,14 +274,16 @@ __global__ void computeIntersections(
             if (geom.type == CUBE)
             {
                 t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                tmp_materialId = geom.materialid;
             }
             else if (geom.type == SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+                tmp_materialId = geom.materialid;
             }
             else if (geom.type == MESH)
             {
-                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, tmp_tangent, materialId);
+                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, tmp_tangent, tmp_materialId);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -290,6 +293,7 @@ __global__ void computeIntersections(
             {
                 t_min = t;
                 hit_geom_index = i;
+                materialId = tmp_materialId;
                 intersect_point = tmp_intersect;
                 normal = tmp_normal;
                 uv = tmp_uv;
@@ -306,7 +310,7 @@ __global__ void computeIntersections(
         {
             //The ray hits something
             intersection.t = t_min;
-            intersection.materialId = materialId < 0 ? geoms[hit_geom_index].materialid : materialId;
+            intersection.materialId = materialId;
             intersection.surfaceNormal = normal;
             intersection.uv = uv;
             intersection.tangent = tangent;
@@ -342,6 +346,8 @@ __global__ void shadeBSDF(
       else {
         scatterRay(pathSegment, intersection, material, textures, rng);
         --pathSegment.remainingBounces;
+        //pathSegment.color *= materialColor;
+        //pathSegment.remainingBounces = 0;
       }
     }
     else {

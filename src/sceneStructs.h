@@ -25,9 +25,9 @@ struct Mesh {
     int count;
     int i_offset;
     int v_offset;
-    int n_offset;
-    int uv_offset;
-    int t_offset;
+    int n_offset = -1;
+    int uv_offset = -1;
+    int t_offset = -1;
     int mat_id;
     glm::vec3 bbox_max;
     glm::vec3 bbox_min;
@@ -83,6 +83,17 @@ struct TextureInfo {
   }
 };
 
+struct NormalTextureInfo : TextureInfo {
+  float scale = 1.0f;
+
+  NormalTextureInfo& operator=(const tinygltf::NormalTextureInfo t) {
+    index = t.index;
+    texCoord = t.texCoord;
+    scale = t.scale;
+    return *this;
+  }
+};
+
 // Based on tinygltf::PbrMetallicRoughness
 // pbrMetallicRoughness class defined in glTF 2.0 spec.
 // Defining a custom PbrMetallicRoughness struct here because
@@ -113,7 +124,7 @@ struct Material {
 
     PbrMetallicRoughness pbrMetallicRoughness;
 
-    //tinygltf::NormalTextureInfo normalTexture;
+    NormalTextureInfo normalTexture;
     //tinygltf::OcclusionTextureInfo occlusionTexture;
     //tinygltf::TextureInfo emissiveTexture;
     glm::vec3 emissiveFactor;  // length 3. default [0, 0, 0]

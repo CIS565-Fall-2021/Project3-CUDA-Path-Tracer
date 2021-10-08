@@ -68,7 +68,7 @@ glm::vec3 calculateImperfectSpecularDirection(
     // Transform dir from specular-space to tangent-space
     float c = glm::dot(normal, reflect);
     float s = glm::length(glm::cross(normal, reflect));
-    dir = glm::mat3(c, 0.0f, s, 0.0f, 1.0f, 0.0f, -s, 0.0f, c) * dir;
+    dir = glm::mat3(c, 0.f, s, 0.f, 1.f, 0.f, -s, 0.f, c) * dir;
 
     // Transform dir from tangent-space to world-space
     glm::vec3 t(tangent);
@@ -78,6 +78,20 @@ glm::vec3 calculateImperfectSpecularDirection(
     return dir;
 }
 
+/**
+* Based on: https://learnopengl.com/Advanced-Lighting/Normal-Mapping 
+*/
+__device__
+void normalMapping(glm::vec3& n, const glm::vec3& nMap, const glm::vec4& tangent) {
+  glm::vec3 t = glm::vec3(tangent);
+  glm::vec3 b = glm::cross(n, t) * tangent.w;
+  glm::mat3 TBN = glm::mat3(t, b, n);
+  n = glm::normalize(TBN * nMap);
+}
+
+/**
+* Helper function for sampling the texture object with the given UV coordinate
+*/
 __device__
 void sampleTexture(Color& color, cudaTextureObject_t texObj, const glm::vec2 uv) {
   // NOTE: cudaReadModeNormalizedFloat will convert uchar4 to float4
@@ -123,6 +137,7 @@ void scatterRay(
     Color color;
     glm::vec3 newDir;
     int txId = -1;
+    glm::vec3 normal = i.surfaceNormal;
 
     txId = m.pbrMetallicRoughness.baseColorTexture.index;
     if (txId < 0) {
@@ -132,7 +147,8 @@ void scatterRay(
       sampleTexture(color, textures[txId], i.uv);
     }
 
-    float pM, pR;  // metallic and roughness parameters
+    // metallic and roughness parameters
+    float pM, pR; 
 
     txId = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
     if (txId < 0) {
@@ -146,17 +162,26 @@ void scatterRay(
       pR = pbr.g * m.pbrMetallicRoughness.roughnessFactor;
     }
 
+    // Apply normal map if any
+    txId = m.normalTexture.index;
+    if (txId >= 0) {
+      glm::vec3 n;
+      sampleTexture(n, textures[txId], i.uv);
+      n = glm::normalize(n * 2.f - 1.f);
+      normalMapping(normal, n, i.tangent);
+    }
+
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     if (u01(rng) < pM) {
-      // Specular
-      glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, i.surfaceNormal);
-      newDir = calculateImperfectSpecularDirection(i.surfaceNormal, reflect, i.tangent, rng, pR, m.specular.exponent);
+      // Metallic
+      glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, normal);
+      newDir = calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR, 0);
       color *= pM;
     }
     else {
       // Diffuse
-      newDir = calculateRandomDirectionInHemisphere(i.surfaceNormal, rng);
+      newDir = calculateRandomDirectionInHemisphere(normal, rng);
       color *= (1.0f - pM);
     }
 
