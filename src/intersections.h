@@ -142,3 +142,38 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+/**
+ * Test intersection between a ray and a transformed triangle.
+ *
+ * @param intersectionPoint  Output parameter for point of intersection.
+ * @param normal             Output parameter for surface normal.
+ * @param outside            Output param for whether the ray came from outside.
+ * @return                   Ray parameter `t` value. -1 if no intersection.
+ */
+__host__ __device__ float triangleIntersectionTest(Geom triangle, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+
+    glm::vec3 intersectionCoords;
+    bool isIntersected = glm::intersectRayTriangle(
+        r.origin, glm::normalize(r.direction),
+        triangle.triangleCoords.p1, triangle.triangleCoords.p2, triangle.triangleCoords.p3,
+        intersectionCoords);
+
+    if (isIntersected)
+    {
+        float t = glm::length(r.origin - intersectionCoords);
+        intersectionPoint = getPointOnRay(r, t);
+
+        normal = glm::normalize(glm::cross(
+            triangle.triangleCoords.p2 - triangle.triangleCoords.p1,
+            triangle.triangleCoords.p3 - triangle.triangleCoords.p1));
+        if (!outside) {
+            normal = -normal;
+        }
+
+        return t;
+    }
+
+    return 0.f;
+}

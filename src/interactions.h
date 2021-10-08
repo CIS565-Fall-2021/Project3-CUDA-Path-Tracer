@@ -9,7 +9,7 @@
  */
 __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+    glm::vec3 normal, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -24,9 +24,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     glm::vec3 directionNotNormal;
     if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(1, 0, 0);
-    } else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
+    }
+    else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(0, 1, 0);
-    } else {
+    }
+    else {
         directionNotNormal = glm::vec3(0, 0, 1);
     }
 
@@ -39,6 +41,15 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     return up * normal
         + cos(around) * over * perpendicularDirection1
         + sin(around) * over * perpendicularDirection2;
+}
+
+__host__ __device__
+float reflectance(float indexRefract, float cosTheta)
+{
+    float r0 = (1.f - indexRefract) / (1.f + indexRefract);
+    r0 = r0 * r0;
+
+    return r0 + (1.f - r0) * glm::pow(1 - cosTheta, 5.f);
 }
 
 /**
@@ -68,12 +79,67 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
+    PathSegment& pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material& m,
+    thrust::default_random_engine& rng) {
+    // DONE: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    glm::vec3 incomingRayDirection = pathSegment.ray.direction;
+
+    float totalProb = m.hasReflective + m.hasRefractive;
+    float random = u01(rng);
+
+    if (random < m.hasReflective)
+    {
+        // Color the ray according to surface's material encountered
+        pathSegment.color *= m.color;
+
+        // Perform reflection about surface normal of surface
+        pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal));
+        pathSegment.ray.origin = intersect;
+    }
+    else if (random < m.hasReflective + m.hasRefractive)
+    {
+        float uniformSample = u01(rng);
+
+        bool isOutside = glm::dot(incomingRayDirection, normal) < 0;
+        float eta = isOutside ? 1.f / m.indexOfRefraction : m.indexOfRefraction;
+
+        float cosTheta = glm::min(1.f, glm::dot(-incomingRayDirection, normal));
+        float sinTheta = glm::sqrt(1.f - cosTheta * cosTheta);
+
+        float refractiveProbability = reflectance(eta, cosTheta);
+        bool cannotRefract = eta * sinTheta > 1.f;
+
+        if (cannotRefract || refractiveProbability > uniformSample)
+        {
+            // Reflect the ray back
+            pathSegment.ray.direction = glm::normalize(glm::reflect(incomingRayDirection, normal * (isOutside ? 1.f : -1.f)));
+            pathSegment.color *= m.color;
+
+            pathSegment.ray.origin = intersect + 0.001f * normal * (isOutside ? 1.f : -1.f);
+        }
+        else
+        {
+            // Refract the ray about the surface normal
+            pathSegment.ray.direction = glm::normalize(glm::refract(incomingRayDirection, normal * (isOutside ? 1.f : -1.f), eta));
+            pathSegment.color *= glm::vec3(1.f); // *= m.color;
+
+            pathSegment.ray.origin = intersect - 0.001f * normal * (isOutside ? 1.f : -1.f);
+        }
+    }
+    else
+    {
+        // Color the ray according to surface's material encountered
+        pathSegment.color *= m.color;
+
+        // Perform random scattering from surface normal of surface
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        pathSegment.ray.origin = intersect;
+    }
 }

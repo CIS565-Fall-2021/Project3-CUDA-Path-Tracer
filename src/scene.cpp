@@ -4,6 +4,12 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define LOAD_MESH_VERBOSE 1
+
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
+#include "tiny_obj_loader.h"
+
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -13,6 +19,11 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
+    
+#if MESH_CULL
+    triangleIndex = 0;
+#endif
+    unsigned int currMeshId = 0;
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -26,6 +37,9 @@ Scene::Scene(string filename) {
                 cout << " " << endl;
             } else if (strcmp(tokens[0].c_str(), "CAMERA") == 0) {
                 loadCamera();
+                cout << " " << endl;
+            } else if (strcmp(tokens[0].c_str(), "MESH") == 0) {
+                loadMesh(tokens[1], currMeshId++);
                 cout << " " << endl;
             }
         }
@@ -185,4 +199,200 @@ int Scene::loadMaterial(string materialid) {
         materials.push_back(newMaterial);
         return 1;
     }
+}
+
+int Scene::loadMesh(string objectid, unsigned int meshId) {
+    int id = atoi(objectid.c_str());
+    cout << "Loading Mesh " << id << " as Geom..." << endl;
+
+    string line;
+    utilityCore::safeGetline(fp_in, line);
+    cout << "OBJ file name is " << line << "..." << endl;
+
+    tinyobj::ObjReaderConfig reader_config;
+    tinyobj::ObjReader reader;
+    reader_config.triangulate = true;
+
+    if (!reader.ParseFromFile(line, reader_config))
+    {
+        if (!reader.Error().empty())
+        {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+
+        cout << "Failed to read Mesh " << id << "..." << endl;
+        return 0;
+    }
+
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+
+    std::vector<Triangle> objTriangles;
+
+#if LOAD_MESH_VERBOSE
+    cout << "Number of shapes: " << shapes.size() << endl;
+#endif
+    // Code adapted from sample TinyOBJLoader code
+    // Loop over shapes
+    for (size_t s = 0; s < shapes.size(); s++) {
+#if LOAD_MESH_VERBOSE
+        cout << "Number of faces in shape: " << shapes[s].mesh.num_face_vertices.size() << endl;
+#endif
+
+        // Loop over triangles
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+            Triangle t;
+
+            // Loop over vertices of the triangle
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+
+                glm::vec3 vertexPos = glm::vec3(0.f);
+
+                vertexPos.x = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                vertexPos.y = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                vertexPos.z = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+                if (v == 0) {
+                    t.p1 = vertexPos;
+                } else if (v == 1) {
+                    t.p2 = vertexPos;
+                } else if (v == 2) {
+                    t.p3 = vertexPos;
+                }
+            }
+            index_offset += fv;
+
+            objTriangles.push_back(t);
+        }
+    }
+
+    // Link material
+    int materialId = 0;
+    utilityCore::safeGetline(fp_in, line);
+    if (!line.empty() && fp_in.good()) {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+        materialId = atoi(tokens[1].c_str());
+        cout << "Connecting Mesh " << id << " to Material " << materialId << "..." << endl;
+    }
+
+    // Load transformations
+    glm::vec3 translation, rotation, scale;
+    utilityCore::safeGetline(fp_in, line);
+    while (!line.empty() && fp_in.good()) {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+
+        //load tranformations
+        if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
+            translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+        else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
+            rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+        else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
+            scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        }
+
+        utilityCore::safeGetline(fp_in, line);
+    }
+
+    glm::mat4 transform = utilityCore::buildTransformationMatrix(
+        translation, rotation, scale);
+    glm::mat4 inverseTransform = glm::inverse(transform);
+    glm::mat4 invTranspose = glm::inverseTranspose(transform);
+
+#if MESH_CULL
+    // Create Mesh with which loaded triangles will be associated
+    Mesh newMesh;
+    newMesh.id = meshId;
+    newMesh.numTriangles = 0;
+    newMesh.triangleDataStartIndex = triangleIndex;
+
+    float min_x = FLT_MAX, min_y = FLT_MAX, min_z = FLT_MAX;
+    float max_x = -FLT_MAX, max_y = -FLT_MIN, max_z = -FLT_MIN;
+#endif
+    // Process triangles into scene geometries and associate with mesh
+    for (Triangle &t : objTriangles) {
+        Geom newGeom;
+        newGeom.type = GeomType::TRIANGLE;
+        newGeom.materialid = materialId;
+        newGeom.translation = translation;
+        newGeom.rotation = rotation;
+        newGeom.scale = scale;
+        newGeom.transform = transform;
+        newGeom.inverseTransform = inverseTransform;
+        newGeom.invTranspose = invTranspose;
+
+        newGeom.triangleCoords.p1 = glm::vec3(transform * glm::vec4(t.p1, 1.f));
+        newGeom.triangleCoords.p2 = glm::vec3(transform * glm::vec4(t.p2, 1.f));
+        newGeom.triangleCoords.p3 = glm::vec3(transform * glm::vec4(t.p3, 1.f));
+
+#if MESH_CULL
+        min_x = glm::min(min_x, newGeom.triangleCoords.p1.x);
+        min_x = glm::min(min_x, newGeom.triangleCoords.p2.x);
+        min_x = glm::min(min_x, newGeom.triangleCoords.p3.x);
+
+        max_x = glm::max(max_x, newGeom.triangleCoords.p1.x);
+        max_x = glm::max(max_x, newGeom.triangleCoords.p2.x);
+        max_x = glm::max(max_x, newGeom.triangleCoords.p3.x);
+
+        min_y = glm::min(min_y, newGeom.triangleCoords.p1.y);
+        min_y = glm::min(min_y, newGeom.triangleCoords.p2.y);
+        min_y = glm::min(min_y, newGeom.triangleCoords.p3.y);
+
+        max_y = glm::max(max_y, newGeom.triangleCoords.p1.y);
+        max_y = glm::max(max_y, newGeom.triangleCoords.p2.y);
+        max_y = glm::max(max_y, newGeom.triangleCoords.p3.y);
+
+        min_z = glm::min(min_z, newGeom.triangleCoords.p1.z);
+        min_z = glm::min(min_z, newGeom.triangleCoords.p2.z);
+        min_z = glm::min(min_z, newGeom.triangleCoords.p3.z);
+
+        max_z = glm::max(max_z, newGeom.triangleCoords.p1.z);
+        max_z = glm::max(max_z, newGeom.triangleCoords.p2.z);
+        max_z = glm::max(max_z, newGeom.triangleCoords.p3.z);
+
+        triangles.push_back(newGeom);
+        triangleIndex++;
+        newMesh.numTriangles++;
+#else
+        geoms.push_back(newGeom);
+#endif
+    }
+
+#if MESH_CULL
+    glm::vec3 minCoords = glm::vec3(min_x, min_y, min_z);
+    glm::vec3 maxCoords = glm::vec3(max_x, max_y, max_z);
+
+    // Use center and displacement between corners of box for Geom construction
+    translation = 0.5f * (minCoords + maxCoords);
+    scale = maxCoords - minCoords;
+    rotation = glm::vec3(0.f);
+
+    transform = utilityCore::buildTransformationMatrix(
+        translation, rotation, scale);
+    inverseTransform = glm::inverse(transform);
+    invTranspose = glm::inverseTranspose(transform);
+
+    // Create cube geometry to represent bounding box (so Box test can be reused)
+    Geom boundingBox;
+    boundingBox.type = GeomType::CUBE;
+    boundingBox.materialid = 8;     // For debug purposes, as the box is never rendered
+    boundingBox.translation = translation;
+    boundingBox.rotation = glm::vec3(0.f);
+    boundingBox.scale = scale;
+    boundingBox.transform = transform;
+    boundingBox.inverseTransform = inverseTransform;
+    boundingBox.invTranspose = invTranspose;
+
+    // Associate bounding box Geom with the mesh
+    newMesh.boundingBox = boundingBox;
+    meshes.push_back(newMesh);
+
+    // geoms.push_back(boundingBox);
+#endif
 }
