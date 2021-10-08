@@ -17,9 +17,10 @@
 #include "interactions.h"
 
 #define SORT_MATERIAL 1
-#define CACHE_INTERSECTION 1
+#define CACHE_INTERSECTION 0
 #define DEPTH_OF_FIELD 1
 #define MESH_BOUND_CHECK 1
+#define ANTI_ALIASING 0
 
 #define ERRORCHECK 1
 
@@ -168,11 +169,20 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.ray.origin = cam.position;
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-        // TODO: implement antialiasing by jittering the ray
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, segment.remainingBounces);
+
+#if ANTI_ALIASING
+        thrust::uniform_real_distribution<float> u01(-0.5, 0.5);
+        segment.ray.direction = glm::normalize(cam.view
+            - cam.right * cam.pixelLength.x * ((float)x + u01(rng) - (float)cam.resolution.x * 0.5f)
+            - cam.up * cam.pixelLength.y * ((float)y + u01(rng) - (float)cam.resolution.y * 0.5f)
+        );
+#else
         segment.ray.direction = glm::normalize(cam.view
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
         );
+#endif
 
 #if DEPTH_OF_FIELD
         cam.focalDistance = 5.f;
@@ -180,7 +190,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
         if (cam.lensRadius > 0) {
             glm::vec2 randomSample{ 0 };
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 8);
             glm::vec2 pLens = cam.lensRadius * concentricSampleDisk(rng);
 
             float ft = glm::abs((cam.focalDistance) / segment.ray.direction.z);
@@ -360,7 +369,8 @@ __global__ void shadeFakeMaterial(
           // Set up the RNG
           // LOOK: this is how you use thrust's RNG! Please look at
           // makeSeededRandomEngine as well.
-            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 8);
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 
+                pathSegments[idx].remainingBounces);
             thrust::uniform_real_distribution<float> u01(0, 1);
 
             Material material = materials[intersection.materialId];
@@ -526,12 +536,15 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 
         // tracing
         computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+            depth
             , num_paths
             , dev_paths
             , dev_geoms
             , hst_scene->geoms.size()
-            , dev_triangles,
+            , dev_triangles
             , hst_scene->triangles.size()
+            , hst_scene->triangle_bound_min
+            , hst_scene->triangle_bound_max
             , dev_intersections
             );
         checkCUDAError("trace one bounce");
@@ -584,4 +597,5 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
     checkCUDAError("pathtrace");
+
 }
