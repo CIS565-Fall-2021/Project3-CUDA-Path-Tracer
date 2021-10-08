@@ -22,6 +22,7 @@ Finished Advanced Features:
 - Refraction with Fresnel effects using Schlick's approximation
 - Stochastic sampled anti-aliasing
 - Physically-based depth of field
+- OBJ mesh loading with [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)
 
 ### Ray Refraction for Glass-like Materials
 |            Perfect Specular Reflection             |               Glass-like Refraction                |
@@ -37,4 +38,10 @@ Finished Advanced Features:
 |         Pinhole Camera Model (Feature OFF)         |               Thin-Lens Camera Model               |
 | :------------------------------------------------: | :------------------------------------------------: |
 | ![](img/cornell.2021-10-05_02-45-59z.5000samp.png) | ![](img/cornell.2021-10-05_02-40-08z.5000samp.png) |
+
+### Mesh Loading
+Mesh loading has not been fully supported due to an incorrect normal vector parsing issue in [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader). The runtime is also unoptimized and takes an unreasonable amount of time to run.
+
+TODO:
+- Bounding volume culling with AABB box/OBB box.
 
