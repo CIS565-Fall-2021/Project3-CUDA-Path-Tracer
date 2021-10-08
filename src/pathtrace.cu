@@ -364,7 +364,7 @@ __global__ void computeIntersections(int depth,
             else if (geom.type == MESH) {
                 int numTris = dev_meshEndIndices[meshNum] - dev_meshStartIndices[meshNum];
 
-                meshIntersectionTest(geom, 
+                t =  meshIntersectionTest(geom, 
 									 pathSegment.ray, 
 									 tmp_intersect, 
 									 tmp_normal, 

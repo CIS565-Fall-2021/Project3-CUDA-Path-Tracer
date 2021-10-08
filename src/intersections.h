@@ -151,7 +151,7 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
                                                Tri * tris,
                                                int numTris) {
     Ray q;
-    q.origin    =                multiplyMV(geom.inverseTransform, glm::vec4(r.origin   , 1.0f));
+    q.origin =    multiplyMV(geom.inverseTransform, glm::vec4(r.origin   , 1.0f));
     q.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
     float tmin = 1e38f;
@@ -174,7 +174,7 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
 									    v3,
 									    baryPos);
 
-        if (hit && v1x != 0) {
+        if (hit) {
             // translate the barycentric coordinates to mesh-space
             // This is matrix multiplication of baryPos and 
             // the mesh-space location of the verts
@@ -186,29 +186,10 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
             t = glm::dot(glm::vec3(x, y, z) - q.origin, q.direction);
             if (t < tmin) {
                 tmin = t;
-                tmin_n = tris[i].n1;
+                tmin_n = -1.0f * tris[i].n1;
             }
         }
     }
-    //for (int xyz = 0; xyz < 3; ++xyz) {
-    //    float qdxyz = q.direction[xyz];
-    //    /*if (glm::abs(qdxyz) > 0.00001f)*/ {
-    //        float t1 = (-0.5f - q.origin[xyz]) / qdxyz;
-    //        float t2 = (+0.5f - q.origin[xyz]) / qdxyz;
-    //        float ta = glm::min(t1, t2);
-    //        float tb = glm::max(t1, t2);
-    //        glm::vec3 n;
-    //        n[xyz] = t2 < t1 ? +1 : -1;
-    //        if (ta > 0 && ta > tmin) {
-    //            tmin = ta;
-    //            tmin_n = n;
-    //        }
-    //        if (tb < tmax) {
-    //            tmax = tb;
-    //            tmax_n = n;
-    //        }
-    //    }
-    //}
 
     if (tmin < 1e38f) {
         intersectionPoint = multiplyMV(geom.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
