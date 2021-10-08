@@ -157,15 +157,15 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
     float tmin = 1e38f;
     //float tmax = 1e38f;
     glm::vec3 tmin_n;
+    Tri tri;
     for (int i = 0; i < numTris; i++) {
         glm::vec3 baryPos;
         bool hit;
         float t; 
-        glm::vec3 v1 = tris[i].v1;
-        glm::vec3 v2 = tris[i].v2;
-        glm::vec3 v3 = tris[i].v3;
-
-        volatile float v1x = v1.x;
+        tri = tris[i];
+        glm::vec3 v1 = tri.v1;
+        glm::vec3 v2 = tri.v2;
+        glm::vec3 v3 = tri.v3;
 
         hit = glm::intersectRayTriangle(q.origin,
 									    q.direction,
@@ -178,15 +178,21 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
             // translate the barycentric coordinates to mesh-space
             // This is matrix multiplication of baryPos and 
             // the mesh-space location of the verts
-            float x = baryPos.x * v1.x + baryPos.y * v2.x + baryPos.z * v3.x;
-            float y = baryPos.x * v1.y + baryPos.y * v2.y + baryPos.z * v3.y;
-            float z = baryPos.x * v1.z + baryPos.y * v2.z + baryPos.z * v3.z;
+
+            // glm::intersect doesn't actually give us all barycentric 
+            // values, only u & v. We can calculate w using these though
+            float w = (1.0f - baryPos.x - baryPos.y);
+            float x = baryPos.x * v1.x + baryPos.y * v2.x + w * v3.z;
+            float y = baryPos.x * v1.y + baryPos.y * v2.y + w * v3.z;
+            float z = baryPos.x * v1.z + baryPos.y * v2.z + w * v3.z;
 
             // now we use the mesh-space hit coordinates to find t
-            t = glm::dot(glm::vec3(x, y, z) - q.origin, q.direction);
-            if (t < tmin) {
+            float alignment = glm::dot(q.direction, glm::vec3(x, y, z) - q.origin);
+            t = glm::distance(q.origin, glm::vec3(x, y, z));
+
+            if (t < tmin && alignment > 0.0f) {
                 tmin = t;
-                tmin_n = -1.0f * tris[i].n1;
+                tmin_n = baryPos.x * tri.n1 + baryPos.y * tri.n2 + w * tri.n3;
             }
         }
     }

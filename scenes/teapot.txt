@@ -60,11 +60,19 @@ SCALE       3 0.1 3
 
 // teapot
 OBJECT 1
-C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\teapot.obj
+C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\teapotTris.obj
 material 1
-TRANS       0 0 0
-ROTAT       -90 0 0
-SCALE       .2 .2 .2
+TRANS       0 0 -3
+ROTAT       0 0 0
+SCALE       .5 .5 .5 
+
+//// teapot
+//OBJECT 1
+//C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\cube.obj
+//material 1
+//TRANS       0 4 0
+//ROTAT       0 0 0
+//SCALE       2 2 2 
 
 // Ceiling
 OBJECT 2
