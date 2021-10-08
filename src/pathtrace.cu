@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cuda.h>
 #include <cmath>
+#include <chrono>
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
@@ -17,6 +18,8 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
+#define INSTRUMENT 1
+#define STREAM_COMPACTION 1
 #define MATERIAL_SORT 0
 #define FIRST_BOUNCE_CACHE 0
 #define ANTI_ALIASING 1
@@ -561,6 +564,11 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     // --- PathSegment Tracing Stage ---
     // Shoot ray into scene, bounce between objects, push shading chunks
 
+#if INSTRUMENT
+    auto startTime = std::chrono::high_resolution_clock::now();
+    double intersectTime = 0.0;
+    double shadeTime = 0.0;
+#endif
     bool iterationComplete = false;
     while (!iterationComplete) {
 
@@ -570,6 +578,9 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
+#if INSTRUMENT
+        auto startIntersectTime = std::chrono::high_resolution_clock::now();
+#endif
 #if FIRST_BOUNCE_CACHE
         if (depth == 0 && iter <= 1)
         {
@@ -633,6 +644,10 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
 #endif
+#if INSTRUMENT
+        auto stopIntersectTime = std::chrono::high_resolution_clock::now();
+#endif
+
         depth++;
 
         // DONE:
@@ -643,11 +658,13 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         // materials you have in the scenefile.
         // TODO: compare between directly shading the path segments and shading
         // path segments that have been reshuffled to be contiguous in memory.
-
 #if MATERIAL_SORT
         thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, sortByMaterialType());
 #endif
 
+#if INSTRUMENT
+        auto startShadeTime = std::chrono::high_resolution_clock::now();
+#endif
         shadeMaterialBSDF<<<numblocksPathSegmentTracing, blockSize1d>>>(
             iter,
             num_paths,
@@ -656,7 +673,11 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
             dev_materials,
             depth
             );
+#if INSTRUMENT
+        auto stopShadeTime = std::chrono::high_resolution_clock::now();
+#endif
 
+#if STREAM_COMPACTION
         // Remove terminated rays
         thrust::device_ptr<PathSegment> thrust_path_start = thrust::device_pointer_cast(dev_paths);
         thrust::device_ptr<PathSegment> thrust_path_end = thrust::device_pointer_cast(dev_path_end);
@@ -665,10 +686,21 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
         // Determine how many paths are remaining
         dev_paths = thrust::raw_pointer_cast(thrust_path_start);
         dev_path_end = thrust::raw_pointer_cast(thrust_path_end);
+#endif
         num_paths = dev_path_end - dev_paths;
-
         iterationComplete = (depth >= traceDepth) || (num_paths == 0);
+
+#if INSTRUMENT
+        intersectTime += std::chrono::duration_cast<std::chrono::microseconds>(stopIntersectTime - startIntersectTime).count();
+        shadeTime += std::chrono::duration_cast<std::chrono::microseconds>(stopShadeTime - startShadeTime).count();
+#endif
     }
+#if INSTRUMENT
+    auto stopTime = std::chrono::high_resolution_clock::now();
+    double totalTime = std::chrono::duration_cast<std::chrono::microseconds>(stopTime - startTime).count();
+
+    std::cout << totalTime << "," << intersectTime << "," << shadeTime << std::endl;
+#endif
 
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;

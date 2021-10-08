@@ -9,7 +9,7 @@
 #include "utilities.h"
 #include "sceneStructs.h"
 
-#define MESH_CULL 0
+#define MESH_CULL 1
 
 using namespace std;
 

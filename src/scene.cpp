@@ -232,6 +232,7 @@ int Scene::loadMesh(string objectid, unsigned int meshId) {
 #if LOAD_MESH_VERBOSE
     cout << "Number of shapes: " << shapes.size() << endl;
 #endif
+    // Code adapted from sample TinyOBJLoader code
     // Loop over shapes
     for (size_t s = 0; s < shapes.size(); s++) {
 #if LOAD_MESH_VERBOSE

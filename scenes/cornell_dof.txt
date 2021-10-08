@@ -85,7 +85,37 @@ SPECEX      0
 SPECRGB     .98 0 .98
 REFL        0
 REFR        1
-REFRIOR     1.1
+REFRIOR     2
+EMITTANCE   0
+
+// Specular purple
+MATERIAL 9
+RGB         .98 0 .98
+SPECEX      0
+SPECRGB     .98 0 .98
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Specular yellow
+MATERIAL 10
+RGB         .98 .98 0
+SPECEX      0
+SPECRGB     .98 .98 0
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Specular cyan
+MATERIAL 11
+RGB         0 .98 .98
+SPECEX      0
+SPECRGB     0 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
 EMITTANCE   0
 
 // Camera
@@ -127,7 +157,7 @@ SCALE       .01 10 10
 // Back wall
 OBJECT 3
 cube
-material 1
+material 4
 TRANS       0 5 -5
 ROTAT       0 90 0
 SCALE       .01 10 10
@@ -148,55 +178,26 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Cube
+// Far back sphere
 OBJECT 6
-cube
-material 5
-TRANS       -2 4 3
-ROTAT       45 0 45
-SCALE       1 1 1
-
-// Sphere
-OBJECT 7
 sphere
-material 6
-TRANS       -2 4 6
-ROTAT       0 0 0
-SCALE       0 0 0
-
-// Sphere
-OBJECT 8
-sphere
-material 5
-TRANS       2 4 2
+material 9
+TRANS       -3 4 -3
 ROTAT       0 0 0
 SCALE       2 2 2
 
-// Sphere
-OBJECT 9
+// Middle sphere
+OBJECT 7
 sphere
-material 8
-TRANS       0 6.1 9
+material 10
+TRANS       0 4 1
 ROTAT       0 0 0
-SCALE       0.75 0.75 0.75
+SCALE       2 2 2
 
-// Test Obj File
-MESH 10
-../obj/wahoo.obj
-material 4
-TRANS       0 4 -4
+// Close up sphere
+OBJECT 8
+sphere
+material 11
+TRANS       3 4 5
 ROTAT       0 0 0
-SCALE       1 1 1
-
-// Test Obj File
-// MESH 10
-// ../obj/bunny.obj
-// material 7
-// TRANS       0 0 0
-// ROTAT       0 0 0
-// SCALE       10 10 10
-
-
-
-// FOLLOW ORDERING OF OBJECT IDs FOR MESHes, BUT SET TYPE TO MESH
-// MESHes MUST BE INCLUDED AFTER ANY OBJECTs
+SCALE       2 2 2

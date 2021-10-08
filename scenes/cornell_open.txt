@@ -85,7 +85,7 @@ SPECEX      0
 SPECRGB     .98 0 .98
 REFL        0
 REFR        1
-REFRIOR     1.1
+REFRIOR     2
 EMITTANCE   0
 
 // Camera
@@ -132,61 +132,37 @@ TRANS       0 5 -5
 ROTAT       0 90 0
 SCALE       .01 10 10
 
-// Left wall
+// Cube
 OBJECT 4
 cube
-material 2
-TRANS       -5 5 0
+material 6
+TRANS       -1 4 -1
 ROTAT       0 0 0
-SCALE       .01 10 10
-
-// Right wall
-OBJECT 5
-cube
-material 3
-TRANS       5 5 0
-ROTAT       0 0 0
-SCALE       .01 10 10
-
-// Cube
-OBJECT 6
-cube
-material 5
-TRANS       -2 4 3
-ROTAT       45 0 45
-SCALE       1 1 1
+SCALE       3 3 3
 
 // Sphere
-OBJECT 7
+OBJECT 5
 sphere
 material 6
 TRANS       -2 4 6
 ROTAT       0 0 0
-SCALE       0 0 0
+SCALE       0.5 0.5 0.5
 
 // Sphere
-OBJECT 8
+OBJECT 6
 sphere
 material 5
 TRANS       2 4 2
 ROTAT       0 0 0
 SCALE       2 2 2
 
-// Sphere
-OBJECT 9
-sphere
-material 8
-TRANS       0 6.1 9
-ROTAT       0 0 0
-SCALE       0.75 0.75 0.75
-
 // Test Obj File
-MESH 10
+MESH 7
 ../obj/wahoo.obj
 material 4
-TRANS       0 4 -4
+TRANS       0 5 5
 ROTAT       0 0 0
-SCALE       1 1 1
+SCALE       0.25 0.25 0.25
 
 // Test Obj File
 // MESH 10
