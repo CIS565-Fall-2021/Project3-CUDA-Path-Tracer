@@ -22,7 +22,7 @@
 // try loading texture base color onto cube
 // #define DEBUG_TEX_BASE_COLOR
 // Sets color to the surface normal for debug
-#define DEBUG_SURFACE_NORMAL
+// #define DEBUG_SURFACE_NORMAL
 // Sets to grayscale representing the t value
 // #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
@@ -115,6 +115,7 @@ struct Material
     float hasRefractive = 0.f;
     float indexOfRefraction = 0.f;
     float emittance = 0.f;
+    bool useTex = false;
 };
 
 struct Camera

@@ -489,6 +489,7 @@ int Scene::loadMaterial(string materialid)
                     cout << "vector size " << texData.size() << endl;
                     stbi_image_free(imgBuff);
                 }
+                newMaterial.useTex = true;
             }
             else if (strcmp(tokens[0].c_str(), "EMITMAP") == 0)
             {

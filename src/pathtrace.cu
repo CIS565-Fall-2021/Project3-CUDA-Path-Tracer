@@ -153,16 +153,6 @@ void pathtraceFree()
     checkCUDAError("pathtraceFree");
 }
 
-__host__ __device__ __forceinline__ int uv2Idx(glm::vec2 uv, int w, int h)
-{
-    return (glm::floor(uv.x * w) + w * glm::floor(uv.y * h));
-}
-
-__host__ __device__ __forceinline__ glm::vec3 texCol2Color(uint8_t *cols)
-{
-    return glm::vec3(cols[0] / 255.f, cols[1] / 255.f, cols[2] / 255.f);
-}
-
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -276,6 +266,7 @@ __global__ void computeIntersections(
                 // uv = geom.type == TRIANGLE ? tmp_uv : glm::vec2(-1.f);
                 uv = tmp_uv;
                 // normal = tmp_normal;
+                // sorry not sorry this got out of control
                 normal = geom.type == MESH && geom.useTexture
                              ? glm::vec3(
                                    // transform from obj space to scene space
@@ -338,20 +329,25 @@ __global__ void shadeRealMaterial(
     if (intersection.t > 0.0f)
     {
         Material material = materials[intersection.materialId];
+        // height lines of width pixels ->
+        //    u * width, v * height, floor both
+        //    nU, nV -> nU + width * nV
+        int w = material.texWidth;
+        int h = material.texHeight;
+        long long tmpidx = uv2Idx(intersection.uvs, w, h);
         if (material.emittance > 0.f) // case thing is light
         {
             glm::vec3 materialColor = material.color;
             pathSegments[idx].color *= (materialColor * material.emittance);
             pathSegments[idx].remainingBounces = 0;
         }
+        else if (intersection.useTexture && baseColor[tmpidx].emit) // case texel is emmisive
+        {
+            pathSegments[idx].color *= 3.f * texCol2Color(baseColor[tmpidx].bCol);
+            pathSegments[idx].remainingBounces = 0;
+        }
         else // case thing isnt light so calculate
         {
-            // height lines of width pixels ->
-            //    u * width, v * height, floor both
-            //    nU, nV -> nU + width * nV
-            int w = material.texWidth;
-            int h = material.texHeight;
-            long long tmpidx = uv2Idx(intersection.uvs, w, h);
 #ifdef DEBUG_SURFACE_NORMAL
             pathSegments[idx].color = intersection.surfaceNormal; // Debug only
             pathSegments[idx].remainingBounces = 0;
@@ -374,7 +370,7 @@ __global__ void shadeRealMaterial(
             pathSegments[idx].remainingBounces = 0;
 #else
             thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-            scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng);
+            scatterRay(pathSegments[idx], getPointOnRay(pathSegments[idx].ray, intersection.t), intersection.surfaceNormal, material, rng, baseColor[tmpidx], intersection.useTexture);
             pathSegments[idx].remainingBounces--;
 #endif
         }
@@ -407,7 +403,9 @@ __global__ void finalGather(int nPaths, glm::vec3 *image, PathSegment *iteration
     if (index < nPaths)
     {
         PathSegment iterationPath = iterationPaths[index];
-        image[iterationPath.pixelIndex] += iterationPath.color;
+        image[iterationPath.pixelIndex] +=
+            iterationPath.color;
+        // 0.8f * iterationPath.color + glm::vec3(0.2f);
     }
 }
 
