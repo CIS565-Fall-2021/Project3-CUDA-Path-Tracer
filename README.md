@@ -7,6 +7,9 @@ CUDA Path Tracer
   * [LinkedIn](linkedin.com/in/asalexanderlee), [Personal Website](https://asalexanderlee.myportfolio.com/)
 * Tested on: Windows 10, i7-6700 @ 3.40GHz 16GB, Quadro P1000 (Moore 100A Lab)
 
+![DOF2](img/final_renders/cornell.2021-10-07_19-19-01z.10000samp.png)
+*Depth of field example, iterations: 10,000, depth: 8, resolution: 1200x1200*
+
 Usage
 =====
 
@@ -95,4 +98,22 @@ Optimizations
 
 ### Stream Compaction
 
+I created an array of pointers on the GPU, all pointing to existing rays. I used Thrust's `partition` function to sort all of the "truthy", i.e. non-terminatable, to the front of the array, and maintained a pointer to the back of the "truthy" values. This array of pointers to rays is used for future intersection and shading calculations, as it represents the collection of rays that are active. You can see below the number of rays that are culled at every depth. 
 
+I ran the following on a simple cornell box with a diffuse sphere in the middle, and removed the side and back walls for the "Open" configuration. I only ran 1 iteration, with max depth 100 and resolution 800x800 (this is why you will notice the number of rays start at 640,000). I only show up to depth 50, since the flatline trend continues on to 100. 
+
+![Reduction in Rays Due to Stream Compaction Chart](img/ReductioninRaysDueToStreamCompaction.png)
+
+You can see almost a logarithmic decrease in the rays for the open cornell box configuration, and a more gradual decrease for the closed cornell box. This makes sense, since the termination conditions are: 1) if the ray hits nothing, and 2) if the ray hits a light. The likelihood of hitting nothing is very high in the open cornell box, since about a third of the screen is empty space, whereas it is very low for the closed cornell box. This results in a high number of rays being terminated each depth for the open cornell box, leading the iteration to finish early at depth 20, instead of 100. 
+
+### Sorting by Material
+
+I have a toggleable option `SORT_BY_MATERIAL` that will sort the rays by material after each depth. This means that rays with similar bounce futures will be grouped together, increasing the likelihood that warps will finish together, and fewer rays will be left idle.
+
+### Caching the First Bounce
+
+I also have a toggleable option `CACHE_FIRST_BOUNCE` which, if enabled, saves the first bounce data in a GPU array. Future iterations can then skip a depth, harvesting the first bounce data from the appropriate GPU array. This shaves off about `1 / depth` amount of pathtrace computation. Note that this option cannot be enabled if `DOF` or `ANTIALIASING` are enabled, since the first bounce will be non-deterministic. 
+
+### Mesh Bounding Box
+
+Another option I provide is `USE_BB`, which will create a bounding box for the mesh. The savings for this depends on how much of the space the mesh takes up -- if the mesh encompasses most of the viewing space, the bounding box offers little help efficiency-wise. However, if it takes up a fraction of the viewing space, you are saving a large amount of time that would be spent iterating over and testing for intersection with triangles.
