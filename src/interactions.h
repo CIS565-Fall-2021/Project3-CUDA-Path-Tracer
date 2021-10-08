@@ -79,7 +79,7 @@ void scatterRay(
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
     pathSegment.ray.origin = intersect + EPSILON * normal;
-    if (false)
+    if (m.hasReflective)
     {
         // specular
         glm::vec3 reflectedDir = glm::reflect(glm::normalize(pathSegment.ray.direction),

@@ -437,21 +437,15 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // There is intersection, but it hits light
         PathSegment* newEnd = thrust::stable_partition(thrust::device, dev_paths, dev_paths + num_paths, isTerminated());
         num_paths = newEnd - dev_paths;
-        if (num_paths > 0) {
-            iterationComplete = false;
-        }
-        else {
-            iterationComplete = true;
-        }
+        iterationComplete = num_paths <= 0;
     }
-
-    num_paths = dev_path_end - dev_paths;
 
     // * Finally, add this iteration's results to the image. This has been done
     //   for you.
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+    // original BASE CODE: finalGather<<<numBlocksPixels, blockSize1d>>>(num_paths, dev_image, dev_paths);
+    finalGather<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image, dev_paths);
 
     ///////////////////////////////////////////////////////////////////////////
 
