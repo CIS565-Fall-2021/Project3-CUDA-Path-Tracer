@@ -5,6 +5,8 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 
+#include "math_constants.h"
+
 #include "sceneStructs.h"
 #include "scene.h"
 #include "glm/glm.hpp"
@@ -14,10 +16,9 @@
 #include "intersections.h"
 #include "interactions.h"
 
-
 #define SORT_MATERIAL 1
 #define CACHE_INTERSECTION 1
-#define MESH_BOUND_CHECK 0
+#define DEPTH_OF_FIELD 0
 
 #define ERRORCHECK 1
 
@@ -122,6 +123,30 @@ void pathtraceFree() {
     checkCUDAError("pathtraceFree");
 }
 
+
+
+__host__ __device__ glm::vec2 concentricSampleDisk(thrust::default_random_engine& rng) {
+
+    thrust::uniform_real_distribution<float> u01(0, 1);
+
+    glm::vec2 u = glm::vec2(u01(rng), u01(rng));
+    glm::vec2 uOffset = 2.f * u - glm::vec2(1.f, 1.f);
+
+    if (uOffset.x == 0 && uOffset.y == 0) {
+        return glm::vec2(0.f, 0.f);
+    }
+    float theta, r;
+    if (std::abs(uOffset.x) > std::abs(uOffset.y)) {
+        r = uOffset.x;
+        theta = CUDART_PIO4_F * (uOffset.y / uOffset.x);
+    }
+    else {
+        r = uOffset.y;
+        theta = CUDART_PIO2_F - CUDART_PIO4 * (uOffset.x / uOffset.y);
+    }
+    return r * glm::vec2(std::cos(theta), std::sin(theta));
+}
+
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -147,6 +172,23 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
             - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
             - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
         );
+
+#if DEPTH_OF_FIELD
+        cam.focalDistance = 5.f;
+        cam.lensRadius = 0.2f;
+
+        if (cam.lensRadius > 0) {
+            glm::vec2 randomSample{ 0 };
+            thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 8);
+            glm::vec2 pLens = cam.lensRadius * concentricSampleDisk(rng);
+
+            float ft = glm::abs((cam.focalDistance) / segment.ray.direction.z);
+            glm::vec3 pFocus = ft * segment.ray.direction;
+
+            segment.ray.origin += glm::vec3(pLens.x, pLens.y, 0.f);
+            segment.ray.direction = glm::normalize(pFocus - glm::vec3(pLens.x, pLens.y, 0.f));
+        }
+#endif
 
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
@@ -240,9 +282,8 @@ __global__ void computeIntersections(
             }
             else if (geom.type == CUSTOM_OBJ) {
                 //Compute the minimum t (a ray might intersect multiple triangle (front and back) in a custom obj
-#ifdef MESH_BOUND_CHECK
+#if MESH_BOUND_CHECK
                 //Only spawn the rays which hits inside the bounding box
-
                 if (checkWithinMeshBoundingBox(geom, triangle_bound_min, triangle_bound_max, pathSegment.ray)) {
                     float closest_dist = FLT_MAX;
                     for (int j = 0; j < triangles_size; j++) {
@@ -428,6 +469,7 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
     //   for you.
 
     // TODO: perform one iteration of path tracing
+
     generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dev_paths);
     checkCUDAError("generate camera ray");
 

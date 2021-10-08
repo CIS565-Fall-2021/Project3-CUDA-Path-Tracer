@@ -129,10 +129,8 @@ int Scene::loadObjFile() {
         size_t index_offset = 0;
         TriangleGeom current_face;
 
-#ifdef MESH_BOUND_CHECK
         glm::vec3 bound_min{ FLT_MAX };
         glm::vec3 bound_max{ FLT_MIN };
-#endif
 
         for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
@@ -150,7 +148,6 @@ int Scene::loadObjFile() {
 
                 current_ver = glm::vec3(vx, vy, vz);
 
-#ifdef MESH_BOUND_CHECK
                 if (vx < bound_min.x) {
                     bound_min.x = vx;
                 }
@@ -169,7 +166,6 @@ int Scene::loadObjFile() {
                 if (vz > bound_max.z) {
                     bound_max.z = vz;
                 }
-#endif
                 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
@@ -201,10 +197,8 @@ int Scene::loadObjFile() {
             index_offset += fv;
             triangles.push_back(current_face);
 
-#ifdef MESH_BOUND_CHECK
             triangle_bound_max = bound_max;
             triangle_bound_min = bound_min;
-#endif
             // per-face material
             //shapes[s].mesh.material_ids[f];
         }
