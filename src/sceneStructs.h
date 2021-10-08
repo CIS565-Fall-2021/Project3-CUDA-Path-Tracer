@@ -10,11 +10,21 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH,
 };
 
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+};
+
+struct Tri {
+    glm::vec3 v1;
+    glm::vec3 v2;
+    glm::vec3 v3;
+    glm::vec3 n1;
+    glm::vec3 n2;
+    glm::vec3 n3;
 };
 
 struct Geom {
@@ -26,24 +36,11 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-};
-
-struct Tri {
-    glm::vec3 verts;
-    glm::vec3 normal;
-};
-
-struct MeshGeom {
-    std::string file;
-    int materialid;
-    glm::vec3 translation;
-    glm::vec3 rotation;
-    glm::vec3 scale;
-    glm::mat4 transform;
-    glm::mat4 inverseTransform;
-    glm::mat4 invTranspose;
+    // the following are only used if the 
+    // geom is a mesh
     Tri* tris;
     int numTris;
+    Tri* boundingBox;
 };
 
 struct Material {

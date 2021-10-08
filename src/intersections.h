@@ -142,3 +142,78 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+__host__ __device__ float meshIntersectionTest(Geom geom, 
+											   Ray r,
+											   glm::vec3 &intersectionPoint, 
+											   glm::vec3 &normal, 
+											   bool &outside,
+                                               Tri * tris,
+                                               int numTris) {
+    Ray q;
+    q.origin    =                multiplyMV(geom.inverseTransform, glm::vec4(r.origin   , 1.0f));
+    q.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    float tmin = 1e38f;
+    //float tmax = 1e38f;
+    glm::vec3 tmin_n;
+    for (int i = 0; i < numTris; i++) {
+        glm::vec3 baryPos;
+        bool hit;
+        float t; 
+        glm::vec3 v1 = tris[i].v1;
+        glm::vec3 v2 = tris[i].v2;
+        glm::vec3 v3 = tris[i].v3;
+
+        volatile float v1x = v1.x;
+
+        hit = glm::intersectRayTriangle(q.origin,
+									    q.direction,
+									    v1,
+									    v2,
+									    v3,
+									    baryPos);
+
+        if (hit && v1x != 0) {
+            // translate the barycentric coordinates to mesh-space
+            // This is matrix multiplication of baryPos and 
+            // the mesh-space location of the verts
+            float x = baryPos.x * v1.x + baryPos.y * v2.x + baryPos.z * v3.x;
+            float y = baryPos.x * v1.y + baryPos.y * v2.y + baryPos.z * v3.y;
+            float z = baryPos.x * v1.z + baryPos.y * v2.z + baryPos.z * v3.z;
+
+            // now we use the mesh-space hit coordinates to find t
+            t = glm::dot(glm::vec3(x, y, z) - q.origin, q.direction);
+            if (t < tmin) {
+                tmin = t;
+                tmin_n = tris[i].n1;
+            }
+        }
+    }
+    //for (int xyz = 0; xyz < 3; ++xyz) {
+    //    float qdxyz = q.direction[xyz];
+    //    /*if (glm::abs(qdxyz) > 0.00001f)*/ {
+    //        float t1 = (-0.5f - q.origin[xyz]) / qdxyz;
+    //        float t2 = (+0.5f - q.origin[xyz]) / qdxyz;
+    //        float ta = glm::min(t1, t2);
+    //        float tb = glm::max(t1, t2);
+    //        glm::vec3 n;
+    //        n[xyz] = t2 < t1 ? +1 : -1;
+    //        if (ta > 0 && ta > tmin) {
+    //            tmin = ta;
+    //            tmin_n = n;
+    //        }
+    //        if (tb < tmax) {
+    //            tmax = tb;
+    //            tmax_n = n;
+    //        }
+    //    }
+    //}
+
+    if (tmin < 1e38f) {
+        intersectionPoint = multiplyMV(geom.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
+        normal = glm::normalize(multiplyMV(geom.invTranspose, glm::vec4(tmin_n, 0.0f)));
+        return glm::length(r.origin - intersectionPoint);
+    }
+    return -1;
+}

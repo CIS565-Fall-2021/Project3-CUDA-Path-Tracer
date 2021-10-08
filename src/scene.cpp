@@ -3,7 +3,9 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <tiny_obj_loader.h>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -39,6 +41,81 @@ Scene::Scene(string filename) {
     }
 }
 
+int Scene::loadMesh(string filePath, Geom *geom) {
+    // Much of the following was adapted from tinyobjloader's example code:
+    // https://github.com/tinyobjloader/tinyobjloader
+	tinyobj::ObjReaderConfig reader_config;
+	tinyobj::ObjReader reader;
+
+	if (!reader.ParseFromFile(filePath, reader_config)) {
+	  if (!reader.Error().empty()) {
+		  std::cerr << "TinyObjReader: " << reader.Error();
+	  }
+	  exit(1);
+	}
+	if (!reader.Warning().empty()) {
+	  std::cout << "TinyObjReader: " << reader.Warning();
+	}
+
+	auto& attrib = reader.GetAttrib();
+	auto& shapes = reader.GetShapes();
+
+    // set up our mesh geom struct
+    long totalNumTris = 0;
+    for (int s = 0; s < shapes.size(); s++) {
+        totalNumTris += shapes[s].mesh.num_face_vertices.size();
+    }
+    geom->tris = new Tri[totalNumTris];
+    geom->numTris = totalNumTris;
+
+    // Loop over shapes
+    int iTri = 0;
+	for (size_t s = 0; s < shapes.size(); s++) {
+	  // Loop over faces(polygon)
+	  size_t index_offset = 0;
+	  for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+		size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+        Tri T;
+
+        // for each face loaded, place that vertex and vertexNormal data
+        // into a tri in our new geometry
+        glm::vec3* vertVecs[3] = { &T.v1,
+                                &T.v2,
+                                &T.v3 };
+        glm::vec3* normVecs[3] = { &T.n1,
+                                &T.n2,
+                                &T.n3 };
+		// Loop over vertices in the face.
+		for (size_t v = 0; v < fv; v++) {
+		  // access to vertex
+		  tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+		  float vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
+		  float vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
+		  float vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+
+          // do these want to be created with `new`?
+          *vertVecs[v] = glm::vec3(vx, vy, vz);
+
+		  // Check if `normal_index` is zero or positive. negative = no normal data
+		  if (idx.normal_index >= 0) {
+			float nx = attrib.normals[3*size_t(idx.normal_index)+0];
+			float ny = attrib.normals[3*size_t(idx.normal_index)+1];
+			float nz = attrib.normals[3*size_t(idx.normal_index)+2];
+            *normVecs[v] = glm::vec3(nx, ny, nz);
+		  }
+
+		}
+		geom->tris[iTri] = T;
+		iTri++;
+		index_offset += fv;
+
+		// per-face material
+		shapes[s].mesh.material_ids[f];
+	  }
+	} 
+    return 0;
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -58,6 +135,11 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            }
+            else if (line.find(".obj") != string::npos) {
+                cout << "loading mesh " << line << endl;
+                loadMesh(line, &newGeom);
+                newGeom.type = MESH;
             }
         }
 

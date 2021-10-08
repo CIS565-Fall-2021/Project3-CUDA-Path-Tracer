@@ -82,8 +82,9 @@ static PathSegment * dev_pathBounce1Cache = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections2 = NULL;
 static ShadeableIntersection * dev_itxnBounce1Cache = NULL;
-// TODO: static variables for device memory, any extra info you need, etc
-// ...
+static Tri * dev_allTris = NULL;
+static int* dev_meshStartIndices = NULL;
+static int* dev_meshEndIndices = NULL;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -108,7 +109,62 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_itxnBounce1Cache, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    // TODO: initialize any extra device memeory you need
+    // --- mesh loading ---
+    // load the triangles of all meshes into one big array
+    int totalTris = 0;
+    int numMeshes = 0;
+    for (auto& g : hst_scene->geoms) {
+        if (g.type == MESH) {
+            totalTris += g.numTris;
+            numMeshes++;
+        }
+    }
+
+    // if there are any meshes in the 
+    if (numMeshes) {
+        cudaMalloc(&dev_allTris, totalTris * sizeof(Tri));
+        cudaMalloc(&dev_meshStartIndices, numMeshes * sizeof(int));
+        cudaMalloc(&dev_meshEndIndices, numMeshes * sizeof(int));
+
+        // add the tris from all our geo
+        int startIndex = 0;
+        int meshNum = 0;
+		for (auto& g : hst_scene->geoms) {
+			if (g.type == MESH) {
+
+                // copy the tris from this geo, offset the
+                // start index for the next copy
+				cudaMemcpy(dev_allTris + startIndex, 
+						   g.tris + startIndex, 
+						   g.numTris * sizeof(Tri), 
+						   cudaMemcpyHostToDevice);
+
+                // copy the start index for this mesh
+                cudaMemcpy(dev_meshStartIndices + meshNum,
+						   &startIndex,
+						   sizeof(int),
+						   cudaMemcpyHostToDevice);
+
+                // incr the start index for the next mesh
+				startIndex += g.numTris;
+
+                // start index for the next mesh is the end index for
+                // this mesh
+                cudaMemcpy(dev_meshEndIndices + meshNum,
+						   &startIndex,
+						   sizeof(int),
+						   cudaMemcpyHostToDevice);
+			}
+    }
+
+    }
+    else {
+        // declare an empty (nearly) array just because it needs to exist
+        // for freeing/reference etc. 
+        cudaMalloc(&dev_allTris, sizeof(Tri));
+        cudaMalloc(&dev_meshStartIndices, numMeshes * sizeof(int));
+        cudaMalloc(&dev_meshEndIndices, numMeshes * sizeof(int));
+    }
 
     checkCUDAError("pathtraceInit");
 }
@@ -123,7 +179,9 @@ void pathtraceFree() {
     cudaFree(dev_intersections2);
     cudaFree(dev_itxnBounce1Cache);
     cudaFree(dev_pathBounce1Cache);
-    // TODO: clean up any extra device memory you created
+    cudaFree(dev_allTris);
+    cudaFree(dev_meshStartIndices);
+    cudaFree(dev_meshEndIndices);
 
     checkCUDAError("pathtraceFree");
 }
@@ -260,16 +318,17 @@ __global__ void generateRayFromCamera(Camera cam,
 //    }
 //}
 
-// TODO:
 // computeIntersections handles generating ray intersections ONLY.
-// Generating new rays is handled in your shader(s).
-// Feel free to modify the code below.
+// Generating new rays is handled in the shader(s).
 __global__ void computeIntersections(int depth, 
 									 int num_paths, 
 									 PathSegment * pathSegments, 
 									 Geom * geoms, 
 									 int geoms_size, 
-									 ShadeableIntersection * intersections)
+									 ShadeableIntersection * intersections,
+                                     Tri * dev_allTris,
+                                     int * dev_meshStartIndices,
+                                     int * dev_meshEndIndices)
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -289,6 +348,7 @@ __global__ void computeIntersections(int depth,
 
         // naive parse through global geoms
 
+        int meshNum = 0;
         for (int i = 0; i < geoms_size; i++)
         {
             Geom & geom = geoms[i];
@@ -301,7 +361,19 @@ __global__ void computeIntersections(int depth,
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
-            // TODO: add more intersection tests here... triangle? metaball? CSG?
+            else if (geom.type == MESH) {
+                int numTris = dev_meshEndIndices[meshNum] - dev_meshStartIndices[meshNum];
+
+                meshIntersectionTest(geom, 
+									 pathSegment.ray, 
+									 tmp_intersect, 
+									 tmp_normal, 
+									 outside,
+									 dev_allTris + dev_meshStartIndices[meshNum],
+									 numTris);
+
+                meshNum++;
+            }
 
             // Compute the minimum t from the intersection tests to determine what
             // scene geometry object was hit first.
@@ -611,7 +683,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 																			dev_paths,
 																			dev_geoms,
 																			hst_scene->geoms.size(),
-																			dev_intersections);
+																			dev_intersections,
+                                                                            dev_allTris,
+                                                                            dev_meshStartIndices,
+                                                                            dev_meshEndIndices);
 		depth++;
 
 
