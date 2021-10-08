@@ -46,6 +46,53 @@ Scene::Scene(string filename)
                 loadCamera();
                 cout << " " << endl;
             }
+            else if (strcmp(tokens[0].c_str(), "BACK") == 0)
+            {
+                loadBackground();
+                cout << " " << endl;
+            }
+        }
+    }
+}
+
+int Scene::loadBackground()
+{
+    cout << "Loading Background "
+         << "..." << endl;
+    string line;
+    //load object type
+    utilityCore::safeGetline(fp_in, line);
+    vector<string> tokens = utilityCore::tokenizeString(line);
+    if (!line.empty() && fp_in.good())
+    {
+        if (strcmp(tokens[0].c_str(), "IMG") == 0)
+        {
+            std::string inputfile = tokens[1];
+            if (tokens.size() > 1)
+            {
+                // load color texture
+                std::string background = tokens[1];
+                int width, height, byteStride;
+                unsigned char *imgBuff = stbi_load(background.c_str(), &width, &height, &byteStride, 0);
+                if (imgBuff == nullptr)
+                {
+                    cout << stbi_failure_reason() << endl;
+                }
+                backHeight = height;
+                backWidth = width;
+                backTex.reserve((size_t)width * (size_t)height);
+                for (int idx = 0; idx < width * height; idx++)
+                {
+                    int tmpIdx = idx * byteStride;
+                    glm::vec3 t(imgBuff[tmpIdx] / 255.f, imgBuff[tmpIdx + 1] / 255.f, imgBuff[tmpIdx + 2] / 255.f);
+                    // t.bCol[0] = imgBuff[tmpIdx];
+                    // t.bCol[1] = imgBuff[tmpIdx + 1];
+                    // t.bCol[2] = imgBuff[tmpIdx + 2];
+                    backTex.push_back(t);
+                }
+                cout << "vector size " << backTex.size() << endl;
+                stbi_image_free(imgBuff);
+            }
         }
     }
 }
@@ -393,8 +440,6 @@ int Scene::loadMaterial(string materialid)
             {
                 newMaterial.emittance = atof(tokens[1].c_str());
             }
-#define STBI_NO_FAILURE_STRINGS
-#define STBI_FAILURE_USERMSG
             else if (strcmp(tokens[0].c_str(), "COLORMAP") == 0)
             {
                 // NB: colormap goes first so this will reserve the vector and push back the elems
@@ -410,7 +455,7 @@ int Scene::loadMaterial(string materialid)
                     }
                     newMaterial.texHeight = height;
                     newMaterial.texWidth = width;
-                    texData.reserve(width * height);
+                    texData.reserve((size_t)width * (size_t)height);
                     for (int idx = 0; idx < width * height; idx++)
                     {
                         int tmpIdx = idx * 3;

@@ -10,10 +10,6 @@
 
 using namespace std;
 
-// Hardcoded for now
-#define TEXWIDTH 4096
-#define TEXHEIGHT 4096
-
 class Scene
 {
 private:
@@ -21,6 +17,7 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    int loadBackground();
 
 public:
     Scene(string filename);
@@ -33,4 +30,7 @@ public:
     RenderState state;
 
     std::vector<struct TexData> texData;
+    int backWidth = 0;
+    int backHeight = 0;
+    std::vector<glm::vec3> backTex;
 };

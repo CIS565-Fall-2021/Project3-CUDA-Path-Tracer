@@ -77,10 +77,10 @@ REFL        1
 REFR        0
 REFRIOR     1.5
 EMITTANCE   0
-COLORMAP    ../scenes/ebon_hawk/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP 
-ROUGHMAP 
-NORMALMAP 
+COLORMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_baseColor.png
+EMITMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_emissive.png
+ROUGHMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_metallicRoughness.png
+NORMALMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_normal.png 
 
 // Camera
 CAMERA
@@ -158,7 +158,8 @@ TRANS       0 5 0
 ROTAT       30 45 0
 SCALE       4 4 4
 
-
+BACK 0
+IMG ../scenes/ebon_hawk/hyperSquareTex.png
 
 //ROTAT       30 45 0
 //mesh ../scenes/cube.obj

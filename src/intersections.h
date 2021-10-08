@@ -7,6 +7,7 @@
 #include "utilities.h"
 #include "interactions.h"
 
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -150,12 +151,12 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
     else if (t1 > 0 && t2 > 0)
     {
-        t = min(t1, t2);
+        t = glm::min(t1, t2);
         outside = true;
     }
     else
     {
-        t = max(t1, t2);
+        t = glm::max(t1, t2);
         outside = false;
     }
 
@@ -242,65 +243,57 @@ __host__ __device__ __forceinline__ void swap(float &a, float &b)
     b = tmp;
 }
 
-__host__ __device__ bool aabbIntersectionTest(Geom const &g, Ray r)
+__host__ __device__ bool aabbIntersectionTest(Geom const g, Ray r)
 {
+    /*
+    x0 + tx = xn
+    aabbmin.x - qo.x then / qd.x -> new tmin
+    aabbmax.x - qo.x then / qd.x -> new tmax
+    */
     Ray q;
     q.origin = multiplyMV(g.inverseTransform, glm::vec4(r.origin, 1.0f));
     q.direction = glm::normalize(multiplyMV(g.inverseTransform, glm::vec4(r.direction, 0.0f)));
-    // float tmin = 0.f;
-    // float tmax = 1e38f;
-    // glm::vec3 aabbmin = g.min;
-    // glm::vec3 aabbmax = g.max;
-    // /*
-    // x0 + tx = xn
-    // aabbmin.x - qo.x then / qd.x -> new tmin
-    // aabbmax.x - qo.x then / qd.x -> new tmax
-    // */
-    // for (int i = 0; i < 3; i++)
-    // {
-    //     tmin = glm::max(tmin, (aabbmin[i] - q.origin[i]) / q.direction[i]);
-    //     tmax = glm::min(tmax, (aabbmax[i] - q.origin[i]) / q.direction[i]);
-    // }
-    // return tmin <= tmax;
+    float tmpMin, tmin = 0.f;
+    float tmpMax, tmax = 1e38f;
+    glm::vec3 aabbmin = g.min;
+    glm::vec3 aabbmax = g.max;
+    // Check collisions if ray starts inside
+    if (q.origin.x <= aabbmax.x &&
+        q.origin.y <= aabbmax.y &&
+        q.origin.z <= aabbmax.z &&
+        q.origin.x >= aabbmin.x &&
+        q.origin.y >= aabbmin.y &&
+        q.origin.z >= aabbmin.z)
+    {
+        return true;
+    }
 
-    //https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-box-intersection
-    float tmin = (g.min.x - q.origin.x) / q.direction.x;
-    float tmax = (g.max.x - q.origin.x) / q.direction.x;
-
-    if (tmin > tmax)
-        swap(tmin, tmax);
-
-    float tymin = (g.min.y - q.origin.y) / q.direction.y;
-    float tymax = (g.max.y - q.origin.y) / q.direction.y;
-
-    if (tymin > tymax)
-        swap(tymin, tymax);
-
-    if ((tmin > tymax) || (tymin > tmax))
-        return false;
-
-    if (tymin > tmin)
-        tmin = tymin;
-
-    if (tymax < tmax)
-        tmax = tymax;
-
-    float tzmin = (g.min.z - q.origin.z) / q.direction.z;
-    float tzmax = (g.max.z - q.origin.z) / q.direction.z;
-
-    if (tzmin > tzmax)
-        swap(tzmin, tzmax);
-
-    if ((tmin > tzmax) || (tzmin > tmax))
-        return false;
-
-    if (tzmin > tmin)
-        tmin = tzmin;
-
-    if (tzmax < tmax)
-        tmax = tzmax;
-
-    return true;
+    for (int i = 0; i < 3; i++)
+    {
+        if (q.direction[i] == 0)
+        {
+            if (q.origin[i] > aabbmax[i] || q.origin[i] < aabbmin[i])
+            {
+                return false;
+            }
+            else
+            {
+                continue;
+            }
+        }
+        else
+        {
+            tmpMin = (aabbmin[i] - q.origin[i]) / q.direction[i];
+            tmpMax = (aabbmax[i] - q.origin[i]) / q.direction[i];
+            if (tmpMin > tmpMax)
+            {
+                swap(tmpMin, tmpMax);
+            }
+        }
+        tmin = glm::max(tmin, tmpMin);
+        tmax = glm::min(tmax, tmpMax);
+    }
+    return tmin <= tmax;
 }
 
 __host__ __device__ float meshIntersectionTest(Geom const &mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, glm::vec2 &uv, struct Triangle *tri)

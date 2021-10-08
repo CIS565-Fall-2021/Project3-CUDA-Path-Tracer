@@ -4,8 +4,17 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
+#include <thrust/execution_policy.h>
+#include <thrust/random.h>
+#include <thrust/remove.h>
+#include <thrust/device_vector.h>
+#include <thrust/partition.h>
 
+// unused, maybe delete
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
+
+#define STBI_NO_FAILURE_STRINGS
+#define STBI_FAILURE_USERMSG
 
 // Flags for different optimizations and timing
 
@@ -57,12 +66,6 @@ struct Triangle
     glm::vec3 norm[3] = {glm::vec3(), glm::vec3(), glm::vec3()};
     glm::vec2 uv[3] = {glm::vec2(), glm::vec2(), glm::vec2()};
 };
-
-// struct TriBuff
-// {
-//     struct Triangle *t;
-//     int len;
-// };
 
 struct TexData
 {

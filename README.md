@@ -95,6 +95,8 @@ skylight???
 6 Wavefront pathtracing
 
 // https://www.iquilezles.org/www/articles/intersectors/intersectors.htm
+
+https://www.cs.utexas.edu/~fussell/courses/cs384g-spring2016/lectures/normal_mapping_tangent.pdf
 Scenes & Ray Intersection 
 Steve Rotenberg CSE168: Rendering Algorithms 
 UCSD, Winter 2017
@@ -108,6 +110,8 @@ NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
 check t < 0
 
 wrapping negative texture coords
+
+https://wallpaperaccess.com/star-wars-hyperspace
 
 
 pbrIsh
