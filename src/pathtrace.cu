@@ -18,13 +18,6 @@
 #include "intersections.h"
 #include "interactions.h"
 
-#define USE_CACHE       1
-#define USE_SORT        0
-#define USE_PARTITION   0
-#define USE_REMOVE_IF   0
-#define PRINT           0
-#define ERRORCHECK      1
-
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
