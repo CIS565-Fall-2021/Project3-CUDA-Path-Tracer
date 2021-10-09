@@ -1,0 +1,49 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   10
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Camera
+CAMERA
+RES         800 800
+FOVY        45
+ITERATIONS  2000
+DEPTH       5
+FILE        cornell
+EYE         0.0 5 10.5
+LOOKAT      0 5 0
+UP          0 1 0
+
+
+// Ceiling light
+OBJECT 0
+cube
+material 0
+TRANS       0 30 0
+ROTAT       0 0 0
+SCALE       50 .3 50
+
+// Mesh
+OBJECT 1
+mesh
+../scenes/wahoo.obj
+material 1
+TRANS       0 0 0
+ROTAT       -45 30 0
+SCALE       1 1 1
+texture ../scenes/wahoo.bmp
