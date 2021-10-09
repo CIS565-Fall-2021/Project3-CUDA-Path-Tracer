@@ -148,5 +148,5 @@ OBJECT 7
 cube
 material 1
 TRANS       0 5 5
-ROTAT       0  0
+ROTAT       0  0 0
 SCALE       10 10 .1

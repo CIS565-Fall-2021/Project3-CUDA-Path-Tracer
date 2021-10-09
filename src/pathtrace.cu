@@ -87,7 +87,7 @@ int cacheNumPaths = 0;
 // ...
 
 
-bool usingCache = false;
+bool usingCache = true;
 bool usingDOF = false;
 bool useBVH = false;
 
@@ -425,18 +425,7 @@ __global__ void shadeBSDFMaterial(
 
 
 				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng, cam);
-				/*	if (material.hasRefractive > 0.0f)
-					{
-						pathSegments[idx].color = pathSegments[idx].color;
-					}
-					else
-					{
-						pathSegments[idx].color *= materialColor;
-					}*/
-
-					//float lightTerm = glm::dot(intersection.surfaceNormal, glm::vec3(0.0f, 1.0f, 0.0f));
-					//pathSegments[idx].color *= (materialColor * lightTerm) * 0.3f + ((1.0f - intersection.t * 0.02f) * materialColor) * 0.7f;
-					//pathSegments[idx].color *= u01(rng); // apply some noise because why not
+			
 			}
 			// If there was no intersection, color the ray black.
 			// Lots of renderers use 4 channel color, RGBA, where A = alpha, often
