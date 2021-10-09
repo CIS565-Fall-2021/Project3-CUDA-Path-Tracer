@@ -98,7 +98,7 @@ To test the performance our data structure, we load a [Stanford Bunny](http://gr
 
 **TODO: Make into a graph**
 
-<img src="img\bvh-table.png" height="250px" />
+<img src="img\bvh-perf-table.png" height="250px" />
 
 ## Additional Performance Analysis
 
