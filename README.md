@@ -93,6 +93,12 @@ I jittered the pixel point by some fractional value to achieve anti-aliasing, as
 | --------------------- | ------------------ |
 | ![Without Anti-Aliasing](img/final_renders/cornell.2021-10-07_22-22-41z.5000samp.png) | ![With Anti-Aliasing](img/final_renders/cornell.2021-10-07_22-20-52z.5000samp.png) |
 
+As you can see below, enabling anti-aliasing doesn't seem to have a major effect on runtime. There is an additional cost associated with jittering the rays, but this is minimal. 
+
+![Performance Impact Anti-Aliasing](img/performance_renders/PerformanceImpactofAnti-Aliasing.png)
+
+*Run on Cornell Box, iterations: 5000, depth: 8, 800x800*
+
 Optimizations
 ============
 
@@ -110,9 +116,17 @@ You can see almost a logarithmic decrease in the rays for the open cornell box c
 
 I have a toggleable option `SORT_BY_MATERIAL` that will sort the rays by material after each depth. This means that rays with similar bounce futures will be grouped together, increasing the likelihood that warps will finish together, and fewer rays will be left idle.
 
+As it stands, sorting by material seems to have a negative impact on runtime performance. I rendered the following scene that contains 6 spheres with interleaved materials with and without sorting by material. I imagine that there are so few materials in the scene that the cost of sorting at each depth is not offset by the savings gained by grouping rays with similar materials together. If you were to drastically increase the number of materials and objects in the scene, I would guess you would see more of an improvement. 
+
+![Performance Impactof Sorting Materials](img/performance_renders/PerformanceImpactofSortingRaysByMaterial.png)
+
 ### Caching the First Bounce
 
 I also have a toggleable option `CACHE_FIRST_BOUNCE` which, if enabled, saves the first bounce data in a GPU array. Future iterations can then skip a depth, harvesting the first bounce data from the appropriate GPU array. This shaves off about `1 / depth` amount of pathtrace computation. Note that this option cannot be enabled if `DOF` or `ANTIALIASING` are enabled, since the first bounce will be non-deterministic. 
+
+You can see significant time savings as the resolution is increased, as you save on that much more computation.
+
+![Performance Impact of Caching First Bounce](img/performance_renders/HowCachingFirstBounceImprovesPerformance.png)
 
 ### Mesh Bounding Box
 
