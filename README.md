@@ -7,8 +7,8 @@ CUDA Path Tracer
   * [LinkedIn](linkedin.com/in/asalexanderlee), [Personal Website](https://asalexanderlee.myportfolio.com/)
 * Tested on: Windows 10, i7-6700 @ 3.40GHz 16GB, Quadro P1000 (Moore 100A Lab)
 
-![DOF2](img/final_renders/cornell.2021-10-07_19-19-01z.10000samp.png)
-*Depth of field example, iterations: 10,000, depth: 8, resolution: 1200x1200*
+![Mirror Scene](img/final_renders/mirror_scene.png)
+*Mirrored hall effect, iterations: 5,000, depth: 8, resolution: 1200x1200*
 
 Usage
 =====
