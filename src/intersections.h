@@ -143,6 +143,52 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
+// modified from the thrust version to return true for hitting
+// the back of a face
+__host__ __device__ bool intersectRayTriangle
+	(
+		glm::vec3 const & orig, glm::vec3 const & dir,
+		glm::vec3 const & v0, glm::vec3 const & v1, glm::vec3 const & v2,
+		glm::vec3 & baryPosition
+	)
+	{
+		glm::vec3 e1 = v1 - v0;
+		glm::vec3 e2 = v2 - v0;
+
+		glm::vec3 p = glm::cross(dir, e2);
+
+		float a = glm::dot(e1, p);
+
+		float Epsilon = FLT_EPSILON;
+
+        // this part of thrust's triangle intersection function rules out
+        // hitting the back of a face. We want to count that as a hit for
+        // refraction and meshes with holes (like the teapot)
+		//if(a < Epsilon)
+		//	return false;
+
+		float f = float(1.0f) / a;
+
+		glm::vec3 s = orig - v0;
+		baryPosition.x = f * glm::dot(s, p);
+		if(baryPosition.x < float(0.0f))
+			return false;
+		if(baryPosition.x > float(1.0f))
+			return false;
+
+		glm::vec3 q = glm::cross(s, e1);
+		baryPosition.y = f * glm::dot(dir, q);
+		if(baryPosition.y < float(0.0f))
+			return false;
+		if(baryPosition.y + baryPosition.x > float(1.0f))
+			return false;
+
+		baryPosition.z = f * glm::dot(e2, q);
+
+		return baryPosition.z >= float(0.0f);
+	}
+
+
 __host__ __device__ float meshIntersectionTest(Geom geom, 
 											   Ray r,
 											   glm::vec3 &intersectionPoint, 
@@ -164,7 +210,9 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
     if (useBBox) {
         for (int i = 0; i < 12; i++) {
             tri = bboxTris[i];
-            hit = glm::intersectRayTriangle(q.origin,
+            // don't use the "hit" bool returned by intersectRayTriangle
+            // it doesn't detect back face intersections
+            hit = intersectRayTriangle(q.origin,
                 q.direction,
                 tri.v1,
                 tri.v2,
@@ -189,31 +237,25 @@ __host__ __device__ float meshIntersectionTest(Geom geom,
         glm::vec3 v1 = tri.v1;
         glm::vec3 v2 = tri.v2;
         glm::vec3 v3 = tri.v3;
+        hit = false;
 
-        hit = glm::intersectRayTriangle(q.origin,
+        hit = intersectRayTriangle(q.origin,
 									    q.direction,
 									    v1,
 									    v2,
 									    v3,
 									    baryPos);
 
+        //volatile float3 bp = make_float3(baryPos.x, baryPos.y, baryPos.z);
         if (hit) {
-            // translate the barycentric coordinates to mesh-space
-            // This is matrix multiplication of baryPos and 
-            // the mesh-space location of the verts
-
             // glm::intersect doesn't actually give us all barycentric 
             // values, only u & v. We can calculate w using these though
             float w = (1.0f - baryPos.x - baryPos.y);
-            float x = baryPos.x * v1.x + baryPos.y * v2.x + w * v3.z;
-            float y = baryPos.x * v1.y + baryPos.y * v2.y + w * v3.z;
-            float z = baryPos.x * v1.z + baryPos.y * v2.z + w * v3.z;
+            // the third value from glm::intersect is actually the t we're 
+            // looking for though, so that's nice
+            t = baryPos.z;
 
-            // now we use the mesh-space hit coordinates to find t
-            float alignment = glm::dot(q.direction, glm::vec3(x, y, z) - q.origin);
-            t = glm::distance(q.origin, glm::vec3(x, y, z));
-
-            if (t < tmin && alignment > 0.0f) {
+            if (t < tmin){
                 tmin = t;
                 tmin_n = baryPos.x * tri.n1 + baryPos.y * tri.n2 + w * tri.n3;
             }

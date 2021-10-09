@@ -520,9 +520,12 @@ __global__ void finalGatherAndCalcCull(int nPaths,
         // p.s. we've cast iter to a float for this
         glm::vec3 newV = ((iter - 1.0f) / iter) * (oldV + (meanCol - newCol) * (meanCol - newCol) / iter);
         dev_variancePerPixel[iterationPath.pixelIndex] = newV;
+        volatile float3 nvf = make_float3(newV.x, newV.y, newV.z);
 
         // where we set pixels to be culled
         if (iter > minSamples) {
+            glm::vec3 vvv = glm::lessThan(newV, glm::vec3(pixelVariance));
+            volatile float3 vvvf = make_float3(vvv.x, vvv.y, vvv.z);
             dev_shouldCullPixel[iterationPath.pixelIndex] = 
                 // if variance for R,G,&B are all under threshold, cull=true
                 glm::all(glm::lessThan(newV, glm::vec3(pixelVariance)));
@@ -538,66 +541,7 @@ __global__ void finalGatherAndCalcCull(int nPaths,
         dev_iterationsPerPixel[iterationPath.pixelIndex] += 1;
     }
 }
-/*
-int cullPixels(int num_paths,
-							   const PathSegment* dev_pathsRO,
-							   PathSegment* dev_pathsOut,
-							   const ShadeableIntersection* dev_intersectionsRO,
-							   ShadeableIntersection* dev_intersectionsOut,
-							   const int blockSize1d) {
-    // cull and sort in one kernel to save on global reads/writes when 
-    // rearranging paths/intersections
 
-    // --- Cull ---
-    int newNumPaths;
-    int* indices;
-    // the addr of the last non-culled path
-    int* partitionMiddle;
-    
-	cudaMalloc((void**)&indices, num_paths * sizeof(int));
-
-    int numBlocks = ceil((float)num_paths / blockSize1d);
-    kernEnumerate <<<numBlocks, blockSize1d >>> (num_paths, indices);
-
-
-    // effectively sort indices based on whether an object was hit
-    partitionMiddle = thrust::stable_partition(thrust::device, indices, indices + num_paths, dev_pathsRO, hasBounces());
-    // do some pointer math to return the index
-    newNumPaths = partitionMiddle - indices;
-    
-    // --- Sort by Material ---
-    // now everything before noHitIndex has hit something. Sort them by their material
-    if (hst_scene->state.sortMaterials) {
-        int* materialIds;
-        cudaMalloc((void**)&materialIds, newNumPaths * sizeof(int));
-
-        // get material ids. We need to pass indices since we haven't reshuffled intersections yet
-        numBlocks = ceil((float)newNumPaths / blockSize1d);
-        kernGetMaterialIds << <numBlocks, blockSize1d >> > (newNumPaths, materialIds, indices, dev_intersectionsRO);
-
-        thrust::sort_by_key(thrust::device, materialIds, materialIds + newNumPaths, indices);
-
-        cudaFree(materialIds);
-    }
-
-	// assign paths/intersections to the sorted indices. now all paths/intersections before `newNumPaths` have hit an obj
-    // note we have to assign ALL paths and intersections (i.e. use `num_paths` not `newNumPaths`) because some paths wouldn't
-    // be assigned and/or would be overwritten
-	numBlocks = ceil((float)num_paths / blockSize1d);
-	kernScatterPathsAndIntersections << <numBlocks, blockSize1d >> > (num_paths,
-																	  dev_pathsOut,
-																	  dev_pathsRO,
-																	  dev_intersectionsOut,
-																	  dev_intersectionsRO,
-																	  indices);
-	//checkCUDAError("scatter");
-
-
-    cudaFree(indices);
-
-    return newNumPaths;
-}
-*/
 
 // predicate for culling paths based on bounce depth
 struct hasBounces{
@@ -697,13 +641,57 @@ int cullPathsAndSortByMaterial(int num_paths,
     return newNumPaths;
 }
 
-/*
-emitter
-lambert type
-phong type
-reflective phong
-reflective/refractive phong
-*/
+// predicate for culling pixels based on pre-calculated array of ints
+struct toBool{
+  __device__ bool operator()(const int &i){
+    return i;
+  }
+};
+int cullPixels(int num_paths,
+			   const PathSegment* dev_pathsRO,
+			   PathSegment* dev_pathsOut,
+			   const ShadeableIntersection* dev_intersectionsRO,
+			   ShadeableIntersection* dev_intersectionsOut,
+			   int * dev_shouldCullPixel,
+			   const int blockSize1d) {
+    // --- Cull ---
+    int newNumPaths;
+    int* indices;
+    // the addr of the last non-culled path
+    int* partitionMiddle;
+    
+	cudaMalloc((void**)&indices, num_paths * sizeof(int));
+
+    int numBlocks = ceil((float)num_paths / blockSize1d);
+    kernEnumerate <<<numBlocks, blockSize1d >>> (num_paths, indices);
+
+
+    // effectively sort indices based on pre-calculated indicator of if we should cull
+    partitionMiddle = thrust::stable_partition(thrust::device, 
+											   indices, 
+											   indices + num_paths, 
+											   dev_shouldCullPixel, 
+											   toBool());
+    // do some pointer math to return the index
+    newNumPaths = partitionMiddle - indices;
+
+	// assign paths/intersections to the sorted indices. now all paths/intersections before `newNumPaths` have hit an obj
+    // note we have to assign ALL paths and intersections (i.e. use `num_paths` not `newNumPaths`) because some paths wouldn't
+    // be assigned and/or would be overwritten
+	numBlocks = ceil((float)num_paths / blockSize1d);
+	kernScatterPathsAndIntersections << <numBlocks, blockSize1d >> > (num_paths,
+																	  dev_pathsOut,
+																	  dev_pathsRO,
+																	  dev_intersectionsOut,
+																	  dev_intersectionsRO,
+																	  indices);
+	//checkCUDAError("scatter");
+
+
+    cudaFree(indices);
+
+    return newNumPaths;
+}
 
 
 void shade(int iter,
@@ -908,6 +896,15 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // Retrieve image from GPU
     cudaMemcpy(hst_scene->state.image.data(), dev_image,
             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+
+    // cull pixels for the next iteration
+	num_paths = cullPixels(preCulledNumPaths, 
+						   dev_paths, 
+						   dev_paths2, 
+						   dev_intersections, 
+						   dev_intersections2, 
+						   dev_shouldCullPixel,
+						   blockSize1d);
 
     checkCUDAError("pathtrace");
 }
