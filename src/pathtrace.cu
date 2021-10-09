@@ -41,14 +41,6 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
 }
 
-/*
-__host__ __device__
-thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
-    int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
-    return thrust::default_random_engine(h);
-}
-*/
-
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
         int iter, glm::vec3* image) {
@@ -82,10 +74,16 @@ static PathSegment * dev_pathBounce1Cache = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
 static ShadeableIntersection * dev_intersections2 = NULL;
 static ShadeableIntersection * dev_itxnBounce1Cache = NULL;
+// mesh data
 static Tri * dev_meshTris = NULL;
 static int* dev_meshStartIndices = NULL;
 static int* dev_meshEndIndices = NULL;
 static Tri * dev_bboxTris = NULL;
+// adaptive sampling data
+static int * dev_shouldCullPixel = NULL;
+static int * dev_iterationsPerPixel = NULL;
+// note variance has to be calculated for R, G, & B so we need a vec3
+static glm::vec3 * dev_variancePerPixel = NULL;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -110,7 +108,15 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_itxnBounce1Cache, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-    // --- mesh loading ---
+    // --- init adaptive sampling ---
+    cudaMalloc(&dev_shouldCullPixel, pixelcount * sizeof(int));
+    cudaMemset(dev_shouldCullPixel, 0, pixelcount * sizeof(int));
+    cudaMalloc(&dev_iterationsPerPixel, pixelcount * sizeof(int));
+    cudaMemset(dev_iterationsPerPixel, 0, pixelcount * sizeof(int));
+    cudaMalloc(&dev_variancePerPixel, pixelcount * sizeof(glm::vec3));
+    cudaMemset(dev_variancePerPixel, 0, pixelcount * sizeof(glm::vec3));
+
+    // --- init mesh loading ---
     // load the triangles of all meshes into one big array
     int totalTris = 0;
     int numMeshes = 0;
@@ -192,6 +198,9 @@ void pathtraceFree() {
     cudaFree(dev_meshStartIndices);
     cudaFree(dev_meshEndIndices);
     cudaFree(dev_bboxTris);
+    cudaFree(dev_shouldCullPixel);
+    cudaFree(dev_iterationsPerPixel);
+    cudaFree(dev_variancePerPixel);
 
     checkCUDAError("pathtraceFree");
 }
@@ -466,15 +475,67 @@ __device__ glm::vec3 devClampRGB(glm::vec3 col) {
 }
 
 // Add the current iteration's output to the overall image
-__global__ void finalGather(int nPaths, glm::vec3 * image, PathSegment * iterationPaths, float iterations){
+__global__ void finalGather(int nPaths, 
+							glm::vec3 * image, 
+							PathSegment * iterationPaths, 
+							int iter){
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
 
     if (index < nPaths)
     {
         PathSegment iterationPath = iterationPaths[index];
         // yes we have to clamp here even though there is later clamping
         // otherwise reflective surfaces generate fireflies
-		image[iterationPath.pixelIndex] += devClampRGB(iterationPath.color);// ((image[iterationPath.pixelIndex] * (iterations - 1)) + iterationPath.color) / iterations;// *0.001f;
+		image[iterationPath.pixelIndex] += devClampRGB(iterationPath.color);
+    }
+}
+
+__global__ void finalGatherAndCull(int nPaths, 
+							glm::vec3 * image, 
+							PathSegment * iterationPaths, 
+							float iter,
+                            bool cullPixels,
+                            int * dev_iterationsPerPixel,
+                            int * dev_shouldCullPixel,
+                            glm::vec3 * dev_variancePerPixel,
+                            int minSamples,
+                            float pixelVariance){
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+
+
+    if (index < nPaths)
+    {
+        PathSegment iterationPath = iterationPaths[index];
+        glm::vec3 newCol = devClampRGB(iterationPath.color);
+        glm::vec3 meanCol = image[iterationPath.pixelIndex];
+        glm::vec3 oldV = dev_variancePerPixel[iterationPath.pixelIndex];
+
+        // calculate variance. We know the previous mean and the previous variance,
+        // and a formula for the new variance after adding an element to the set can 
+        // be found here:
+        // https://www.quora.com/Is-it-possible-to-calculate-variance-using-old-variance-and-a-new-value
+        // This is rolling so we need to be calculating it every iteration regardless
+        // of whether we're below minSamples or not
+        // p.s. we've cast iter to a float for this
+        glm::vec3 newV = ((iter - 1.0f) / iter) * (oldV + (meanCol - newCol) * (meanCol - newCol) / iter);
+        dev_variancePerPixel[iterationPath.pixelIndex] = newV;
+
+        // where we set pixels to be culled
+        if (iter > minSamples) {
+            dev_shouldCullPixel[iterationPath.pixelIndex] = 
+                // if variance for R,G,&B are all under threshold, cull=true
+                glm::all(glm::lessThan(newV, glm::vec3(pixelVariance)));
+        }
+
+        // yes we have to clamp here even though there is later clamping
+        // otherwise reflective surfaces generate fireflies
+        image[iterationPath.pixelIndex] += newCol;
+
+        // track the number of iterations per pixel. Not only do we need it
+        // to calculate the average color per pixel over time, but we can make
+        // informative images from it
+        dev_iterationsPerPixel[iterationPath.pixelIndex] += 1;
     }
 }
 
