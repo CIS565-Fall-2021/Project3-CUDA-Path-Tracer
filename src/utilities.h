@@ -13,6 +13,10 @@
 #define TWO_PI            6.2831853071795864769252867665590057683943f
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
 #define EPSILON           0.00001f
+#define uPtr std::unique_ptr
+#define mkU std::make_unique
+#define sPtr std::shared_ptr
+#define mkS std::make_shared
 
 typedef glm::vec3 Color3f;
 typedef glm::vec3 Point3f;
@@ -25,18 +29,6 @@ typedef glm::vec2 Vector2f;
 typedef glm::ivec2 Vector2i;
 typedef glm::mat4 Matrix4x4;
 typedef glm::mat3 Matrix3x3;
-
-// A collection of preprocessor definitions to
-// save time in writing out smart pointer syntax
-#define uPtr std::unique_ptr
-#define mkU std::make_unique
-// Rewrite std::unique_ptr<float> f = std::make_unique<float>(5.f);
-// as uPtr<float> f = mkU<float>(5.f);
-
-#define sPtr std::shared_ptr
-#define mkS std::make_shared
-// Rewrite std::shared_ptr<float> f = std::make_shared<float>(5.f);
-// as sPtr<float> f = mkS<float>(5.f);
 
 namespace utilityCore {
     extern float clamp(float f, float min, float max);

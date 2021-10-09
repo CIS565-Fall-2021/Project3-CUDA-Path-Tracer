@@ -4,6 +4,7 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
+#include "utilities.h"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
@@ -12,9 +13,32 @@ enum GeomType {
     CUBE,
 };
 
-struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction;
+class Ray {
+public:
+    __host__ __device__ Ray::Ray()
+        : origin(), direction()
+    {}
+    __host__ __device__ Ray::Ray(const Point3f& o, const Vector3f& d)
+        : origin(o), direction(d)
+    {}
+
+    __host__ __device__ Point3f getOrigin() const
+    {
+        return origin;
+    }
+
+    __host__ __device__ Vector3f getDirection() const
+    {
+        return direction;
+    }
+
+    //  Falls slightly short so that it doesn't intersect the object it's hitting. 
+    __host__ __device__ Point3f evaluate(float t) {
+        return origin + (t - .0001f) * glm::normalize(direction);
+    }
+public:
+    Point3f origin;
+    Vector3f direction;
 };
 
 struct Geom {

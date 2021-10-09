@@ -22,14 +22,6 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
 
 // CHECKITOUT
 /**
- * Compute a point at parameter value `t` on ray `r`.
- * Falls slightly short so that it doesn't intersect the object it's hitting. (for shadow acne???)
- */
-__host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
-    return r.origin + (t - .0001f) * glm::normalize(r.direction);
-}
-
-/**
  * Multiplies a mat4 and a vec4 and returns a vec3 clipped from the vec4.
  */
 __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
@@ -83,7 +75,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
             tmin_n = tmax_n;
             outside = false;
         }
-        intersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
+        intersectionPoint = multiplyMV(box.transform, glm::vec4(q.evaluate(tmin), 1.0f));
         normal = glm::normalize(multiplyMV(box.invTranspose, glm::vec4(tmin_n, 0.0f)));
         return glm::length(r.origin - intersectionPoint);
     }
@@ -132,8 +124,8 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
         t = max(t1, t2);
         outside = false;
     }
-
-    glm::vec3 objspaceIntersection = getPointOnRay(rt, t);
+    
+    glm::vec3 objspaceIntersection = rt.evaluate(t);
 
     intersectionPoint = multiplyMV(sphere.transform, glm::vec4(objspaceIntersection, 1.f));
     normal = glm::normalize(multiplyMV(sphere.invTranspose, glm::vec4(objspaceIntersection, 0.f)));
