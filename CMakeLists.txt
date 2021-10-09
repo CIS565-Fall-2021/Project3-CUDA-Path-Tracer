@@ -81,6 +81,7 @@ set(headers
     src/LSystem/rule.h
     src/LSystem/symbol.h
     src/LSystem/turtle.h
+    src/ProceduralTextures.h
     )
 
 set(sources
