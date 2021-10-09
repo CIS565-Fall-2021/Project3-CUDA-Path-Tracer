@@ -28,14 +28,12 @@ Cornell Box Inspired | Very Fast Shiny Cow
 * Diffuse surfaces  
 <br>
 Since most surfaces are not microscopically smooth, incoming light can leave in any direction.
-<br>
 ![](finalRenders/cornell_dfl.png)
 <br>
 
 * Specular reflection  
 <br>
 Smooth surfaces reflect light neatly about the surface normal, like a mirror does. 
-<br>
 ![](finalRenders/cornell_specular.png)
 <br>
 
@@ -45,7 +43,6 @@ Light moves at different speeds through different mediums and this can cause lig
 to refract and/or reflect. In these examples, glass and air are used with indices of refractions
 of 1.5 and 1, respectively. The further the incoming light is from the surface normal, the more likely
 it is to reflect. 
-<br>
 ![](finalRenders/cornell_dielectric.png)
 <br>
 
@@ -55,7 +52,6 @@ As opposed to classical antialiasing which involves super-sampling an image and 
 expensive, stochastic sampling wiggles the outgoing ray directions slightly. This reduces the jagged artifacts
 from aliasing at the cost of more noise, but does not involve shooting extra photons per pixel. 
 Notice how the left edge of the sphere is not nearly as jagged in the anti-aliased version
-<br>
 ![](finalRenders/cornell_antialiasing.png)
 <br>
 
@@ -64,7 +60,6 @@ Notice how the left edge of the sphere is not nearly as jagged in the anti-alias
 Despite modelling the rays as shooting out from an infinitesimal point, real life cameras have a lens 
 through which the light passes. Further, the laws of physics also prevent light from being infinitely focused.
 With cameras, this means that objects further away from the focal length will be blurrier. In ray tracing, the origin points of the light rays are wiggled in a manner consistent with approximating a lens. 
-<br>
 ![](finalRenders/defocus_blur.png)
 <br>
 
@@ -73,7 +68,6 @@ With cameras, this means that objects further away from the focal length will be
 While cubes and spheres are a great point to start off, one of the great joys in life is 
 to render Mario T-Posing. Many 3d models are available from the internet, with most of them
 being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to load models that were of the Wavefront OBJ file format. 
-<br>
 ![](finalRenders/cornell_mario.png)
 <br>
 
@@ -86,7 +80,6 @@ rather than giving every vertex all of its data, it can associate them with text
 and look up the corresponding data only when relevant. I focused on textures that encoded
 base color, tangent space normal mapping, ambient occlusion/roughness/metallicity, and emissivity.
 I also set the background in a few renders to a texture rather than just having it fade to black, lest they be way too dark 
-<br>
 ![](finalRenders/texture_cow.png)
 <br>
 
@@ -105,7 +98,6 @@ down the system with extra computations. Bump maps and height maps accomplish so
 normal maps themselves come in two varieties: Object space and Tangent space. Object space maps let one directly
 sample the rgb components and associate them with the normal's xyz values. Tangent space normal maps involve 
 a perspective shift so that the interpolated norm is pointing straight up. This requires some extra computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map. 
-<br>
 ![](finalRenders/tangent_space_normal_map.png)
 <br>
 
@@ -134,9 +126,9 @@ surface let me translate the textures and make the model look cool.
 
 * Background Texture  
 
-Raw Texture | Single Pass | Two Passes 
-------------|-------------|--------------
-![](finalRenders/hawk_nopasses.png) | ![](finalRenders/preproc_background.png) | ![](finalRenders/hawk_darksky.png)  
+    Raw Texture | Single Pass | Two Passes 
+    ------------|-------------|--------------
+    ![](finalRenders/hawk_nopasses.png) | ![](finalRenders/preproc_background.png) | ![](finalRenders/hawk_darksky.png)  
 
 <br>
 As a Star Wars fan, my thoughts naturally drifted towards making the ship look like it was 
