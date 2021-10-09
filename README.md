@@ -25,7 +25,7 @@ Finished Advanced Features:
 - OBJ mesh loading with [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)
 
 ## Background: Ray Tracing
-Ray tracing is a technique commonly used in rendering. Essentially it mimic the actual physical behavior of light: shoot a ray from every pixel in an image and calculate the final color of the ray by bouncing it off on every surface it hits in the world, until it reaches the light source. In practice a maximum number of depth (bouncing times) would be specified, so that we would not have to deal with infinitely bouncing rays.
+Ray tracing is a technique commonly used in rendering. Essentially it mimics the actual physical behavior of light: shoots a ray from every pixel in an image and calculates the final color of the ray by bouncing it off on every surface it hits in the world, until it reaches the light source. In practice a maximum number of depth (bouncing times) would be specified, so that we would not have to deal with infinitely bouncing rays.
 
 Ray tracing is one of the applications considered as "embarrassingly parallel", given the fact that each ray is completely independent of other rays. Hence, it is best to run on an GPU which is capable of providing hundreds of thousands of threads for parallel algorithms. This project aims at developing a CUDA-based application for customized ray tracing, and a detailed instruction can be found [here](INSTRUCTION.md).
 
