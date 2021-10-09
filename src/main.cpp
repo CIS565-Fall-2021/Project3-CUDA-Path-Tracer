@@ -108,7 +108,7 @@ Polygon LoadOBJ(const char* file, char* polyName, Geom& objGeom)
 }
 
 
-void generateProcedural(vector<Geom> &geoms, vector<Material>& mats)
+void GenerateProceduralStructure1(vector<Geom> &geoms, vector<Material>& mats, GeomType geomType)
 {
 	vector<glm::vec3> posValues;
 	Turtle buildingTurtle1 = Turtle(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
@@ -120,10 +120,77 @@ void generateProcedural(vector<Geom> &geoms, vector<Material>& mats)
 	Rule F_Rule1(F_Conditions);
 	BuildingSystem1->AddRule('F', F_Rule1);
 	BuildingSystem1->AssignAxiom("-F");
-	BuildingSystem1->LSystemParse(2);
+	BuildingSystem1->LSystemParse(4);
 	BuildingSystem1->PrintParsedSystem();
-	BuildingSystem1->CarveBuilding(posValues, geoms, mats);
+	BuildingSystem1->CarveBuilding(posValues, geoms, mats, geomType);
 }
+
+void GenerateProceduralStructure2(vector<Geom>& geoms, vector<Material>& mats, GeomType geomType)
+{
+	vector<glm::vec3> posValues;
+	Turtle buildingTurtle2 = Turtle(glm::vec3(0.0f, 5.0f, 3.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
+		glm::vec3(0, 1, 0), 0.5f, 1);
+	buildingTurtle2.m_rotateAngle = 90.0f;
+	buildingTurtle2.m_takeRandomRotationsForward = false;
+	uPtr<LSystem> BuildingSystem2 = mkU<LSystem>(buildingTurtle2);
+	std::vector<PostCondition> X_Conditions2 = { PostCondition(1.0, "[+F-FX][-F+FX]") };
+	Rule X_Rule(X_Conditions2);
+	BuildingSystem2.get()->AddRule('X', X_Rule);
+	BuildingSystem2.get()->AssignAxiom("FX");
+	BuildingSystem2.get()->LSystemParse(5);
+	BuildingSystem2->CarveBuilding(posValues, geoms, mats, geomType);
+}
+
+void GenerateProceduralStructure3(vector<Geom>& geoms, vector<Material>& mats, GeomType geomType)
+{
+	vector<glm::vec3> posValues;
+	Turtle buildingTurtle1 = Turtle(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
+		glm::vec3(0, 1, 0), 0.5f, 1);
+	buildingTurtle1.m_rotateAngle = 90.0f;
+	buildingTurtle1.m_takeRandomRotationsForward = false;
+	LSystem* BuildingSystem3 = new LSystem(buildingTurtle1);
+	std::vector<PostCondition> F_Conditions = { PostCondition(1.0, "FF") };
+	Rule F_Rule1(F_Conditions);
+	BuildingSystem3->AddRule('F', F_Rule1);
+	BuildingSystem3->AssignAxiom("F-F++F-F");
+	BuildingSystem3->LSystemParse(4);
+	BuildingSystem3->PrintParsedSystem();
+	BuildingSystem3->CarveBuilding(posValues, geoms, mats, geomType);
+}
+
+void GenerateProceduralStructure4(vector<Geom>& geoms, vector<Material>& mats, GeomType geomType)
+{
+	vector<glm::vec3> posValues;
+	Turtle buildingTurtle1 = Turtle(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
+		glm::vec3(0, 1, 0), 0.5f, 1);
+	buildingTurtle1.m_rotateAngle = 30.0f;
+	buildingTurtle1.m_takeRandomRotationsForward = false;
+	LSystem* BuildingSystem3 = new LSystem(buildingTurtle1);
+	std::vector<PostCondition> F_Conditions = { PostCondition(1.0, "F[-F]F[+F][F]") };
+	Rule F_Rule1(F_Conditions);
+	BuildingSystem3->AddRule('F', F_Rule1);
+	BuildingSystem3->AssignAxiom("F");
+	BuildingSystem3->LSystemParse(3);
+	BuildingSystem3->PrintParsedSystem();
+	BuildingSystem3->CarveBuilding(posValues, geoms, mats, geomType);
+}
+
+void GenerateProceduralStructure5(vector<Geom>& geoms, vector<Material>& mats, GeomType geomType)
+{
+	vector<glm::vec3> posValues;
+	Turtle buildingTurtle3 = Turtle(glm::vec3(0.0f, 5.0f, 0.0f), glm::vec3(1, 0, 0), glm::vec3(0, 0, 1),
+		glm::vec3(0, 1, 0), 0.5f, 1);
+	buildingTurtle3.m_rotateAngle = 30.0f;
+	buildingTurtle3.m_takeRandomRotationsForward = false;
+	uPtr<LSystem> BuildingSystem3 = mkU<LSystem>(buildingTurtle3);
+	std::vector<PostCondition> X_Conditions3 = { PostCondition(0.3, "[+F-FX][-F+FX]"), PostCondition(0.7, "[+FX]-FX") };
+	Rule X_Rul3(X_Conditions3);
+	BuildingSystem3.get()->AddRule('X', X_Rul3);
+	BuildingSystem3.get()->AssignAxiom("FX");
+	BuildingSystem3.get()->LSystemParse(5);
+	BuildingSystem3.get()->CarveBuilding(posValues, geoms, mats, geomType);
+}
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
@@ -140,7 +207,7 @@ int main(int argc, char** argv) {
 	// Load scene file
 	scene = new Scene(sceneFile);
 
-
+	GenerateProceduralStructure4(scene->geoms, scene->materials, SPHERE);
 	//generateProcedural(scene->geoms, scene->materials);
 	// Set up camera stuff from loaded path tracer settings
 	iteration = 0;

@@ -62,9 +62,9 @@ __device__ glm::vec3 refract(const glm::vec3& uv, const glm::vec3& n, float etai
     return r_out_perp + r_out_parallel;
 }
 
-#define DISTORTION 0.7f
-#define GLOW 2.0f
-#define SCALE 1.0f
+#define DISTORTION 2.0f
+#define GLOW 10.0f
+#define SCALE 2.0f
 #define AMBIENT 0.5f
 __device__ glm::vec3 subsurfaceColor(glm::vec3 lightDir, glm::vec3 normal, glm::vec3 viewVec, float thin, const Material& m)
 {
@@ -147,6 +147,24 @@ void get_sphere_uv(const glm::vec3& p, double& u, double& v) {
 
     u = phi / (2 * PI);
     v = theta / PI;
+}
+
+__device__ 
+void ColorProcTex(PathSegment& pathSegment, const Material& m, glm::vec3 intersect)
+{
+    double u, v;
+    glm::vec3 testInter = intersect;
+    get_sphere_uv(intersect, u, v);
+    switch (m.ProcTexNum)
+    {
+    case 1:
+        pathSegment.color *= ProcColorValue(u, v, intersect);
+    case 2:
+        pathSegment.color *= ProcColorValue2(u, v, intersect);
+    default:
+        break;
+    }
+
 }
 
 /**
@@ -237,11 +255,7 @@ void scatterRay(
     }
     if (m.usingProcTex)
     {
-        double u, v;
-        glm::vec3 testInter = intersect;
-        get_sphere_uv(intersect, u, v);
-        glm::vec3 colorValue1 = colorValue2(u, v, intersect);
-        pathSegment.color *= colorValue1 * 2.0f;
+        ColorProcTex(pathSegment, m, intersect);
     }
     pathSegment.ray.origin = intersect + scatter_direction * EPSILON2;
     pathSegment.ray.direction = scatter_direction;

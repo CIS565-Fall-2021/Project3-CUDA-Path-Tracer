@@ -51,6 +51,7 @@ struct Material {
     float emittance;
     float usingProcTex;
     float isSubSurface;
+    int ProcTexNum;
 };
 
 struct Camera {

@@ -171,6 +171,7 @@ int CreateNewMaterial(std::vector<Material> &materials) {
         for (int i = start; i < start +  3; i++) {
             Material newMaterial;
             newMaterial.color = glm::vec3(random_double(), random_double(), random_double());
+            newMaterial.isSubSurface = false;
             
             newMaterial.specular.exponent = random_double();
             newMaterial.specular.color = glm::vec3(random_double(), random_double(), random_double());
@@ -187,6 +188,7 @@ int CreateNewMaterial(std::vector<Material> &materials) {
             {
                 //newMaterial.hasRefractive = 1;
                 newMaterial.usingProcTex = 1;
+                newMaterial.ProcTexNum = 1;
             }
            
             newMaterial.indexOfRefraction = 1 + reflect;
@@ -198,9 +200,9 @@ int CreateNewMaterial(std::vector<Material> &materials) {
     }
 
 
-Geom createNewGeom(glm::vec3 currPos, int materialID) {
+Geom createNewGeom(glm::vec3 currPos, int materialID, enum GeomType type) {
         Geom newGeom;
-        newGeom.type = SPHERE;
+        newGeom.type = type;
         newGeom.materialid = materialID;
 
         newGeom.translation = currPos;
@@ -214,7 +216,7 @@ Geom createNewGeom(glm::vec3 currPos, int materialID) {
 }
 
 
-void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape, std::vector<Geom> &geoms, std::vector<Material>& materials)
+void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape, std::vector<Geom> &geoms, std::vector<Material>& materials, enum GeomType type)
 {
     Symbol* currSym = rootSymbol;
     glm::vec3 a = currTurtle->m_Position;
@@ -257,25 +259,15 @@ void LSystem::CarveBuilding(std::vector<glm::vec3> &procShape, std::vector<Geom>
                                     auto choose_mat = random_double();
                                     procShape.push_back(currpos);
                                     if (choose_mat < 0.8) {
-                                        geoms.push_back(createNewGeom(currpos, startIdxMat));
+                                        geoms.push_back(createNewGeom(currpos, startIdxMat, type));
                                     }
                                     else if (choose_mat < 0.95) {
-                                        geoms.push_back(createNewGeom(currpos, startIdxMat+1));
+                                        geoms.push_back(createNewGeom(currpos, startIdxMat + 1, type));
                                     }
                                     else {
-                                        geoms.push_back(createNewGeom(currpos, startIdxMat + 2));
+                                        geoms.push_back(createNewGeom(currpos, startIdxMat + 2, type));
                                     }
                                 }
-                               /* if (y < 210)
-                                {
-                                    uPtr<BuildingBlock> b1 = mkU<BuildingBlock>(a_currContext, currpos, WHITESTONE);
-                                    a_building->BuildingBlocks.push_back(std::move(b1));
-                                }
-                                else
-                                {
-                                    uPtr<BuildingBlock> b1 = mkU<BuildingBlock>(a_currContext, currpos, GLASS);
-                                    a_building->BuildingBlocks.push_back(std::move(b1));
-                                }*/
                             }
 
                         }

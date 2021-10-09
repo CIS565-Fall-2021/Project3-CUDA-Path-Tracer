@@ -165,7 +165,7 @@ int Scene::loadMaterial(string materialid) {
         Material newMaterial;
 
         //load static properties
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 10; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
@@ -188,8 +188,11 @@ int Scene::loadMaterial(string materialid) {
             }else if (strcmp(tokens[0].c_str(), "usingProcTex") == 0) {
                 newMaterial.usingProcTex = atof(tokens[1].c_str());
             }
-            else if (strcmp(tokens[0].c_str(), "isSubSurface;") == 0) {
+            else if (strcmp(tokens[0].c_str(), "isSubSurface") == 0) {
                 newMaterial.isSubSurface = atof(tokens[1].c_str());
+            }
+            else if (strcmp(tokens[0].c_str(), "ProcTexNum") == 0) {
+                newMaterial.ProcTexNum = atof(tokens[1].c_str());
             }
         }
         materials.push_back(newMaterial);

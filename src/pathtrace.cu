@@ -88,7 +88,7 @@ int cacheNumPaths = 0;
 
 
 bool usingCache = false;
-bool usingDOF = true;
+bool usingDOF = false;
 bool useBVH = false;
 
 void pathtraceInit(Scene* scene) {

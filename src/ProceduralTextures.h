@@ -58,13 +58,13 @@ float pattern(glm::vec2 p)
     return fbm(p + 4.0f * r);
 }
 __device__
-glm::vec3 colorValue2(double u, double v, const glm::vec3 p) {
+glm::vec3 ProcColorValue2(double u, double v, const glm::vec3 p) {
     glm::vec3 odd(0.98, 0.98, 0.98);
     glm::vec3  even(0.1, 0.1, 0.1);
     float pac = pattern(glm::vec2(u, v)) * 2;
 
 
-    if (pac > 0.7)
+    if (pac > 0.6)
     {
         return glm::vec3(0.25f, 0.25f, 0.85f);
     }
@@ -80,7 +80,7 @@ glm::vec3 colorValue2(double u, double v, const glm::vec3 p) {
 
 
 __device__
-glm::vec3 colorValue(double u, double v, const glm::vec3 p) {
+glm::vec3 ProcColorValue(double u, double v, const glm::vec3 p) {
     glm::vec3 odd(0.2, 0.3, 0.1);
     glm::vec3  even(0.9, 0.9, 0.9);
     auto sines = sin(10 * p.x) * sin(10 * p.y) * sin(10 * p.z);

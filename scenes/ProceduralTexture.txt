@@ -8,6 +8,8 @@ REFR        0
 REFRIOR     0
 EMITTANCE   5
 usingProcTex 0
+isSubSurface 0
+ProcTexNum 0
 
 // Diffuse white
 MATERIAL 1
@@ -19,6 +21,8 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 usingProcTex 0
+isSubSurface 0
+ProcTexNum 0
 
 // Diffuse red
 MATERIAL 2
@@ -30,6 +34,8 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 usingProcTex 0
+isSubSurface 0
+ProcTexNum 0
 
 // Diffuse green
 MATERIAL 3
@@ -41,6 +47,8 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 usingProcTex 0
+isSubSurface 0
+ProcTexNum 0
 
 // Specular white
 MATERIAL 4
@@ -51,7 +59,9 @@ REFL        1
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-usingProcTex 0
+usingProcTex 1
+isSubSurface 1
+ProcTexNum 1
 
 // Refractive white
 MATERIAL 5
@@ -60,9 +70,11 @@ SPECEX      1
 SPECRGB     .8 .8 .98
 REFL        0
 REFR        1
-REFRIOR     10
+REFRIOR     5
 EMITTANCE   0
-usingProcTex 0
+usingProcTex 1
+isSubSurface 1
+ProcTexNum 2
 
 // ProcTexture white
 MATERIAL 6
@@ -74,6 +86,8 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 usingProcTex 1
+isSubSurface 1
+ProcTexNum 2
 
 // Camera
 CAMERA

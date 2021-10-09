@@ -52,7 +52,7 @@ public:
     void ClearParsedString();
     void ApplyRule(Symbol* a_prevSym, Symbol* a_currSym, Symbol* a_endSym, char a_ruleKey, int iteration);
     void GetRandomRule(char a_ruleKey);
-    void CarveBuilding(std::vector<glm::vec3>& procShape, std::vector<Geom> &geoms, std::vector<Material>& materials);
+    void CarveBuilding(std::vector<glm::vec3>& procShape, std::vector<Geom> &geoms, std::vector<Material>& materials, enum GeomType type);
     void AddDefaultFuncPointer();
     void PrintParsedSystem();
     //void digBlock(int x, int z, int depth);
