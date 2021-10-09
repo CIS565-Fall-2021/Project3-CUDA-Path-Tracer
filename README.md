@@ -16,10 +16,12 @@ Fortunately, since photons do not (ignoring relativity) interact with each other
 this is very parallelizable, a perfect fit for running on a GPU. 
 
 ![](finalRenders/cornell_demo1.png)
+<br>
 <!-- ![](finalRenders/cornell_demo2.png)
 ![](finalRenders/cornell_demo_tilt.png) -->
 
 ## Features
+<br>  
 
 * Diffuse surfaces
 ![](finalRenders/cornell_dfl.png)
@@ -95,11 +97,16 @@ Alternatively, by turning the surface normals into a texture, they can be sample
 down the system with extra computations. Bump maps and height maps accomplish something very similar, but 
 normal maps themselves come in two varieties: Object space and Tangent space. Object space maps let one directly
 sample the rgb components and associate them with the normal's xyz values. Tangent space normal maps involve 
-a perspective shift so that the planar norm of a triangle is is pointing straight up. This requires some extra
+a perspective shift so that the interpolated norm is pointing straight up. This requires some extra
 computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map. 
 <br>
 
-* Physically Cringe Rendering Texture Adaptation  
+* Physically Based Rendering Texture Adaptation  
+
+Just the base color      |  With more effects            
+-------------------------|-------------------------
+![](finalRenders/hawk_viewport.png) | ![](finalRenders/preproc_background.png)
+
 <br>
 Nowadays, many people use metallic/roughness and Albedo instead of diffuse/specular.
 I found a mesh (and its accompanying textures) that used this information so I had to 
@@ -113,57 +120,84 @@ The roughness also has a varying effect predicated upon metallicity. And lastly 
 ambient occlusion map that describes how an area might be darker than expected. 
 This seems to be more tailored towards rasterization as the nature of path tracing means
 areas which would be occluded more just will not bounce the light rays back towards light sources. 
-The theory goes much deeper, but 
+The theory goes much deeper, having had whole textbooks written about them but just scratching the 
+surface let me translate the textures and make the model look cool. 
+<br>
+
+* Background Texture  
+
+Raw Texture | Single Pass | Two Passes 
+------------|-------------|--------------
+![](finalRenders/hyperspace_cow.png) | ![](finalRenders/preproc_background.png) | ![](finalRenders/hawk_darksky.png)  
+
+<br>
+As a Star Wars fan, my thoughts naturally drifted towards making the ship look like it was 
+in hyperspace. This is also motivated by the fact that with path tracing, I could not think of how 
+to simulate ambient lighting, and was afraid I would need to sprinkle many small luminescent orbs
+around the scene just to be able to see anything. Once, I found a cool background, I was next concerned
+with how to map the rectangular texture onto the viewable sphere. By exploiting the symmetry of the hyperspace effect looking like a tunnel, this was made easy but for more complex backgrounds, this 
+would require more investigation. As it currently stands, for the unit sphere, x^2+y^2+z^2 = 1. 
+Z is constrained by the x and y values enabling us to map the view direction vector to UV coordinates.
+When z = 1, x = 0, y = 0 which maps to uvs of (0.5, 0.5). By extension, this should scoop a unit circle
+out of the texture that points would actually map to, with (x, y, z) and (x, y, -z) mapping to the same
+uv coordinates ensuring a smooth transition. Then, I rotated the mesh to align with the tunnel direction
+and voila, it looks like it is cruising through hyperspace. 
+  
+The next issue is that the sky was too bright and too blue, since I was using the bright color for global illumination as well. So I interpolated the texture color between
+black and itself based on its brightness, as I wanted the bright streaks to remain but the space between 
+them to be darker. Then I did it again since it worked well the first time. 
 <br>
 
 
 ## Performance Analysis
-* AABB
 * First cache
+    * Since antialiasing and depth of field are cool effects, this optimization is worthless  
 * mat sort
 * cull threads
+* Mesh Intersection Test via AABB
+    * Very useful; the ship model has more than 69,000 triangles
 
 ## Debug Views
-![](finalRenders/ebonhawk_surface_normals.png) should have displayed the texture
-![](finalRenders/hawk_norm_interp.png)
-![](finalRenders/debug_texture_base_color.png) It was caused by negative uv coords because of tiling
-![](finalRenders/texture_cube.png)
-![](finalRenders/debug_normal_sphere.png)
-![](finalRenders/debug_normal_cube_tilted.png)
-![](finalRenders/debug_depth_cube.png)
-![](finalRenders/debug_cow_normals.png) made me think I had bad normal blending so
-![](finalRenders/debug_no_norm_blending.png) also agreed
-![](finalRenders/debug_norm_inter_working.png) showed that each triangle just had the same normal
 
-## Bloopers
-* Initial mesh loading had triangle collision errors
-![](finalRenders/objLoadingCow.png)
-![](finalRenders/bug_mesh_triangle_shiny.png)
+Texture | Normal | Depth
+--------|--------|-------
+![](finalRenders/texture_cube.png) | ![](finalRenders/debug_normal_cube_tilted.png) | ![](finalRenders/debug_depth_cube.png)  
+
+## Headache Inducing Bugs
+
+Buggy | Fixed | Cause
+------|-------|-------
+![](finalRenders/ebonhawk_surface_normals.png) | ![](finalRenders/hawk_norm_interp.png) | Bad Normal Interpolation
+![](finalRenders/hawk_norm_interp.png) | ![](finalRenders/debug_texture_base_color.png) | Tiling uv coordinates can be negative
+![](finalRenders/debug_no_norm_blending.png) | ![](finalRenders/debug_norm_interp_working.png) | The obj did not have normals that were meant to be interpolated
+![](finalRenders/debug_cow_normals.png) | ![](finalRenders/debug_cow_normals.png) | I thought the cow would have interpolated normals but it did not so it was not actually a bug. 
+
+Bug | Cause 
+----|--------
+![](finalRenders/cornell_badrng.png) | Bad RNG Seeding 
+![](finalRenders/bug_mesh_triangle_shiny.png) | Checking the explicit error condition t == -1 but forgetting to also eliminate the general t < 0 bad case
+![](finalRenders/objLoadingCow.png) | Triangle Intersection was wrong
+  
+  
+## Further Work
+* Heavily optimize the performance with a special focus on reducing branch divergence  
+* Refactoring the code to be more structured and less haphazard
+* Changing the option toggles from `#define` macros to booleans so changing does not require 
+lengthy recompilation  
+* Dive deeper into PBR to make everything look cooler like making the coppery parts shinier in a realistic way that is not just sidestepping the material behaviors 
+* Learn about the disney BSDF and the GGX equation
+* How to interpolate normals from a tangent space normal map  
+
+## Other
+* Special thanks to lemonaden for creating a free, high quality mesh of the Ebon Hawk https://sketchfab.com/3d-models/ebon-hawk-7f7cd2b43ed64a4ba628b1bb5398d838  
+* Ray Tracing in One Weekend  
+* IQ's list of intersector examples and the Scenes & Ray Intersection slides from UCSD's CSE168 course by Steve Rotenberg that helped me understand how Möller–Trumbore worked
+* UT Austin's CS384 slides on normal mapping tangent that explained the theory on how to convert from tangent space normals to object space and https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-binormal for explaining the calculations in a way that did not seem like abuse of matrix notation  
+* https://wallpaperaccess.com/star-wars-hyperspace for the cool hyperspace wallpaper  
+* Adobe's articles on the PBR Metallic/Roughness workflow that explained the theory behind it  
 
 
-Bug fixes:
-seed the rng with the depth otherwise bad banding
-offset new origin by surface normal not new direction
 
-
-https://sketchfab.com/3d-models/ebon-hawk-7f7cd2b43ed64a4ba628b1bb5398d838
-Ebon Hawk - sketchfab lemonaden
-
-
-tinygltf insns by https://piazza.com/class/kqefit06npb37y?cid=134
-
-diffuse vs specular
-ray compaction
-material sorting
-cache bounce
-
-
-gltf (also have debug views avalible for each)
-    texture
-    normal
-    bump
-refraction/fresnel/schlick
-skylight???
 
 4 mesh loading 
 6 hierarchical spatial data structure 
@@ -172,42 +206,9 @@ skylight???
 2 antialiasing
 5/6 texture/bump mapping
 2 direct lighting
-4 subsurface scattering
-6 Wavefront pathtracing
 
-// https://www.iquilezles.org/www/articles/intersectors/intersectors.htm
-
-https://www.cs.utexas.edu/~fussell/courses/cs384g-spring2016/lectures/normal_mapping_tangent.pdf
-Scenes & Ray Intersection 
-Steve Rotenberg CSE168: Rendering Algorithms 
-UCSD, Winter 2017
-
-
-COLORMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_baseColor.png
-EMITMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_emissive.png
-ROUGHMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_metallicRoughness.png
-NORMALMAP ../scenes/ebon_hawk/textures/ebonhawk_V_EHawk01_normal.png
-
-check t < 0
 
 wrapping negative texture coords
-
-https://wallpaperaccess.com/star-wars-hyperspace
-
-
-pbrIsh
-DOF
-fix aabb
-
-to set scene, change camera lookfrom rather than rotating the mesh
-
-glm::vec2
-
-based https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-binormal
-
-https://schuttejoe.github.io/post/disneybsdf/
-https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-binormal
-file:///C:/Users/richa/AppData/Local/Temp/normal_mapping_tangent.pdf
 
 illegal array idxs in gpu kernel
 

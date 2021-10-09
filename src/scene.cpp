@@ -89,6 +89,7 @@ int Scene::loadBackground()
                     // t.bCol[1] = imgBuff[tmpIdx + 1];
                     // t.bCol[2] = imgBuff[tmpIdx + 2];
                     // backTex.push_back(t);
+                    t = glm::mix(glm::vec3(0.f), t, glm::length(t));                // interp again for darker
                     backTex.push_back(glm::mix(glm::vec3(0.f), t, glm::length(t))); // my specific background is too bright
                 }
                 cout << "vector size " << backTex.size() << endl;

@@ -234,6 +234,7 @@ __host__ __device__ float triangleIntersectionTest(Geom const &tri, Ray r, glm::
     // glm::Vec3 normalTri()
     normalTri *= (outside ? 1.f : -1.f);
     normal = glm::normalize(multiplyMV(tri.invTranspose, glm::vec4(normalTri, 0.f)));
+    // normal = normalTri;
     return glm::length(r.origin - intersectionPoint);
 }
 
@@ -321,9 +322,11 @@ __host__ __device__ float meshIntersectionTest(Geom const &mesh, Ray r, glm::vec
                 intersectionPoint = tmpIsec;
                 normal = tmpNorm;
                 outside = tmpOut;
+                // normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tmpNorm, 0.f))) * (outside ? -1.f : 1.f);
                 uv = tmpUv;
                 t = tmpT;
                 tbn = glm::mat3(tri[idx].tangent, tri[idx].bitangent, tri[idx].planarNorm);
+                // tbn = glm::mat3(tri[idx].tangent, tri[idx].bitangent, tmpNorm); // using interped norm
             }
         }
         return t == 1e38f ? -1.f : t;
