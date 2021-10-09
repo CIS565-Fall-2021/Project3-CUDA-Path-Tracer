@@ -10,11 +10,22 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH
 };
 
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+};
+
+struct Triangle {
+    glm::vec3 verts[3];
+    glm::vec3 norms[3];
+};
+
+struct Mesh {
+
+
 };
 
 struct Geom {
@@ -26,7 +37,10 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    int num_tris;
 };
+
+
 
 struct Material {
     glm::vec3 color;
@@ -64,6 +78,11 @@ struct PathSegment {
     glm::vec3 color;
     int pixelIndex;
     int remainingBounces;
+
+    __host__ __device__
+    bool operator<(const PathSegment& other) const {
+      return (pixelIndex < other.pixelIndex);
+    }
 };
 
 // Use with a corresponding PathSegment to do:
@@ -73,4 +92,9 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+
+   __host__ __device__
+   bool operator<(const ShadeableIntersection& other) const {
+      return (materialId < other.materialId);
+    }
 };

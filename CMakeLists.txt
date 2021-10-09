@@ -62,6 +62,7 @@ set(GLM_ROOT_DIR "external")
 find_package(GLM REQUIRED)
 include_directories(${GLM_INCLUDE_DIRS})
 
+
 set(headers
     src/main.h
     src/image.h
@@ -84,7 +85,7 @@ set(sources
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
-    )
+        src/options.h)
 
 list(SORT headers)
 list(SORT sources)
@@ -92,10 +93,26 @@ list(SORT sources)
 source_group(Headers FILES ${headers})
 source_group(Sources FILES ${sources})
 
-#add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
+add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
+
+add_subdirectory(denoise/oidn)
+
+#set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
+#set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
+#add_subdirectory(tinygltf)
+
+#include_directories(external/tinygltf)
+#
+#add_library(tinygltf INTERFACE)
+#target_include_directories(tinygltf INTERFACE external/tinygltf)
+#target_link_libraries(cis565_path_tracer PRIVATE tinygltf)
+
+
 
 cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
-    #stream_compaction  # TODO: uncomment if using your stream compaction
+    stream_compaction  # TODO: uncomment if using your stream compaction
+        OpenImageDenoise
+
     )

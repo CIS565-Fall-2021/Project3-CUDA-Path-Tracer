@@ -1,4 +1,4 @@
-# Proj 3 CUDA Path Tracer - Instructions
+git@github.com:sona1111/Project3-CUDA-Path-Tracer.git# Proj 3 CUDA Path Tracer - Instructions
 
 This is due **Monday October 4th** at 11:59pm.
 
