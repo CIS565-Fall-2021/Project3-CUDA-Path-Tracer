@@ -111,57 +111,39 @@ struct Triangle
     }
 };
 
-struct KDNode
+struct BVHNode
 {
-    KDNode() : leftChild(-1), rightChild(-1), axis(0) {}
-    ~KDNode() {}
+    BVHNode() : leftChild(-1), rightChild(-1), axis(0) {}
+    ~BVHNode() {}
 
     int leftChild; 
     int rightChild; 
     unsigned int axis; // Which axis split this node represents
-    //glm::vec3 minCorner, maxCorner;
     Geom boundingBox;
     Geom triangle; // only initialized if this is a leaf node
-    // TODO: remove this vector and replace with start and stop index
-    //int startIndex; // start index to primitives array
-    //int endIndex;
-    //std::vector<int> primitives; // A collection of pointers to the particles contained in this node.
+
 };
 
 void buildTree(
-    int node,
-    std::vector<KDNode>* kdNodes,
+    std::vector<BVHNode>* bvhNodes,
     std::vector<Triangle>* primitives,
-    int startInx, int endInx,
-    Transform& transform);
+    int node, int primStart, int primEnd);
 
-struct KDTree
+struct BVHTree
 {
-    KDTree(int inx, Transform& transform, int materialId) : kdNodes(inx), transform(transform), materialId(materialId)
+    BVHTree(int inx, Transform& transform, int materialId) : bvhNodes(inx), transform(transform), materialId(materialId)
     {}
-    ~KDTree() {}
+    ~BVHTree() {}
 
-    //void updateLeafNodes(std::vector<KDNode>* kdNodes, int materialId)
-    //{
-    //    for (auto& kdNode : *kdNodes)
-    //    {
-    //        if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
-    //        {
-    //            if (kdNode.primitives.size() != 0) // TODO: why does this sometimes NOT happen?
-    //                kdNode.triangle = createTriangle(kdNode.primitives.at(0), materialId);
-    //        }
-    //    }
-    //}
-
-    void build(std::vector<KDNode>* kdNodes, std::vector<Triangle>* primitives, int startInx, int endInx)
+    void build(std::vector<BVHNode>* bvhNodes, std::vector<Triangle>* primitives, int startInx, int endInx)
     {
-        KDNode root = KDNode();
+        BVHNode root = BVHNode();
         root.axis = 0;
-        kdNodes->push_back(root);
-        buildTree(0, kdNodes, primitives, startInx, endInx, transform); // TODO: update the 0 root index
-        //updateLeafNodes(kdNodes, materialId);
+        bvhNodes->push_back(root);
+        buildTree(bvhNodes, primitives, bvhNodes->size() - 1, startInx, endInx);
     }
-    int kdNodes;
+
     Transform transform;
+    int bvhNodes;
     int materialId;
 };

@@ -11,28 +11,25 @@
 
 using namespace std;
 
-__host__ __device__ Geom createTriangle(Triangle& triangle, int materialId);
-
-__host__ __device__ Geom createTriangle(Triangle& triangle, const Transform& transform, int materialId);
-
 class Scene {
 private:
     ifstream fp_in;
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    int loadTriangle(Triangle& triangle, const Transform& transform, int materialId);
+    Geom createTriangle(Triangle& triangle, const Transform& transform, int materialId);
+
 public:
     Scene(string filename);
     ~Scene();
-
-    int loadTriangle(Triangle& triangle, const Transform& transform, int materialId); // TODO: make private
 
     bool LoadObj(string filename, Transform& transform, int materialId, bool kdTree);
 
     std::vector<Geom> geoms;
     std::vector<Triangle> primitives;
-    std::vector<KDTree> kdTrees;
-    std::vector<KDNode> kdNodes;
+    std::vector<BVHTree> bvhTrees;
+    std::vector<BVHNode> bvhNodes;
     std::vector<Material> materials;
     RenderState state;
 };

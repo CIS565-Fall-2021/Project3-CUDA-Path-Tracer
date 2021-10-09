@@ -51,16 +51,7 @@ int main(int argc, char** argv) {
     // Load scene file
     scene = new Scene(sceneFile);
 
-    // load triangle
-   /* Transform transform;
-    transform.rotate = glm::vec3(0, 0, -45.f);
-    transform.scale = glm::vec3(5.f);
-    transform.translate = glm::vec3(0.f, 5.f, 0.f);
-    std::array<glm::vec3, 3> triangle;
-    triangle[0] = glm::vec3(-0.5f, -0.5f, 0);
-    triangle[1] = glm::vec3(0.5f, 0.5f, 0);
-    triangle[2] = glm::vec3(0.f, 0.5f, 0);
-    scene->loadTriangle(triangle, transform, 2);*/
+    // Load OBJs 
 
     // load cube
     //Transform transform;
@@ -74,7 +65,8 @@ int main(int argc, char** argv) {
     transform.rotate = glm::vec3(0);
     transform.scale = glm::vec3(30.f);
     transform.translate = glm::vec3(0);
-    scene->LoadObj("../objs/bunny.obj", transform, 1, true);
+    scene->LoadObj("../objs/bunny.obj", transform, 4, true);
+
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;

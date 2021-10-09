@@ -36,7 +36,7 @@ Scene::Scene(string filename) {
     }
 }
 
-bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool kdTree)
+bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool bvh)
 {
     tinyobj::ObjReader reader;
     tinyobj::ObjReaderConfig reader_config;
@@ -58,8 +58,9 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
     auto& attrib = reader.GetAttrib();
 
     std::vector<Triangle>& triangles = primitives;
-    int triangleIndex = 0;
-    glm::mat4 tm = utilityCore::buildTransformationMatrix(transform.translate, transform.rotate, transform.scale);
+    int triangleStartIndex = primitives.size();
+    glm::mat4 tm = utilityCore::buildTransformationMatrix(
+        transform.translate, transform.rotate, transform.scale);
 
     // Get the triangles from the object
     // Loop over shapes
@@ -96,7 +97,7 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
                 };
                 Triangle triangle = { firstVertex, secondVertex, thirdVertex };
 
-                if (kdTree)
+                if (bvh)
                 {
                     triangle[0] = glm::vec3(tm * glm::vec4(triangle[0], 1.f));
                     triangle[1] = glm::vec3(tm * glm::vec4(triangle[1], 1.f));
@@ -111,11 +112,14 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
 
     std::cout << "Number of triangles: " << triangles.size() << std::endl;
 
-    if (kdTree)
+    if (bvh)
     {
-
-        kdTrees.push_back(KDTree(0, transform, materialId));
-        kdTrees.back().build(&kdNodes, &triangles, 0, triangles.size() - 1); // TODO: are you sure it starts at zero?
+        bvhTrees.push_back(BVHTree(0, transform, materialId));
+        bvhTrees.back().build(
+            &bvhNodes, 
+            &triangles, 
+            triangleStartIndex,
+            triangleStartIndex + triangles.size() - 1);
     }
     else
     {
@@ -292,20 +296,7 @@ int Scene::loadMaterial(string materialid) {
     }
 }
 
-__host__ __device__ Geom createTriangle(Triangle& triangle, int materialId)
-{
-    Geom geom;
-    geom.type = GeomType::TRIANGLE;
-    geom.materialid = materialId;
-
-    geom.pos1 = triangle[0];
-    geom.pos2 = triangle[1];
-    geom.pos3 = triangle[2];
-
-    return geom;
-}
-
-__host__ __device__ Geom createTriangle(Triangle& triangle, const Transform& transform, int materialId)
+Geom Scene::createTriangle(Triangle& triangle, const Transform& transform, int materialId)
 {
     Geom geom;
     geom.type = GeomType::TRIANGLE;

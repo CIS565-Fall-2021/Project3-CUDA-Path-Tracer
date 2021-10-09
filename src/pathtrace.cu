@@ -19,16 +19,33 @@
 #include "intersections.h"
 #include "interactions.h"
 
+/* TODO: Uncomment the defines that you want to use. */
+
+/**
+ * @brief Cache the first bounce for performance.
+ * @note  Do not use with antialiasing.
+ */
+//#define CACHE_FIRST_INTERSECTION 
+
+/**
+ * @brief Antialias result by sampling at a random pixel location as opposed to center
+ */
+#define ANTIALIASING 
+
+/** 
+ * @brief Sort material used using the thrust library.
+ * @note  Leads to performance hit since the number of materials is currently low
+ */ 
+ //#define SORT_BY_MATERIAL 
+
+// should be the ceiling of the log of the number of triangles stored in BVH ttree
+#define BVHSearchSize 20 
+
+
 #define ERRORCHECK 1
-
-//#define CACHE_FIRST_INTERSECTION
-
-#define ANTIALIASING
-
-//#define SORT_BY_MATERIAL
-
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
+
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #if ERRORCHECK
   cudaDeviceSynchronize();
@@ -55,65 +72,66 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
   return thrust::default_random_engine(h);
 }
 
-__device__
-struct device_vector
-{
-    __device__
-    device_vector()
-    {
-        data = (int*)malloc(1 * sizeof(int));
-    }
-
-    __device__
-    ~device_vector()
-    {
-       free(data);
-    }
-
-    __device__
-    device_vector(size_t n)
-    {
-        data = (int*)malloc(n * sizeof(int));
-    }
-
-    __device__
-    void push_back(int& item)
-    {
-        if (inx == size - 1)
-        {
-            int* temp = (int*)malloc(size * 2 * sizeof(int));
-            for (size_t i = 0; i < size; i++)
-                temp[i] = data[i];
-            free(data);
-            data = temp;
-            size *= 2;
-        }
-        else
-        {
-            data[inx++] = item;
-        }
-    }
-
-    __device__
-    int pop_back()
-    {
-        int item = data[inx];
-        if (inx-- == size / 2)
-        {
-            int* temp = (int*)malloc((size / 2) * sizeof(int));
-            for (size_t i = 0; i < size; i++)
-                temp[i] = data[i];
-            free(data);
-            data = temp;
-            size /= 2;
-        }
-        return item;
-    }
-
-    int* data;
-    size_t size;
-    size_t inx;
-};
+// TODO: remove before submission
+//__device__
+//struct device_vector
+//{
+//    __device__
+//    device_vector()
+//    {
+//        data = (int*)malloc(1 * sizeof(int));
+//    }
+//
+//    __device__
+//    ~device_vector()
+//    {
+//       free(data);
+//    }
+//
+//    __device__
+//    device_vector(size_t n)
+//    {
+//        data = (int*)malloc(n * sizeof(int));
+//    }
+//
+//    __device__
+//    void push_back(int& item)
+//    {
+//        if (inx == size - 1)
+//        {
+//            int* temp = (int*)malloc(size * 2 * sizeof(int));
+//            for (size_t i = 0; i < size; i++)
+//                temp[i] = data[i];
+//            free(data);
+//            data = temp;
+//            size *= 2;
+//        }
+//        else
+//        {
+//            data[inx++] = item;
+//        }
+//    }
+//
+//    __device__
+//    int pop_back()
+//    {
+//        int item = data[inx];
+//        if (inx-- == size / 2)
+//        {
+//            int* temp = (int*)malloc((size / 2) * sizeof(int));
+//            for (size_t i = 0; i < size; i++)
+//                temp[i] = data[i];
+//            free(data);
+//            data = temp;
+//            size /= 2;
+//        }
+//        return item;
+//    }
+//
+//    int* data;
+//    size_t size;
+//    size_t inx;
+//};
 
 
 
@@ -144,8 +162,8 @@ static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
 static Triangle* dev_primitives = NULL;
-static KDTree* dev_kdTrees = NULL;
-static KDNode* dev_kdNodes = NULL;
+static BVHTree* dev_bvhTrees = NULL;
+static BVHNode* dev_bvhNodes = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
 static ShadeableIntersection * dev_intersections = NULL;
@@ -171,11 +189,11 @@ void pathtraceInit(Scene *scene) {
   cudaMalloc(&dev_primitives, scene->primitives.size() * sizeof(Triangle));
   cudaMemcpy(dev_primitives, scene->primitives.data(), scene->primitives.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
-  cudaMalloc(&dev_kdTrees, scene->kdTrees.size() * sizeof(KDTree));
-  cudaMemcpy(dev_kdTrees, scene->kdTrees.data(), scene->kdTrees.size() * sizeof(KDTree), cudaMemcpyHostToDevice);
+  cudaMalloc(&dev_bvhTrees, scene->bvhTrees.size() * sizeof(BVHTree));
+  cudaMemcpy(dev_bvhTrees, scene->bvhTrees.data(), scene->bvhTrees.size() * sizeof(BVHTree), cudaMemcpyHostToDevice);
 
-  cudaMalloc(&dev_kdNodes, scene->kdNodes.size() * sizeof(KDNode));
-  cudaMemcpy(dev_kdNodes, scene->kdNodes.data(), scene->kdNodes.size() * sizeof(KDNode), cudaMemcpyHostToDevice);
+  cudaMalloc(&dev_bvhNodes, scene->bvhNodes.size() * sizeof(BVHNode));
+  cudaMemcpy(dev_bvhNodes, scene->bvhNodes.data(), scene->bvhNodes.size() * sizeof(BVHNode), cudaMemcpyHostToDevice);
 
   cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
   cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
@@ -195,8 +213,8 @@ void pathtraceInit(Scene *scene) {
 void pathtraceFree() {
   cudaFree(dev_image);  // no-op if dev_image is null
   cudaFree(dev_paths);
-  cudaFree(dev_kdNodes);
-  cudaFree(dev_kdTrees);
+  cudaFree(dev_bvhNodes);
+  cudaFree(dev_bvhTrees);
   cudaFree(dev_primitives);
   cudaFree(dev_geoms);
   cudaFree(dev_materials);
@@ -262,10 +280,10 @@ __global__ void computeIntersections(
   , Geom * geoms
     , Triangle* primitives
   , int geoms_size
-  , KDTree* kdTrees
-  , int kdTrees_size
-  , KDNode* kdNodes
-  , int kdNodes_size
+  , BVHTree* bvhTrees
+  , int bvhTrees_size
+  , BVHNode* bvhNodes
+  , int bvhNodes_size
   , ShadeableIntersection * intersections
   )
 {
@@ -317,41 +335,45 @@ __global__ void computeIntersections(
           }
       }
 
-      // iterate through all kdTrees
-      for (int i = 0; i < kdTrees_size; i++)
+      // iterate through all bvhTrees
+      for (int i = 0; i < bvhTrees_size; i++)
       {
-          KDTree& kdTree = kdTrees[i];
+          BVHTree& bvhTree = bvhTrees[i];
 
           float intersection = 0.0f;
           glm::vec3 intersectionPoint;
 
           int nodeInx = 0;
-          int nodesToVisit[20]; // TODO: set a definition for size
-          nodesToVisit[nodeInx] = kdTree.kdNodes;
+          int nodesToVisit[BVHSearchSize]; 
+          nodesToVisit[nodeInx] = bvhTree.bvhNodes;
           while (nodeInx >= 0)
           {
-              KDNode& kdNode = kdNodes[nodesToVisit[nodeInx--]];
-              float t = boxIntersectionTest(kdNode.boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              BVHNode& bvhNode = bvhNodes[nodesToVisit[nodeInx--]];
+              float t = boxIntersectionTest(bvhNode.boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
               if (t > 0.0 && t < t_min)
               {
                   // If leaf node was hit 
-                  if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
+                  if (bvhNode.leftChild == -1 && bvhNode.rightChild == -1)
                   {
                       // primitive found
-                      Geom& triangle = kdNode.triangle;
-                      materialId = kdTree.materialId; // TODO: shouldn't be done here
+                      Geom& triangle = bvhNode.triangle;
 
+                      // check if the ray hit primitive
                       if (triangle.type == GeomType::TRIANGLE)
                           intersection = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
                       if (intersection > 0.0)
-                        nodeInx = -1; // terminate
+                      {
+                          // terminate bvh search
+                          nodeInx = -1; 
+                          materialId = bvhTree.materialId;
+                      }
                   }
                   else
                   {
-                      if (kdNode.leftChild != -1)
-                          nodesToVisit[++nodeInx] = kdNode.leftChild;
-                      if (kdNode.rightChild != -1)
-                          nodesToVisit[++nodeInx] = kdNode.rightChild;
+                      if (bvhNode.leftChild != -1)
+                          nodesToVisit[++nodeInx] = bvhNode.leftChild;
+                      if (bvhNode.rightChild != -1)
+                          nodesToVisit[++nodeInx] = bvhNode.rightChild;
                   }
               }
           }
@@ -374,7 +396,6 @@ __global__ void computeIntersections(
       {
           //The ray hits something
           intersections[path_index].t = t_min;
-          //intersections[path_index] = geoms[hit_geom_index]; 
           intersections[path_index].materialId = (hit_geom_index == -2) ? materialId : geoms[hit_geom_index].materialid; // TODO: update
           intersections[path_index].surfaceNormal = normal;
       }
@@ -587,10 +608,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       dev_geoms, 
       dev_primitives,
       hst_scene->geoms.size(),
-      dev_kdTrees,
-      hst_scene->kdTrees.size(),
-      dev_kdNodes,
-        hst_scene->kdNodes.size(),
+      dev_bvhTrees,
+      hst_scene->bvhTrees.size(),
+      dev_bvhNodes,
+        hst_scene->bvhNodes.size(),
 #ifdef CACHE_FIRST_INTERSECTION
       intersectionPtr
 #else
