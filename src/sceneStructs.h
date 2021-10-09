@@ -74,10 +74,26 @@ struct ShadeableIntersection {
   glm::vec3 surfaceNormal;
   glm::vec3 intersectionPoint;
   int materialId;
+  bool outside;
 };
 
 struct SICmp {
     __host__ __device__ bool operator()(const ShadeableIntersection& p1, const ShadeableIntersection& p2) {
         return p1.materialId < p2.materialId;
     }
+};
+
+struct Triangle {
+    glm::vec3 vertex1;
+    glm::vec3 vertex2;
+    glm::vec3 vertex3;
+    glm::vec3 normal;
+};
+
+struct Mesh {
+    int materialid;
+    int indexStart;
+    int indexEnd;
+    glm::vec3 maxXYZ;
+    glm::vec3 minXYZ;
 };

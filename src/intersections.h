@@ -25,7 +25,11 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
  * Falls slightly short so that it doesn't intersect the object it's hitting.
  */
 __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
-    return r.origin + (t - .0005f) * glm::normalize(r.direction);
+    return r.origin + (t - .0004f) * glm::normalize(r.direction);
+}
+
+__host__ __device__ glm::vec3 getPointOnRayFurther(Ray r, float t) {
+    return r.origin + (t + .0004f) * glm::normalize(r.direction);
 }
 
 /**
