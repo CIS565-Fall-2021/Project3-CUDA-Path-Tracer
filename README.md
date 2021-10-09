@@ -27,13 +27,13 @@ Cornell Box Inspired | Very Fast Shiny Cow
 
 * Diffuse surfaces  
 <br>
-Since most surfaces are not microscopically smooth, incoming light can leave in any direction.
+Since most surfaces are not microscopically smooth, incoming light can leave in any direction.   
 ![](finalRenders/cornell_dfl.png)
 <br>
 
 * Specular reflection  
 <br>
-Smooth surfaces reflect light neatly about the surface normal, like a mirror does. 
+Smooth surfaces reflect light neatly about the surface normal, like a mirror does.    
 ![](finalRenders/cornell_specular.png)
 <br>
 
@@ -42,7 +42,7 @@ Smooth surfaces reflect light neatly about the surface normal, like a mirror doe
 Light moves at different speeds through different mediums and this can cause light 
 to refract and/or reflect. In these examples, glass and air are used with indices of refractions
 of 1.5 and 1, respectively. The further the incoming light is from the surface normal, the more likely
-it is to reflect. 
+it is to reflect.    
 ![](finalRenders/cornell_dielectric.png)
 <br>
 
@@ -51,7 +51,7 @@ it is to reflect.
 As opposed to classical antialiasing which involves super-sampling an image and is thus very computationally
 expensive, stochastic sampling wiggles the outgoing ray directions slightly. This reduces the jagged artifacts
 from aliasing at the cost of more noise, but does not involve shooting extra photons per pixel. 
-Notice how the left edge of the sphere is not nearly as jagged in the anti-aliased version
+Notice how the left edge of the sphere is not nearly as jagged in the anti-aliased version   
 ![](finalRenders/cornell_antialiasing.png)
 <br>
 
@@ -59,7 +59,7 @@ Notice how the left edge of the sphere is not nearly as jagged in the anti-alias
 <br>
 Despite modelling the rays as shooting out from an infinitesimal point, real life cameras have a lens 
 through which the light passes. Further, the laws of physics also prevent light from being infinitely focused.
-With cameras, this means that objects further away from the focal length will be blurrier. In ray tracing, the origin points of the light rays are wiggled in a manner consistent with approximating a lens. 
+With cameras, this means that objects further away from the focal length will be blurrier. In ray tracing, the origin points of the light rays are wiggled in a manner consistent with approximating a lens.    
 ![](finalRenders/defocus_blur.png)
 <br>
 
@@ -67,7 +67,7 @@ With cameras, this means that objects further away from the focal length will be
 <br>
 While cubes and spheres are a great point to start off, one of the great joys in life is 
 to render Mario T-Posing. Many 3d models are available from the internet, with most of them
-being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to load models that were of the Wavefront OBJ file format. 
+being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to load models that were of the Wavefront OBJ file format.    
 ![](finalRenders/cornell_mario.png)
 <br>
 
@@ -79,7 +79,7 @@ Instead, it is common to use textures, images where the color encodes useful dat
 rather than giving every vertex all of its data, it can associate them with texture coordinates 
 and look up the corresponding data only when relevant. I focused on textures that encoded
 base color, tangent space normal mapping, ambient occlusion/roughness/metallicity, and emissivity.
-I also set the background in a few renders to a texture rather than just having it fade to black, lest they be way too dark 
+I also set the background in a few renders to a texture rather than just having it fade to black, lest they be way too dark    
 ![](finalRenders/texture_cow.png)
 <br>
 
@@ -97,7 +97,7 @@ Alternatively, by turning the surface normals into a texture, they can be sample
 down the system with extra computations. Bump maps and height maps accomplish something very similar, but 
 normal maps themselves come in two varieties: Object space and Tangent space. Object space maps let one directly
 sample the rgb components and associate them with the normal's xyz values. Tangent space normal maps involve 
-a perspective shift so that the interpolated norm is pointing straight up. This requires some extra computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map. 
+a perspective shift so that the interpolated norm is pointing straight up. This requires some extra computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map.    
 ![](finalRenders/tangent_space_normal_map.png)
 <br>
 
