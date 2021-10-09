@@ -48,7 +48,7 @@
 #define BV_CULL
 
 #ifdef DEPTH_OF_FIELD
-#define LENS_RAD 0.5f
+#define LENS_RAD 0.0625f
 #define FOCAL_DIST 10.5f
 #endif
 

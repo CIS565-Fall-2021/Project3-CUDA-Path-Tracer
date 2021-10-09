@@ -1,5 +1,6 @@
 CUDA Path Tracer
 ================
+![](finalRenders/ebonhawktmp.png)
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 
@@ -59,12 +60,68 @@ With cameras, this means that objects further away from the focal length will be
 <br>
 
 * Obj Mesh Loading
-![](finalRenders/cow_shiny.png)
+![](finalRenders/cornell_mario.png)
+<br>
+While cubes and spheres are a great point to start off, one of the great joys in life is 
+to render Mario T-Posing. Many 3d models are available from the internet, with most of them
+being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to load models that were of the Wavefront OBJ file format. 
+<br>
 
-* Textures from files
+* Textures from files  
 ![](finalRenders/texture_cow.png)
+<br>
+While it is theoretically possible to specify material properties for each shape in a scene, 
+this can be untenable when working with thousands of shapes, let alone millions. 
+Instead, it is common to use textures, images where the color encodes useful data. Then,
+rather than giving every vertex all of its data, it can associate them with texture coordinates 
+and look up the corresponding data only when relevant. I focused on textures that encoded
+base color, tangent space normal mapping, ambient occlusion/roughness/metallicity, and emissivity.
+I also set the background in a few renders to a texture rather than just having it fade to black, 
+lest they be way too dark. 
+<br>
+
+* Normal Mapping Texture Adaptation  
+![](finalRenders/tangent_space_normal_map.png)
+<br>
+The normal vector at a location allows for computing reflections, refractions, and more since
+knowing it allows one to calculate the angle of incidence. Technically, it is a co-vector but
+a consensus has been reached for how the order of vertices in a triangle directs its planar normal.
+At its most basic, each triangle contains enough information to calculate its normal. 
+However, meshes composed of polygons are often used to model smooth objects, so it is common
+to associate each vertex with a normal vector. Then, for a point inside a triangle, one can 
+interpolate between the vertex normals to get a normal for a particular location.
+Imagine a brick wall. The mortar crevices could be modelled by adding who knows how many new triangles. 
+Alternatively, by turning the surface normals into a texture, they can be sampled as needed without weighing
+down the system with extra computations. Bump maps and height maps accomplish something very similar, but 
+normal maps themselves come in two varieties: Object space and Tangent space. Object space maps let one directly
+sample the rgb components and associate them with the normal's xyz values. Tangent space normal maps involve 
+a perspective shift so that the planar norm of a triangle is is pointing straight up. This requires some extra
+computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map. 
+<br>
+
+* Physically Cringe Rendering Texture Adaptation  
+<br>
+Nowadays, many people use metallic/roughness and Albedo instead of diffuse/specular.
+I found a mesh (and its accompanying textures) that used this information so I had to 
+figure out how to adapt to this. Due to vastly different behaviors between dielectrics
+and conductors, metallicity the concept is treated almost as a boolean value, with gradations
+encoding how to attenuate the metallic behavior. Physically based rendering tries to use 
+more physics to enable more realistic rendering. Light is split into refractive and reflective
+components and metals will absorb the refractive component whilst dielectrics will scatter both, 
+with the resultant having both a specular and a diffuse portion. 
+The roughness also has a varying effect predicated upon metallicity. And lastly there is an 
+ambient occlusion map that describes how an area might be darker than expected. 
+This seems to be more tailored towards rasterization as the nature of path tracing means
+areas which would be occluded more just will not bounce the light rays back towards light sources. 
+The theory goes much deeper, but 
+<br>
+
 
 ## Performance Analysis
+* AABB
+* First cache
+* mat sort
+* cull threads
 
 ## Debug Views
 ![](finalRenders/ebonhawk_surface_normals.png) should have displayed the texture

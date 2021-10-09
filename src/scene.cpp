@@ -241,7 +241,9 @@ int Scene::loadGeom(string objectid)
                         //shapes[s].mesh.material_ids[f];
                     }
                     // meshVec[s].ts = meshTris;
-                    meshVec[s].useTexture = meshVec[s].numTris > 20000 ? s != 0 : 1;
+                    // meshVec[s].useTexture = meshVec[s].numTris > 20000 ? s != 0 : 1;
+                    // meshVec[s].useTexture = true;   // normal
+                    meshVec[s].useTexture = s != 0; // ebon hawk windshield
                     meshVec[s].type = MESH;
                     // meshVec[s].meshIdx = s;
                     //TODO: Calculate AABBs

@@ -200,7 +200,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 #ifdef DEPTH_OF_FIELD
         float rad = LENS_RAD;
-        float focD = glm::length(cam.position - cam.lookAt);
+        // float focD = glm::length(cam.position - cam.lookAt);
+        float focD = glm::length(cam.position - cam.lookAt) - 3; // just for the ebon hawk image
         glm::vec3 lens = rad * randomInUnitDisk(rng);
         glm::vec3 focPoint = cam.position + (focD / glm::dot(cam.view, segment.ray.direction)) * segment.ray.direction;
         segment.ray.origin += cam.right * lens.x + cam.up * lens.y;
