@@ -411,12 +411,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             }
             else {
                 cudaMemset(dev_intersections, 0, pixelcount * sizeof(HitRecord));
-                //   * Compute an intersection in the scene for each path ray.
-                //     A very naive version of this has been implemented for you, but feel
-                //     free to add more primitives and/or a better algorithm.
-                //     Currently, intersection distance is recorded as a parametric distance,
-                //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
-                //     * Color is attenuated (multiplied) by reflections off of any object
                 computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
                     depth
                     , num_paths
@@ -425,12 +419,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                     , hst_scene->geoms.size()
                     , dev_intersections
                     );
-                // after this kernel, dev_intersections will be populated with pixelcount 
-                // (640,000 by default)'s ShadableIntersection. 
-                // Each ShadableIntersection contains:
-                // 1) t: -1 if no intersection. Others if intersection
-                // 2) surfaceNormal
-                // 3) materialId
                 checkCUDAError("trace one bounce");
                 cudaDeviceSynchronize();
             }
