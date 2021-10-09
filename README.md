@@ -26,19 +26,16 @@ Cornell Box Inspired | Very Fast Shiny Cow
 <br>  
 
 * Diffuse surfaces  
-<br>
 Since most surfaces are not microscopically smooth, incoming light can leave in any direction.   
 ![](finalRenders/cornell_dfl.png)
 <br>
 
 * Specular reflection  
-<br>
 Smooth surfaces reflect light neatly about the surface normal, like a mirror does.    
 ![](finalRenders/cornell_specular.png)
 <br>
 
 * Dielectrics with Schlick's Approximation and Snell's Law  
-<br>
 Light moves at different speeds through different mediums and this can cause light 
 to refract and/or reflect. In these examples, glass and air are used with indices of refractions
 of 1.5 and 1, respectively. The further the incoming light is from the surface normal, the more likely
@@ -47,7 +44,6 @@ it is to reflect.
 <br>
 
 * Anti Aliasing via Stochastic Sampling  
-<br>
 As opposed to classical antialiasing which involves super-sampling an image and is thus very computationally
 expensive, stochastic sampling wiggles the outgoing ray directions slightly. This reduces the jagged artifacts
 from aliasing at the cost of more noise, but does not involve shooting extra photons per pixel. 
@@ -56,7 +52,6 @@ Notice how the left edge of the sphere is not nearly as jagged in the anti-alias
 <br>
 
 * Depth of Field/Defocus Blur  
-<br>
 Despite modelling the rays as shooting out from an infinitesimal point, real life cameras have a lens 
 through which the light passes. Further, the laws of physics also prevent light from being infinitely focused.
 With cameras, this means that objects further away from the focal length will be blurrier. In ray tracing, the origin points of the light rays are wiggled in a manner consistent with approximating a lens.    
@@ -64,7 +59,6 @@ With cameras, this means that objects further away from the focal length will be
 <br>
 
 * Obj Mesh Loading  
-<br>
 While cubes and spheres are a great point to start off, one of the great joys in life is 
 to render Mario T-Posing. Many 3d models are available from the internet, with most of them
 being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to load models that were of the Wavefront OBJ file format.    
@@ -72,7 +66,6 @@ being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjl
 <br>
 
 * Textures from files  
-<br>
 While it is theoretically possible to specify material properties for each shape in a scene, 
 this can be untenable when working with thousands of shapes, let alone millions. 
 Instead, it is common to use textures, images where the color encodes useful data. Then,
@@ -84,7 +77,6 @@ I also set the background in a few renders to a texture rather than just having 
 <br>
 
 * Normal Mapping Texture Adaptation  
-<br>
 The normal vector at a location allows for computing reflections, refractions, and more since
 knowing it allows one to calculate the angle of incidence. Technically, it is a co-vector but
 a consensus has been reached for how the order of vertices in a triangle directs its planar normal.
