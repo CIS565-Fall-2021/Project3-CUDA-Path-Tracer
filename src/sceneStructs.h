@@ -113,7 +113,7 @@ struct Triangle
 
 struct KDNode
 {
-    KDNode() : leftChild(-1), rightChild(-1), axis(0), startIndex(-1), endIndex(-1) {}
+    KDNode() : leftChild(-1), rightChild(-1), axis(0) {}
     ~KDNode() {}
 
     int leftChild; 
@@ -121,10 +121,10 @@ struct KDNode
     unsigned int axis; // Which axis split this node represents
     //glm::vec3 minCorner, maxCorner;
     Geom boundingBox;
-    //Geom triangle; // only initialized if this is a leaf node
+    Geom triangle; // only initialized if this is a leaf node
     // TODO: remove this vector and replace with start and stop index
-    int startIndex; // start index to primitives array
-    int endIndex;
+    //int startIndex; // start index to primitives array
+    //int endIndex;
     //std::vector<int> primitives; // A collection of pointers to the particles contained in this node.
 };
 

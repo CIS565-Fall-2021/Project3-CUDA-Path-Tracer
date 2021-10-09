@@ -59,6 +59,7 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
 
     std::vector<Triangle>& triangles = primitives;
     int triangleIndex = 0;
+    glm::mat4 tm = utilityCore::buildTransformationMatrix(transform.translate, transform.rotate, transform.scale);
 
     // Get the triangles from the object
     // Loop over shapes
@@ -93,8 +94,15 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
                     attrib.vertices[3 * size_t(idx.vertex_index) + 1],
                     attrib.vertices[3 * size_t(idx.vertex_index) + 2]
                 };
-
                 Triangle triangle = { firstVertex, secondVertex, thirdVertex };
+
+                if (kdTree)
+                {
+                    triangle[0] = glm::vec3(tm * glm::vec4(triangle[0], 1.f));
+                    triangle[1] = glm::vec3(tm * glm::vec4(triangle[1], 1.f));
+                    triangle[2] = glm::vec3(tm * glm::vec4(triangle[2], 1.f));
+                }
+
                 triangles.push_back(triangle);
             }
             index_offset += fv;
@@ -105,28 +113,7 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
 
     if (kdTree)
     {
-        //std::vector<int> primitiveIndices;
-        //for (int i = 0; i < triangles.size(); i++)
-        //    primitiveIndices.push_back(i);
-        // TODO: remove
-        // transform each vertex
-       /* for (auto& triangle : triangles)
-        {
-            glm::mat4 transformMtx = utilityCore::buildTransformationMatrix(
-                transform.translate, transform.rotate, transform.scale);
 
-            triangle[0] = glm::vec3(transformMtx * glm::vec4(triangle[0], 1.f));
-            triangle[1] = glm::vec3(transformMtx * glm::vec4(triangle[1], 1.f));
-            triangle[2] = glm::vec3(transformMtx * glm::vec4(triangle[2], 1.f));
-        }*/
-
-        // Build Identity transform
-        //Transform identityTransform;
-        //identityTransform.rotate = glm::vec3(0);
-        //identityTransform.scale = glm::vec3(1);
-        //identityTransform.translate = glm::vec3(0);
-
-        // build a kdtree
         kdTrees.push_back(KDTree(0, transform, materialId));
         kdTrees.back().build(&kdNodes, &triangles, 0, triangles.size() - 1); // TODO: are you sure it starts at zero?
     }
@@ -323,21 +310,16 @@ __host__ __device__ Geom createTriangle(Triangle& triangle, const Transform& tra
     Geom geom;
     geom.type = GeomType::TRIANGLE;
     geom.materialid = materialId;
+
     geom.translation = transform.translate;
     geom.rotation = transform.rotate;
     geom.scale = transform.scale;
 
-    glm::mat4 translationMat = glm::translate(glm::mat4(), geom.translation);
-    glm::mat4 rotationMat = glm::rotate(glm::mat4(), geom.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
-    rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
-    rotationMat = rotationMat * glm::rotate(glm::mat4(), geom.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
-    glm::mat4 scaleMat = glm::scale(glm::mat4(), geom.scale);
-    geom.transform =  translationMat * rotationMat * scaleMat;
-    //geom.transform = utilityCore::buildTransformationMatrix(
-    //    geom.translation, geom.rotation, geom.scale);
+    geom.transform = utilityCore::buildTransformationMatrix(
+        geom.translation, geom.rotation, geom.scale);
 
-    //geom.inverseTransform = glm::inverse(geom.transform);
-    //geom.invTranspose = glm::inverseTranspose(geom.transform);
+    geom.inverseTransform = glm::inverse(geom.transform);
+    geom.invTranspose = glm::inverseTranspose(geom.transform);
 
     geom.pos1 = glm::vec3(geom.transform * glm::vec4(triangle[0], 1.f));
     geom.pos2 = glm::vec3(geom.transform * glm::vec4(triangle[1], 1.f));

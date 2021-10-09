@@ -47,6 +47,11 @@ float getMin(Triangle& triangle, int axis)
     return std::min(triangle[0][axis], std::min(triangle[1][axis], triangle[2][axis]));
 }
 
+float getMid(Triangle& triangle, int axis)
+{
+    return (triangle[0][axis] + triangle[1][axis] + triangle[2][axis]) / 3.f;
+}
+
 bool xSort(TriangleStruct a, TriangleStruct b) {
     return getMin(a.arr, 0) < getMin(b.arr, 0);
 }
@@ -56,7 +61,7 @@ bool ySort(TriangleStruct a, TriangleStruct b) {
 bool zSort(TriangleStruct a, TriangleStruct b) {
     return getMin(a.arr, 2) < getMin(b.arr, 2);
 }
-
+ 
 void buildTree(
     int node,
     std::vector<KDNode>* kdNodes,
@@ -65,25 +70,22 @@ void buildTree(
     Transform& transform)
 {
     // update indices of node
-    kdNodes->at(node).startIndex = startInx;
-    kdNodes->at(node).endIndex = endInx;
+    //kdNodes->at(node).startIndex = startInx;
+    //kdNodes->at(node).endIndex = endInx;
 
     // copy primitives to transform them
-    std::vector<Triangle> prims;
-    prims.assign(primitives->begin(), primitives->end());
+    //std::vector<Triangle> prims;
+    //prims.assign(primitives->begin(), primitives->end());
 
     // update the min and max corner of parent node
     // update the min and max corners
     float minX = FLT_MAX, minY = FLT_MAX, minZ = FLT_MAX;
     float maxX = FLT_MIN, maxY = FLT_MIN, maxZ = FLT_MIN;
+
     for (int i = startInx; i <= endInx; i++)
     {
-        Triangle& triangle = prims.at(i);
+        Triangle& triangle = primitives->at(i);
         // transform triangle
-        glm::mat4 tm = utilityCore::buildTransformationMatrix(transform.translate, transform.rotate, transform.scale);
-        triangle[0] = glm::vec3(tm * glm::vec4(triangle[0], 1.f));
-        triangle[1] = glm::vec3(tm * glm::vec4(triangle[1], 1.f));
-        triangle[2] = glm::vec3(tm * glm::vec4(triangle[2], 1.f));
 
         for (int i = 0; i < 3; i++)
         {
@@ -123,15 +125,14 @@ void buildTree(
         std::vector<TriangleStruct> mTriangleStructs;
         for (int i = startInx; i <= endInx; i++)
         {
-            mTriangleStructs.push_back(TriangleStruct(prims.at(i), i));
+            mTriangleStructs.push_back(TriangleStruct(primitives->at(i), i));
         }
         std::sort(mTriangleStructs.begin(), mTriangleStructs.end(), kdNodes->at(node).axis == 0 ? xSort : kdNodes->at(node).axis == 1 ? ySort : zSort);
-        std::vector<int> triangles;
-        for (int i = 0; i < mTriangleStructs.size(); i++)
-        {
-            // revert back to untransformed primitive.
-            mTriangleStructs.at(i).arr = primitives->at(mTriangleStructs.at(i).index);
-        }
+        //for (int i = 0; i < mTriangleStructs.size(); i++)
+        //{
+        //    // revert back to untransformed primitive.
+        //    mTriangleStructs.at(i).arr = primitives->at(mTriangleStructs.at(i).index);
+        //}
         for (int i = startInx, j = 0; i <= endInx; i++, j++)
         {
             primitives->at(i) = mTriangleStructs.at(j).arr; // very important
@@ -160,5 +161,19 @@ void buildTree(
 
         buildTree(kdNodes->at(node).leftChild, kdNodes, primitives, startInx, midpoint, transform);
         buildTree(kdNodes->at(node).rightChild, kdNodes, primitives, midpoint + 1, endInx, transform);
+    }
+    else
+    {
+        // leaf node
+        // TODO: replace with funciton
+        Geom geom;
+        geom.type = GeomType::TRIANGLE;
+        geom.materialid = 1; // TODO: replace
+
+        geom.pos1 = primitives->at(startInx)[0];
+        geom.pos2 = primitives->at(startInx)[1];
+        geom.pos3 = primitives->at(startInx)[2];
+
+        kdNodes->at(node).triangle = geom;
     }
 }
