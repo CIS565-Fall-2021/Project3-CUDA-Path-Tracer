@@ -66,7 +66,7 @@ __device__ glm::vec3 refract(const glm::vec3& uv, const glm::vec3& n, float etai
 #define GLOW 10.0f
 #define SCALE 2.0f
 #define AMBIENT 0.5f
-__device__ glm::vec3 subsurfaceColor(glm::vec3 lightDir, glm::vec3 normal, glm::vec3 viewVec, float thin, const Material& m)
+__device__ glm::vec3 subsurfaceColor(const glm::vec3 lightDir, const glm::vec3 normal, const glm::vec3 viewVec, float thin, const Material& m)
 {
     glm::vec3 scatterDir = lightDir + normal * DISTORTION;
     float abc = glm::dot(viewVec, scatterDir);
@@ -150,17 +150,24 @@ void get_sphere_uv(const glm::vec3& p, double& u, double& v) {
 }
 
 __device__ 
-void ColorProcTex(PathSegment& pathSegment, const Material& m, glm::vec3 intersect)
+void ColorProcTex(PathSegment& pathSegment, const Material& m, glm::vec3 intersect, const Camera& cam, const glm::vec3 normal)
 {
     double u, v;
     glm::vec3 testInter = intersect;
     get_sphere_uv(intersect, u, v);
+    glm::vec3 subsurfaceCol = glm::vec3(0, 0, 0);
+    if (m.isSubSurface)
+    {
+        glm::vec3 viewVec = cam.view;
+        glm::vec3 scolor = subsurfaceColor(glm::normalize(pathSegment.ray.direction), normal, viewVec, 3, m);
+        subsurfaceCol = scolor;
+    }
     switch (m.ProcTexNum)
     {
     case 1:
-        pathSegment.color *= ProcColorValue(u, v, intersect);
+        pathSegment.color *= subsurfaceCol + ProcColorValue(u, v, intersect);
     case 2:
-        pathSegment.color *= ProcColorValue2(u, v, intersect);
+        pathSegment.color *= subsurfaceCol + ProcColorValue2(u, v, intersect);
     default:
         break;
     }
@@ -255,7 +262,7 @@ void scatterRay(
     }
     if (m.usingProcTex)
     {
-        ColorProcTex(pathSegment, m, intersect);
+        ColorProcTex(pathSegment, m, intersect, cam, normal);
     }
     pathSegment.ray.origin = intersect + scatter_direction * EPSILON2;
     pathSegment.ray.direction = scatter_direction;
