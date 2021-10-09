@@ -65,6 +65,26 @@ Changes to scene files:
 
 
 
+Antialiasing: 
+
+Without: Saved cornell.2021-10-09_14-24-58z.5000samp.png.
+took 110.898 seconds.
+
+With: Saved cornell.2021-10-09_14-27-51z.5000samp.png.
+took 110.509 seconds.
+
+
+
+## Anti-aliasing
+
+Visual comparision:
+
+![](img/AA.gif)
+
+Performance comparison:
+
+![](img/AA.png)
+
 Bug
 
 1. read access violation when using thrust::remove_if. Fix: use thrust::device as the first parameter to indicate the correct execution policy because dev_paths is in device memory
