@@ -8,7 +8,8 @@ CUDA Path Tracer
 * Tested on: Windows 10, i7-7700HQ @ 2.80GHz 16GB, GTX 1050 4096MB (Personal Laptop)
 
 **Demo**
-![Demo](images/loadgltf.png)
+
+![Demo](img/loadgltf.png)
 
 **Introduction**
 This is a image renderer with path tracing capability. 
@@ -42,6 +43,10 @@ For bounding volume intersection culling, I used a sphere to bound the object ra
 The tradeoff is the volume contained by the cube is larger.
 
 I tested for the existence of total internal reflection.
+
+**Depth of Field**
+![Before](img/beforeDof.png)
+![After](img/afterDof.png)
 
 
 
