@@ -1,3 +1,4 @@
+// ray scattering functions
 #pragma once
 
 #include "intersections.h"
@@ -50,7 +51,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * The visual effect you want is to straight-up add the diffuse and specular
  * components. You can do this in a few ways. This logic also applies to
- * combining other types of materias (such as refractive).
+ * combining other types of materials (such as refractive).
  *
  * - Always take an even (50/50) split between a each effect (a diffuse bounce
  *   and a specular bounce), but divide the resulting color of either branch
@@ -72,8 +73,33 @@ void scatterRay(
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
-        thrust::default_random_engine &rng) {
+        thrust::default_random_engine &rng) 
+{
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    pathSegment.ray.origin = intersect + EPSILON * normal;
+    if (m.hasReflective)
+    {
+        // specular
+        glm::vec3 reflectedDir = glm::reflect(glm::normalize(pathSegment.ray.direction),
+                                              normal);
+        glm::vec3 reflectedColor = m.specular.color;
+        pathSegment.ray.direction = reflectedDir;
+        pathSegment.color *= reflectedColor;
+    }
+    else if (m.hasRefractive)
+    {
+
+    }
+    else {
+        // diffuse
+        glm::vec3 diffuseDir = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
+        glm::vec3 diffuseColor = m.color;
+        pathSegment.ray.direction = diffuseDir;
+        pathSegment.color *= diffuseColor;
+    }
+
+    pathSegment.color = glm::clamp(pathSegment.color, glm::vec3(0.0f), glm::vec3(1.0f));
+    pathSegment.remainingBounces--;
 }

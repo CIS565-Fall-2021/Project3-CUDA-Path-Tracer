@@ -2,6 +2,8 @@
 #include "preview.h"
 #include <cstring>
 
+// this is a global variable with internal linkage
+// thus can only be seen and used in this file
 static std::string startTimeString;
 
 // For camera controls
@@ -31,6 +33,7 @@ int height;
 //-------------------------------
 
 int main(int argc, char** argv) {
+    // Used for naming image files
     startTimeString = currentTimeString();
 
     if (argc < 2) {
@@ -75,6 +78,7 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+// Save an image in Project3-CUDA-Path-Tracer/build/ 
 void saveImage() {
     float samples = iteration;
     // output image file
@@ -90,6 +94,8 @@ void saveImage() {
 
     std::string filename = renderState->imageName;
     std::ostringstream ss;
+    // Every image will get a different filename based on current
+    // time on the author's machine
     ss << filename << "." << startTimeString << "." << samples << "samp";
     filename = ss.str();
 
@@ -98,8 +104,11 @@ void saveImage() {
     //img.saveHDR(filename);  // Save a Radiance HDR file
 }
 
+clock_t start, stop;
+
 void runCuda() {
     if (camchanged) {
+        start = clock();
         iteration = 0;
         Camera &cam = renderState->camera;
         cameraPosition.x = zoom * sin(phi) * sin(theta);
@@ -142,6 +151,10 @@ void runCuda() {
         saveImage();
         pathtraceFree();
         cudaDeviceReset();
+        stop = clock();
+        double timer_seconds = ((double)(stop - start)) / CLOCKS_PER_SEC;
+        std::cerr << "took " << timer_seconds << " seconds.\n";
+
         exit(EXIT_SUCCESS);
     }
 }

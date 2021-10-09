@@ -1,4 +1,8 @@
 #define _CRT_SECURE_NO_DEPRECATE
+// This header was originally in the C standard library as <time.h>.
+// This header is part of the C - style date and time library.
+// https://en.cppreference.com/w/cpp/header/ctime
+// some types and functions in this header are used in currentTimeString()
 #include <ctime>
 #include "main.h"
 #include "preview.h"
@@ -10,11 +14,23 @@ GLuint displayImage;
 
 GLFWwindow *window;
 
+// Return a string of current time in UTC 
 std::string currentTimeString() {
+    // time_t: Arithmetic type capable of representing times.
     time_t now;
+    // stores current calendar time in now 
     time(&now);
+    // sizeof expression
+    // yields the size in bytes of the object representation of 
+    // the type of expression, if that expression is evaluated.
+    // "0000-00-00_00-00-00z" is char[21] (includes null terminator)
+    // sizeof "0000-00-00_00-00-00z" evaluates to 21
     char buf[sizeof "0000-00-00_00-00-00z"];
-    strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%Sz", gmtime(&now));
+    // gmtime() converts given time since epoch as std::time_t value into calendar time, 
+    // expressed in Coordinated Universal Time (UTC). Changed to localtime by Charles
+    // strftime converts the date and time information from now into a formatted buf
+    // format: year-month-day_hour-minute-second
+    strftime(buf, sizeof buf, "%Y-%m-%d_%H-%M-%Sz", localtime(&now));
     return std::string(buf);
 }
 

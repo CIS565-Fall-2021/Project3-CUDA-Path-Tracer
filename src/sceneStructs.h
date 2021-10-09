@@ -4,6 +4,7 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include "glm/glm.hpp"
+#include "utilities.h"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
@@ -12,9 +13,32 @@ enum GeomType {
     CUBE,
 };
 
-struct Ray {
-    glm::vec3 origin;
-    glm::vec3 direction;
+class Ray {
+public:
+    __host__ __device__ Ray::Ray()
+        : origin(), direction()
+    {}
+    __host__ __device__ Ray::Ray(const Point3f& o, const Vector3f& d)
+        : origin(o), direction(d)
+    {}
+
+    __host__ __device__ Point3f getOrigin() const
+    {
+        return origin;
+    }
+
+    __host__ __device__ Vector3f getDirection() const
+    {
+        return direction;
+    }
+
+    //  Falls slightly short so that it doesn't intersect the object it's hitting. 
+    __host__ __device__ Point3f evaluate(float t) const {
+        return origin + (t - .0001f) * glm::normalize(direction);
+    }
+public:
+    Point3f origin;
+    Vector3f direction;
 };
 
 struct Geom {
@@ -42,6 +66,7 @@ struct Material {
 
 struct Camera {
     glm::ivec2 resolution;
+    // EYE
     glm::vec3 position;
     glm::vec3 lookAt;
     glm::vec3 view;
@@ -54,8 +79,10 @@ struct Camera {
 struct RenderState {
     Camera camera;
     unsigned int iterations;
+    // DEPTH in Camera
     int traceDepth;
     std::vector<glm::vec3> image;
+    // FILE in Camera
     std::string imageName;
 };
 
@@ -69,8 +96,27 @@ struct PathSegment {
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
-struct ShadeableIntersection {
+struct HitRecord {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec3 intersectionPoint;
+};
+
+
+struct isTerminated
+{
+    __host__ __device__
+    bool operator()(const PathSegment& p)
+    {
+        return p.remainingBounces > 0;
+    }
+};
+
+struct sortMaterial 
+{
+    __host__ __device__ 
+    bool operator()(const HitRecord& a, const HitRecord& b) {
+        return a.materialId < b.materialId;
+    }
 };
