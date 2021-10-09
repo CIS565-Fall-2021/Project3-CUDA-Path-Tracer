@@ -5,6 +5,7 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 #include <thrust/device_ptr.h>
+#include <thrust/device_vector.h>
 #include <thrust/sort.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
@@ -53,6 +54,68 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
   int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
   return thrust::default_random_engine(h);
 }
+
+__device__
+struct device_vector
+{
+    __device__
+    device_vector()
+    {
+        data = (int*)malloc(1 * sizeof(int));
+    }
+
+    __device__
+    ~device_vector()
+    {
+       free(data);
+    }
+
+    __device__
+    device_vector(size_t n)
+    {
+        data = (int*)malloc(n * sizeof(int));
+    }
+
+    __device__
+    void push_back(int& item)
+    {
+        if (inx == size - 1)
+        {
+            int* temp = (int*)malloc(size * 2 * sizeof(int));
+            for (size_t i = 0; i < size; i++)
+                temp[i] = data[i];
+            free(data);
+            data = temp;
+            size *= 2;
+        }
+        else
+        {
+            data[inx++] = item;
+        }
+    }
+
+    __device__
+    int pop_back()
+    {
+        int item = data[inx];
+        if (inx-- == size / 2)
+        {
+            int* temp = (int*)malloc((size / 2) * sizeof(int));
+            for (size_t i = 0; i < size; i++)
+                temp[i] = data[i];
+            free(data);
+            data = temp;
+            size /= 2;
+        }
+        return item;
+    }
+
+    int* data;
+    size_t size;
+    size_t inx;
+};
+
+
 
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
@@ -202,6 +265,7 @@ __global__ void computeIntersections(
   , KDTree* kdTrees
   , int kdTrees_size
   , KDNode* kdNodes
+  , int kdNodes_size
   , ShadeableIntersection * intersections
   )
 {
@@ -258,15 +322,21 @@ __global__ void computeIntersections(
       {
           KDTree& kdTree = kdTrees[i];
           KDNode* kdNode = &kdNodes[kdTree.kdNodes];
+
           float intersection = 0.0f;
           glm::vec3 intersectionPoint;
-          while (kdNode != nullptr)
+
+          int nodeInx = 0;
+          int nodesToVisit[20]; // TODO: set a definition for size
+          nodesToVisit[nodeInx] = kdTree.kdNodes;
+          while (nodeInx >= 0)
           {
-              float t = boxIntersectionTest(kdNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              KDNode& kdNode = kdNodes[nodesToVisit[nodeInx--]];
+              float t = boxIntersectionTest(kdNode.boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
               if (t > 0.0 && t < t_min)
               {
-                  // intersection
-                  if (kdNode->leftChild == -1 && kdNode->rightChild == -1)
+                  // If leaf node was hit 
+                  if (kdNode.leftChild == -1 && kdNode.rightChild == -1)
                   {
                       // primitive found
                       materialId = kdTree.materialId;
@@ -290,128 +360,133 @@ __global__ void computeIntersections(
                       //triangle.inverseTransform = glm::inverse(triangle.transform);
                       //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
 
-                      triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode->startIndex].p1, 1.f));
-                      triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode->startIndex].p2, 1.f));
-                      triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode->startIndex].p3, 1.f));
+                      triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode.startIndex].p1, 1.f));
+                      triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode.startIndex].p2, 1.f));
+                      triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[kdNode.startIndex].p3, 1.f));
 
-                      if (triangle.type == GeomType::TRIANGLE) 
-                        intersection = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                      kdNode = nullptr;
+                      if (triangle.type == GeomType::TRIANGLE)
+                          intersection = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
                   }
                   else
                   {
-                      float lt = -1, rt = -1;
-                      KDNode *leftNode, *rightNode;
-                      if (kdNode->leftChild != -1)
-                      {
-                          leftNode = &kdNodes[(kdNode->leftChild)];
-                          lt = boxIntersectionTest(leftNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                      }
-                      if (kdNode->rightChild != -1)
-                      {
-                          rightNode = &kdNodes[kdNode->rightChild];
-                          rt = boxIntersectionTest(rightNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                      }
-
-                      if (lt > 0.0 && rt > 0.0)
-                      {
-                          // we have overlaps, have to search all the triangles now
-                          kdNode = nullptr;
-
-                          for (int i = leftNode->startIndex; i < leftNode->endIndex; i++)
-                          {
-                              // TODO: refactor
-                              //Geom triangle;// = createTriangle(primitives[i], kdTree.transform, kdTree.materialId);
-                              Geom triangle;
-                              triangle.type = GeomType::TRIANGLE;
-                              triangle.materialid = materialId;
-                              triangle.translation = kdTree.transform.translate;
-                              triangle.rotation = kdTree.transform.rotate;
-                              triangle.scale = kdTree.transform.scale;
-
-                              glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
-                              glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
-                              glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
-                              triangle.transform = translationMat * rotationMat * scaleMat;
-                              //triangle.transform = utilityCore::buildTransformationMatrix(
-                              //    triangle.translation, triangle.rotation, triangle.scale);
-
-                              //triangle.inverseTransform = glm::inverse(triangle.transform);
-                              //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
-
-                              triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p1, 1.f));
-                              triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p2, 1.f));
-                              triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p3, 1.f));
-
-                              if (triangle.type == GeomType::TRIANGLE)
-                              {
-                                  float temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                                  if (temp > 0.0)
-                                  {
-                                      intersection = temp < intersection ? temp : intersection;
-                                      intersectionPoint = tmp_intersect;
-                                  }
-                              }
-                          }
-                          for (int i = rightNode->startIndex; i < rightNode->endIndex; i++)
-                          {
-                              //Geom triangle;// = createTriangle(primitives[i], kdTree.transform, kdTree.materialId);
-                              Geom triangle;
-                              triangle.type = GeomType::TRIANGLE;
-                              triangle.materialid = materialId;
-                              triangle.translation = kdTree.transform.translate;
-                              triangle.rotation = kdTree.transform.rotate;
-                              triangle.scale = kdTree.transform.scale;
-
-                              glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
-                              glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
-                              rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
-                              glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
-                              triangle.transform = translationMat * rotationMat * scaleMat;
-                              //triangle.transform = utilityCore::buildTransformationMatrix(
-                              //    triangle.translation, triangle.rotation, triangle.scale);
-
-                              //triangle.inverseTransform = glm::inverse(triangle.transform);
-                              //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
-
-                              triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p1, 1.f));
-                              triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p2, 1.f));
-                              triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p3, 1.f));
-
-                              if (triangle.type == GeomType::TRIANGLE)
-                              {
-                                  float temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                                  if (temp > 0.0)
-                                  {
-                                      intersection = temp < intersection ? temp : intersection;
-                                      intersectionPoint = tmp_intersect;
-                                  }
-                              }
-                          }
-                      }
-                      else if (lt > 0.0)
-                      {
-                          kdNode = leftNode;
-                      }
-                      else if (rt > 0.0)
-                      {
-                          kdNode = rightNode;
-                      }
-                      else
-                      {
-                          kdNode = nullptr; // no intersection?
-                      }
+                      if (kdNode.leftChild != -1)
+                          nodesToVisit[++nodeInx] = kdNode.leftChild;
+                      if (kdNode.rightChild != -1)
+                          nodesToVisit[++nodeInx] = kdNode.rightChild;
                   }
               }
-              else
-              {
-                  // did not intersect, skip
-                  kdNode = nullptr;
-              }
           }
+              //        float lt = -1, rt = -1;
+              //        KDNode *leftNode, *rightNode;
+              //        if (kdNode->leftChild != -1)
+              //        {
+              //            leftNode = &kdNodes[(kdNode->leftChild)];
+              //            lt = boxIntersectionTest(leftNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              //        }
+              //        if (kdNode->rightChild != -1)
+              //        {
+              //            rightNode = &kdNodes[kdNode->rightChild];
+              //            rt = boxIntersectionTest(rightNode->boundingBox, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              //        }
+
+              //        if (lt > 0.0 && rt > 0.0)
+              //        {
+              //            // we have overlaps, have to search all the triangles now
+              //            kdNode = nullptr;
+
+              //            for (int i = leftNode->startIndex; i < leftNode->endIndex; i++)
+              //            {
+              //                // TODO: refactor
+              //                //Geom triangle;// = createTriangle(primitives[i], kdTree.transform, kdTree.materialId);
+              //                Geom triangle;
+              //                triangle.type = GeomType::TRIANGLE;
+              //                triangle.materialid = materialId;
+              //                triangle.translation = kdTree.transform.translate;
+              //                triangle.rotation = kdTree.transform.rotate;
+              //                triangle.scale = kdTree.transform.scale;
+
+              //                glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
+              //                glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
+              //                rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
+              //                rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
+              //                glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
+              //                triangle.transform = translationMat * rotationMat * scaleMat;
+              //                //triangle.transform = utilityCore::buildTransformationMatrix(
+              //                //    triangle.translation, triangle.rotation, triangle.scale);
+
+              //                //triangle.inverseTransform = glm::inverse(triangle.transform);
+              //                //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
+
+              //                triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p1, 1.f));
+              //                triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p2, 1.f));
+              //                triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p3, 1.f));
+
+              //                if (triangle.type == GeomType::TRIANGLE)
+              //                {
+              //                    float temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              //                    if (temp > 0.0)
+              //                    {
+              //                        intersection = temp < intersection ? temp : intersection;
+              //                        intersectionPoint = tmp_intersect;
+              //                    }
+              //                }
+              //            }
+              //            for (int i = rightNode->startIndex; i < rightNode->endIndex; i++)
+              //            {
+              //                //Geom triangle;// = createTriangle(primitives[i], kdTree.transform, kdTree.materialId);
+              //                Geom triangle;
+              //                triangle.type = GeomType::TRIANGLE;
+              //                triangle.materialid = materialId;
+              //                triangle.translation = kdTree.transform.translate;
+              //                triangle.rotation = kdTree.transform.rotate;
+              //                triangle.scale = kdTree.transform.scale;
+
+              //                glm::mat4 translationMat = glm::translate(glm::mat4(), triangle.translation);
+              //                glm::mat4 rotationMat = glm::rotate(glm::mat4(), triangle.rotation.x * (float)PI / 180, glm::vec3(1, 0, 0));
+              //                rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.y * (float)PI / 180, glm::vec3(0, 1, 0));
+              //                rotationMat = rotationMat * glm::rotate(glm::mat4(), triangle.rotation.z * (float)PI / 180, glm::vec3(0, 0, 1));
+              //                glm::mat4 scaleMat = glm::scale(glm::mat4(), triangle.scale);
+              //                triangle.transform = translationMat * rotationMat * scaleMat;
+              //                //triangle.transform = utilityCore::buildTransformationMatrix(
+              //                //    triangle.translation, triangle.rotation, triangle.scale);
+
+              //                //triangle.inverseTransform = glm::inverse(triangle.transform);
+              //                //triangle.invTranspose = glm::inverseTranspose(triangle.transform);
+
+              //                triangle.pos1 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p1, 1.f));
+              //                triangle.pos2 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p2, 1.f));
+              //                triangle.pos3 = glm::vec3(triangle.transform * glm::vec4(primitives[i].p3, 1.f));
+
+              //                if (triangle.type == GeomType::TRIANGLE)
+              //                {
+              //                    float temp = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+              //                    if (temp > 0.0)
+              //                    {
+              //                        intersection = temp < intersection ? temp : intersection;
+              //                        intersectionPoint = tmp_intersect;
+              //                    }
+              //                }
+              //            }
+              //        }
+              //        else if (lt > 0.0)
+              //        {
+              //            kdNode = leftNode;
+              //        }
+              //        else if (rt > 0.0)
+              //        {
+              //            kdNode = rightNode;
+              //        }
+              //        else
+              //        {
+              //            kdNode = nullptr; // no intersection?
+              //        }
+              //    }
+              //}
+              //else
+              //{
+              //    // did not intersect, skip
+              //    kdNode = nullptr;
+              //}
 
           if (intersection > 0.0f && t_min > intersection)
           {
@@ -647,6 +722,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       dev_kdTrees,
       hst_scene->kdTrees.size(),
       dev_kdNodes,
+        hst_scene->kdNodes.size(),
 #ifdef CACHE_FIRST_INTERSECTION
       intersectionPtr
 #else

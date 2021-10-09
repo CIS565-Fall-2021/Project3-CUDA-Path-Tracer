@@ -111,7 +111,6 @@ struct Triangle
     }
 };
 
-
 struct KDNode
 {
     KDNode() : leftChild(-1), rightChild(-1), axis(0), startIndex(-1), endIndex(-1) {}
@@ -166,4 +165,3 @@ struct KDTree
     Transform transform;
     int materialId;
 };
-
