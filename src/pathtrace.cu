@@ -321,7 +321,6 @@ __global__ void computeIntersections(
       for (int i = 0; i < kdTrees_size; i++)
       {
           KDTree& kdTree = kdTrees[i];
-          KDNode* kdNode = &kdNodes[kdTree.kdNodes];
 
           float intersection = 0.0f;
           glm::vec3 intersectionPoint;
@@ -340,11 +339,12 @@ __global__ void computeIntersections(
                   {
                       // primitive found
                       Geom& triangle = kdNode.triangle;
-                      triangle.materialid = kdTree.materialId; // TODO: shouldn't be done here
+                      materialId = kdTree.materialId; // TODO: shouldn't be done here
 
                       if (triangle.type == GeomType::TRIANGLE)
                           intersection = triangleIntersectionTest(triangle, pathSegment.ray, tmp_intersect, tmp_normal, outside);
-                      nodeInx = -1; // terminate
+                      if (intersection > 0.0)
+                        nodeInx = -1; // terminate
                   }
                   else
                   {
