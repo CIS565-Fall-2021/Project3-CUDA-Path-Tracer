@@ -52,6 +52,12 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+#if USE_MESH_LOADING
+            else if (strcmp(line.c_str(), "obj") == 0) {
+                cout << "Creating new obj..." << endl;
+                newGeom.type = OBJ;
+            }
+#endif // USE_MESH_LOADING
         }
 
         //link material

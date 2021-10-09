@@ -2,7 +2,6 @@
 
 #include "intersections.h"
 
-
 #define EPSILON_SCALE 10.0f
 
 // CHECKITOUT
@@ -86,16 +85,47 @@ void scatterRay(
     glm::vec3 norVec = glm::normalize(normal); 
 
     if (prob < m.hasReflective) {
+        // Reflection
         pathSegment.ray.origin = intersect + (float) EPSILON * EPSILON_SCALE * norVec;
-        pathSegment.ray.direction = glm::normalize(glm::reflect(rayVec, norVec)); // Reflection  
+        pathSegment.ray.direction = glm::normalize(glm::reflect(rayVec, norVec));   
     } 
     else if (prob < (m.hasReflective + m.hasRefractive)) {
-        pathSegment.ray.origin = intersect - (float) EPSILON * EPSILON_SCALE * norVec;
-        pathSegment.ray.direction = glm::normalize(glm::refract(rayVec, norVec, m.indexOfRefraction)); // Refraction 
+        // Refraction 
+        // Reference: https://raytracing.github.io/books/RayTracingInOneWeekend.html#dielectrics
+        float refractionRatio = (glm::dot(rayVec, norVec) > 0) ? m.indexOfRefraction : (1.0f / m.indexOfRefraction); // inside sphere : outside sphere
+
+        float cosTheta = glm::min(glm::dot(-1.0f * rayVec, norVec), 1.0f); 
+        float sinTheta = sqrt(1.0 - cosTheta * cosTheta); 
+        bool cannotRefract = refractionRatio * sinTheta > 1.0f;
+
+        // Schlick's Approximation
+#if SCHLICK
+        float r0 = (1 - refractionRatio) / (1 + refractionRatio);
+        r0 *= r0;
+        float schlickAppro = r0 + (1 - r0) * pow(1 - cosTheta, 5);
+        bool  schlickBool = schlickAppro > u01(rng);
+#endif // SCHLICK
+
+        pathSegment.ray.origin = intersect + (float) EPSILON * EPSILON_SCALE * rayVec;
+#if SCHLICK
+        if (cannotRefract || schlickBool) {
+            pathSegment.ray.direction = glm::reflect(rayVec, norVec);
+        }
+#else 
+        if (cannotRefract) {
+            // if refraction is impossible, reflect instead. 
+            pathSegment.ray.direction = glm::reflect(rayVec, norVec);
+        }
+#endif // SCHLICK
+        else {
+            // Snell's Law
+            pathSegment.ray.direction = glm::refract(rayVec, norVec, refractionRatio);
+        }
     } 
     else {
+        // Diffusion
         pathSegment.ray.origin = intersect + (float) EPSILON * EPSILON_SCALE * norVec; 
-        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(norVec, rng)); // Diffuse
+        pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(norVec, rng)); 
     }
     pathSegment.color *= m.color;
 }

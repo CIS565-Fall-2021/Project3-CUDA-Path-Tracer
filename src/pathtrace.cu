@@ -18,13 +18,6 @@
 #include "intersections.h"
 #include "interactions.h"
 
-#define USE_CACHE       1
-#define USE_SORT        0
-#define USE_PARTITION   0
-#define USE_REMOVE_IF   0
-#define PRINT           0
-#define ERRORCHECK      1
-
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
 void checkCUDAErrorFn(const char *msg, const char *file, int line) {
@@ -121,6 +114,23 @@ void pathtraceInit(Scene* scene) {
     const Camera& cam = hst_scene->state.camera;
     const int pixelcount = cam.resolution.x * cam.resolution.y;
 
+#if USE_MESH_LOADING
+    for (int i = 0; i < scene->geoms.size(); i++)
+    {
+        if (scene->geoms[i].type == OBJ)
+        {
+            cudaMalloc(
+                &scene->geoms[i].dev_VecNorArr, 
+                scene->geoms[i].triCount * 6 * sizeof(glm::vec4));
+            cudaMemcpy(
+                scene->geoms[i].dev_VecNorArr, 
+                scene->geoms[i].host_VecNorArr, 
+                scene->geoms[i].triCount * 6 * sizeof(glm::vec4), 
+                cudaMemcpyHostToDevice);
+        }
+    }
+#endif // USE_MESH_LOADING
+
     cudaMalloc(&dev_image, pixelcount * sizeof(glm::vec3));
     cudaMemset(dev_image, 0, pixelcount * sizeof(glm::vec3));
 
@@ -149,6 +159,15 @@ void pathtraceInit(Scene* scene) {
 void pathtraceFree() {
     cudaFree(dev_image);  // no-op if dev_image is null
     cudaFree(dev_paths);
+//#if USE_MESH_LOADING
+//    if (hst_scene) {
+//        for (int i = 0; i < hst_scene->geoms.size(); i++) {
+//            if (hst_scene->geoms[i].type == GeomType::OBJ) {
+//                cudaFree(&dev_geoms[i].dev_VecNorArr);
+//            }
+//        }
+//    }
+//#endif // USE_MESH_LOADING
     cudaFree(dev_geoms);
     cudaFree(dev_materials);
     cudaFree(dev_intersections);
@@ -159,7 +178,6 @@ void pathtraceFree() {
 #if USE_PARTITION
     cudaFree(dev_stencil);
 #endif // USE_PARTITION
-
     checkCUDAError("pathtraceFree");
 }
 
@@ -184,10 +202,26 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
         // TODO: implement antialiasing by jittering the ray
-        segment.ray.direction = glm::normalize(cam.view
-            - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f)
-            - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f)
-            );
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+
+        float probX = 0.0f, probY = 0.0f; 
+#if ANTIALIASING & !USE_CACHE
+        thrust::uniform_real_distribution<float> uhh(-0.5f, 0.5f);
+        probX = uhh(rng); probY = uhh(rng); 
+        segment.ray.direction = glm::normalize(
+            cam.view -
+            cam.right * cam.pixelLength.x * ((float)x + probX - (float)cam.resolution.x * 0.5f) -
+            cam.up * cam.pixelLength.y * ((float)y + probY - (float)cam.resolution.y * 0.5f));
+#endif // ANTIALIASING
+
+        
+#if !(USE_DOF | ANTIALIASING)
+        segment.ray.direction = glm::normalize(
+                cam.view - 
+                cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f) - 
+                cam.up    * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f));
+#endif //!(USE_DOF | ANTIALIASING)
+
 
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
@@ -237,6 +271,12 @@ __global__ void computeIntersections(
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
             }
+#if USE_MESH_LOADING
+            else if (geom.type == OBJ)
+            {
+                t = OBJIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            }
+#endif // USE_MESH_LOADING
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
             // Compute the minimum t from the intersection tests to determine what
@@ -352,7 +392,6 @@ __global__ void shadeMaterialCore(
         // LOOK: this is how you use thrust's RNG! Please look at
         // makeSeededRandomEngine as well.
         thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-
         Material material = materials[intersection.materialId];
 
         // If the material indicates that the object was a light, "light" the ray
