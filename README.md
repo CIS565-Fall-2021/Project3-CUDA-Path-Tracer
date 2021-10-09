@@ -133,3 +133,16 @@ You can see significant time savings as the resolution is increased, as you save
 Another option I provide is `USE_BB`, which will create a bounding box for the mesh. The savings for this depends on how much of the space the mesh takes up -- if the mesh encompasses most of the viewing space, the bounding box offers little help efficiency-wise. However, if it takes up a fraction of the viewing space, you are saving a large amount of time that would be spent iterating over and testing for intersection with triangles.
 
 ![How Bounding Boxes Improve Mesh Render Time](img/performance_renders/HowBoundingBoxesImproveMeshRenderingTime.png)
+
+Bloopers
+=======
+
+#### Skeleton Lamp
+
+![Skeleton Lamp Blooper](img/skeletonLamp5000samples.png)
+
+![Skeleton Lamp GIF](img/meshNormalTest.gif)
+
+#### My Refractive Rays Got Lost
+
+![Refraction Blooper](img/cornell.2021-10-02_17-43-48z.213samp.png)
