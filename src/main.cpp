@@ -15,7 +15,7 @@ static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
 
 static double aperture = 0.2;
-static double focus_dist = 3.0;
+static double focus_dist = 3.0f;
 float zoom, theta, phi;
 glm::vec3 cameraPosition;
 glm::vec3 ogLookAt; // for recentering the camera
