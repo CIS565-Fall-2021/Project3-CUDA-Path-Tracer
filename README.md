@@ -73,3 +73,16 @@ Mesh loading has not been fully supported due to an incorrect normal vector pars
 TODO:
 - Bounding volume culling with AABB box/OBB box.
 
+## Performance Analysis
+Throughout the project two optimizations were done:
+1. **Cache ray first bounce.** For every iteration in a rendering process, the first rays that shoot from camera to the first hit surface is always the same. Therefore we can cache the first shooting ray during the first iteration and reuse the results in all the following iterations.
+2. **Radix-sort hit attributes by material type.** The calculation of resulting colors for each ray depends on the material of the object it hits, and thus we can sort the rays based on material type before shading to enforce CUDA memory coalescence.
+
+![](img/sort-material-type.png)
+
+The following experiments are conducted on a Cornell box scene as shown in [`cornell_profiling.txt`](scenes/cornell_profiling.txt) with varying iterations from 300 to 2000.
+
+![](img/performance-analysis.png)
+
+From the performance analysis we can see that caching the first bounce for the 1st iteration has a slight improvement on the performance, while radix-sorting the material type before shading have a great negative impact on the performance. This is possibly due to the reason that radix-sorting itself takes a lot amount of time in each iteration. 
+
