@@ -253,8 +253,8 @@ __host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
         }
 
         // Interpolate UV
+        glm::vec2 uv0, uv1, uv2;
         if (m.uv_offset >= 0) {
-          glm::vec2 uv0, uv1, uv2;
           uv0 = md.uvs[m.uv_offset + f0];
           uv1 = md.uvs[m.uv_offset + f1];
           uv2 = md.uvs[m.uv_offset + f2];
@@ -267,14 +267,27 @@ __host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
           t0 = md.tangents[m.t_offset + f0];
           t1 = md.tangents[m.t_offset + f1];
           t2 = md.tangents[m.t_offset + f2];
+          lerp<glm::vec4>(tangent, t0, t1, t2, bary.x, bary.y);
         }
         else {
-          // TODO: Calculate tangent properly
-          t0 = glm::vec4(glm::normalize(v1 - v0), 1.f);
-          t1 = glm::vec4(glm::normalize(v2 - v1), 1.f);
-          t2 = glm::vec4(glm::normalize(v0 - v2), 1.f);
+          // Calculate tangent vector: 
+          // https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
+
+          glm::vec3 dp1 = v1 - v0;
+          glm::vec3 dp2 = v2 - v0;
+          glm::vec2 du1 = uv1 - uv0;
+          glm::vec2 du2 = uv2 - uv0;
+
+          float r = 1.0F / (du1.x * du2.y - du2.x * du1.y);
+          glm::vec3 sdir((du2.y * dp1.x - du1.y * dp2.x) * r, (du2.y * dp1.y - du1.y * dp2.y) * r,
+            (du2.y * dp1.z - du1.y * dp2.z) * r);
+          glm::vec3 tdir((du1.x * dp2.x - du2.x * dp1.x) * r, (du1.x * dp2.y - du2.x * dp1.y) * r,
+            (du1.x * dp2.z - du2.x * dp1.z) * r);
+
+          tangent = glm::vec4(
+            glm::normalize(sdir - normal * glm::dot(normal, sdir)),
+            glm::dot(glm::cross(normal, sdir), tdir) < 0.f ? -1.f : 1.f);
         }
-        lerp<glm::vec4>(tangent, t0, t1, t2, bary.x, bary.y);
 
         t = bary.z;
 

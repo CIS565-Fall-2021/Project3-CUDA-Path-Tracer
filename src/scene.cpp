@@ -427,7 +427,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               // coordinates into "facevarying" order) for each face
               // 
               // For each triangle :
-              mesh_normals.resize(attribAccessor.count);
+              mesh_normals.resize(loadedMesh.n_offset + attribAccessor.count);
               for (int i = 0; i < loadedMesh.count; i+=3) {
                 // get the i'th triange's indexes
                 int f0 = indices[i + 0];
@@ -465,7 +465,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               if (offset == 0)
                 offset = 2;
 
-              mesh_uvs.resize(mesh_uvs.size() + attribAccessor.count);
+              mesh_uvs.resize(loadedMesh.uv_offset + attribAccessor.count);
               // For each triangle :
               for (int i = 0; i < loadedMesh.count; i += 3) {
                 // get the i'th triange's indexes
@@ -501,7 +501,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               if (offset == 0)
                 offset = 4;
 
-              mesh_tangents.resize(mesh_tangents.size() + attribAccessor.count);
+              mesh_tangents.resize(loadedMesh.t_offset + attribAccessor.count);
               // For each triangle :
               for (int i = 0; i < loadedMesh.count; i += 3) {
                 // get the i'th triange's indexes

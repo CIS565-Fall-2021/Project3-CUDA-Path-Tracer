@@ -51,13 +51,13 @@ __host__ __device__
 glm::vec3 calculateImperfectSpecularDirection(
     glm::vec3 normal, glm::vec3 reflect, glm::vec4 tangent,
     thrust::default_random_engine& rng, 
-    float roughness, float shininess) {
-
-    thrust::uniform_real_distribution<float> u01(0, roughness);
-    float x1 = 1 + u01(rng);
+    float roughness) {
+   
+    thrust::uniform_real_distribution<float> u01(0,1);
+    float x1 = u01(rng);
     float x2 = u01(rng);
   
-    float theta = acos(1 / powf(x1, shininess + 1));
+    float theta = atan(roughness * sqrt(x1) / sqrt(1 - x1));
     float phi = 2 * PI * x2;
   
     glm::vec3 dir;
@@ -65,11 +65,16 @@ glm::vec3 calculateImperfectSpecularDirection(
     dir.y = sin(phi) * sin(theta);
     dir.z = cos(theta);
     
-    // Transform dir from specular-space to tangent-space
-    float c = glm::dot(normal, reflect);
-    float s = glm::length(glm::cross(normal, reflect));
-    dir = glm::mat3(c, 0.f, s, 0.f, 1.f, 0.f, -s, 0.f, c) * dir;
+    /// construct an under-constrained coordinate using reflection as up axis
+    glm::vec3 r = glm::normalize(reflect);
+    glm::mat3 m;
+    m[2] = r;
+    m[0] = glm::normalize(glm::vec3(0, r.z, -r.y));
+    m[1] = glm::cross(m[2], m[1]);
 
+    // Transform dir from specular-space to tangent-space
+    dir = glm::normalize(m * dir);
+    
     // Transform dir from tangent-space to world-space
     glm::vec3 t(tangent);
     glm::vec3 b = glm::cross(normal, t) * tangent.w;
@@ -90,13 +95,22 @@ void normalMapping(glm::vec3& n, const glm::vec3& nMap, const glm::vec4& tangent
 }
 
 /**
+* Based on: https://pbr-book.org/3ed-2018/Texture/Solid_and_Procedural_Texturing
+*/
+__device__
+Color checkerBoard(const glm::vec2 uv) {
+  glm::vec2 v = 10.f * uv;  // scale UV based on the frequency
+  return (int(v.x) + int(v.y)) % 2 == 0 ? Color(1.f) : Color(0.f);
+}
+
+/**
 * Helper function for sampling the texture object with the given UV coordinate
 */
 __device__
-void sampleTexture(Color& color, cudaTextureObject_t texObj, const glm::vec2 uv) {
+Color sampleTexture(cudaTextureObject_t texObj, const glm::vec2 uv) {
   // NOTE: cudaReadModeNormalizedFloat will convert uchar4 to float4
   float4 rgba = tex2D<float4>(texObj, uv.x, uv.y);
-  color = Color(rgba.x, rgba.y, rgba.z);
+  return Color(rgba.x, rgba.y, rgba.z);
 }
 
 /**
@@ -134,30 +148,34 @@ void scatterRay(
     
     glm::vec3 intersect = getPointOnRay(pathSegment.ray, i.t);
 
-    Color color;
-    glm::vec3 newDir;
-    int txId = -1;
-    glm::vec3 normal = i.surfaceNormal;
+    Color color;  // Final Color
+    glm::vec3 newDir;  // New Ray Direction
 
+    // PBR Material Properties
+    Color albedo;  // baseColor
+    float pM, pR;  // Metallic and Roughness Parameters
+    float ao;  // TODO: Ambient Occlusion
+    glm::vec3 normal = i.surfaceNormal;
+ 
+    // Get Albedo
+    int txId = -1;
     txId = m.pbrMetallicRoughness.baseColorTexture.index;
     if (txId < 0) {
-      color = m.pbrMetallicRoughness.baseColorFactor;
+      albedo = m.pbrMetallicRoughness.baseColorFactor;
     }
     else {
-      sampleTexture(color, textures[txId], i.uv);
+      albedo = sampleTexture(textures[txId], i.uv);
+      // color *= checkerBoard(i.uv);
     }
 
-    // metallic and roughness parameters
-    float pM, pR; 
-
+    // Get Metallic and Roughness Parameters
     txId = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
     if (txId < 0) {
       pM = m.pbrMetallicRoughness.metallicFactor;
       pR = m.pbrMetallicRoughness.roughnessFactor;
     }
     else {
-      Color pbr;
-      sampleTexture(pbr, textures[txId], i.uv);
+      Color pbr = sampleTexture(textures[txId], i.uv);
       pM = pbr.b * m.pbrMetallicRoughness.metallicFactor;
       pR = pbr.g * m.pbrMetallicRoughness.roughnessFactor;
     }
@@ -165,8 +183,7 @@ void scatterRay(
     // Apply normal map if any
     txId = m.normalTexture.index;
     if (txId >= 0) {
-      glm::vec3 n;
-      sampleTexture(n, textures[txId], i.uv);
+      glm::vec3 n = sampleTexture(textures[txId], i.uv);
       n = glm::normalize(n * 2.f - 1.f);
       normalMapping(normal, n, i.tangent);
     }
@@ -174,15 +191,15 @@ void scatterRay(
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     if (u01(rng) < pM) {
-      // Metallic
+      // Specular
       glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, normal);
-      newDir = calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR, 0);
-      color *= pM;
+      newDir = calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR);
+      color = pM * albedo;
     }
     else {
       // Diffuse
       newDir = calculateRandomDirectionInHemisphere(normal, rng);
-      color *= (1.0f - pM);
+      color = (1.f - pM) * albedo;
     }
 
     pathSegment.ray.origin = intersect;
