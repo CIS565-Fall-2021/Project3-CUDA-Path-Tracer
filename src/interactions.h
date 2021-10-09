@@ -88,6 +88,10 @@ void scatterRay(
         pathSegment.ray.direction = reflectedDir;
         pathSegment.color *= reflectedColor;
     }
+    else if (m.hasRefractive)
+    {
+
+    }
     else {
         // diffuse
         glm::vec3 diffuseDir = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
