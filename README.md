@@ -143,6 +143,12 @@ Bloopers
 
 ![Skeleton Lamp GIF](img/meshNormalTest.gif)
 
+#### Let the Rain Come Down
+
+![Sample Blooper](img/cornell.2021-10-02_20-42-09z.125samp.png)
+
 #### My Refractive Rays Got Lost
 
 ![Refraction Blooper](img/cornell.2021-10-02_17-43-48z.213samp.png)
+
+
