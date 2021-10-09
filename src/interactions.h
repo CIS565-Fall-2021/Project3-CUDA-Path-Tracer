@@ -24,9 +24,6 @@ __host__ __device__ float halton(int base, int index) {
     return r;
 }
 
-//2 > d:\a_gpu565\project3 - cuda - path - tracer\src\interactions.h(21) : warning: calling a __host__ function("double  ::floor<int, (int)0> (T1)") from a __host__ __device__ function("halton") is not allowed
-
-
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.

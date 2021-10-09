@@ -169,3 +169,10 @@ TRANS 0 0 0
 ROTAT 0 0 0
 SCALE 1 4 1
 
+//Bunny
+OBJECT 11
+custom_obj
+material 6
+TRANS 0 0 3
+ROTAT 0 0 0
+SCALE 20 20 20
