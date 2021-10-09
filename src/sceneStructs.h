@@ -33,7 +33,7 @@ public:
     }
 
     //  Falls slightly short so that it doesn't intersect the object it's hitting. 
-    __host__ __device__ Point3f evaluate(float t) {
+    __host__ __device__ Point3f evaluate(float t) const {
         return origin + (t - .0001f) * glm::normalize(direction);
     }
 public:
@@ -96,12 +96,13 @@ struct PathSegment {
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
-struct ShadeableIntersection {
+struct HitRecord {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
   glm::vec3 intersectionPoint;
 };
+
 
 struct isTerminated
 {
@@ -115,7 +116,7 @@ struct isTerminated
 struct sortMaterial 
 {
     __host__ __device__ 
-    bool operator()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
+    bool operator()(const HitRecord& a, const HitRecord& b) {
         return a.materialId < b.materialId;
     }
 };

@@ -55,6 +55,16 @@ took 349.176 seconds.
 
 For cornell box, sorting by material didn't help that much. 
 
+
+
+
+
+Changes to scene files: 
+
+- Use FOVYH for half angle vertical field of view
+
+
+
 Bug
 
 1. read access violation when using thrust::remove_if. Fix: use thrust::device as the first parameter to indicate the correct execution policy because dev_paths is in device memory

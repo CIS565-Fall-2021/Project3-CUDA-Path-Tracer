@@ -76,8 +76,8 @@ static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;
-static ShadeableIntersection * dev_intersections = NULL;
-static ShadeableIntersection* dev_intersections_first_bounce = NULL;
+static HitRecord * dev_intersections = NULL;
+static HitRecord* dev_intersections_first_bounce = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 
@@ -99,12 +99,12 @@ void pathtraceInit(Scene *scene) {
     cudaMalloc(&dev_materials, scene->materials.size() * sizeof(Material));
     cudaMemcpy(dev_materials, scene->materials.data(), scene->materials.size() * sizeof(Material), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
-    cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+    cudaMalloc(&dev_intersections, pixelcount * sizeof(HitRecord));
+    cudaMemset(dev_intersections, 0, pixelcount * sizeof(HitRecord));
 
     // TODO: initialize any extra device memeory you need
-    cudaMalloc(&dev_intersections_first_bounce, pixelcount * sizeof(ShadeableIntersection));
-    cudaMemset(dev_intersections_first_bounce, 0, pixelcount * sizeof(ShadeableIntersection));
+    cudaMalloc(&dev_intersections_first_bounce, pixelcount * sizeof(HitRecord));
+    cudaMemset(dev_intersections_first_bounce, 0, pixelcount * sizeof(HitRecord));
 
 
 
@@ -137,6 +137,7 @@ void pathtraceFree() {
 */
 __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, PathSegment* pathSegments)
 {
+    // x and y are in screen space: [0, width] x [0, height]
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
@@ -167,7 +168,7 @@ __global__ void computeIntersections(
     , PathSegment * pathSegments
     , Geom * geoms
     , int geoms_size
-    , ShadeableIntersection * intersections
+    , HitRecord * intersections
     )
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -240,7 +241,7 @@ __global__ void computeIntersections(
 __global__ void shadeFakeMaterial (
   int iter
   , int num_paths
-    , ShadeableIntersection * shadeableIntersections
+    , HitRecord * shadeableIntersections
     , PathSegment * pathSegments
     , Material * materials
     )
@@ -248,7 +249,7 @@ __global__ void shadeFakeMaterial (
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < num_paths)
     { 
-        ShadeableIntersection intersection = shadeableIntersections[idx];
+        HitRecord intersection = shadeableIntersections[idx];
         if (intersection.t > 0.0f) { // if the intersection exists...
             // Set up the RNG
             // LOOK: this is how you use thrust's RNG! Please look at
@@ -281,7 +282,7 @@ __global__ void shadeFakeMaterial (
         // used for opacity, in which case they can indicate "no opacity".
         // This can be useful for post-processing and image compositing.
         } else {
-            pathSegments[idx].color = glm::vec3(0.0f);
+            pathSegments[idx].color = Color3f(0.f);
             pathSegments[idx].remainingBounces = 0;
         }
     }
@@ -386,7 +387,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             bool firstbounceInAnyIteration = iter != 1 && depth == 0;
             if (firstBounceInFirstIteration)
             {
-                cudaMemset(dev_intersections_first_bounce, 0, pixelcount * sizeof(ShadeableIntersection));
+                cudaMemset(dev_intersections_first_bounce, 0, pixelcount * sizeof(HitRecord));
                 computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
                     depth
                     , num_paths
@@ -396,15 +397,15 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
                     , dev_intersections
                     );
                 cudaMemcpy(dev_intersections_first_bounce, dev_intersections,
-                    pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+                    pixelcount * sizeof(HitRecord), cudaMemcpyDeviceToDevice);
             }
             else if(firstbounceInAnyIteration)
             {
                 cudaMemcpy(dev_intersections, dev_intersections_first_bounce,
-                    pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+                    pixelcount * sizeof(HitRecord), cudaMemcpyDeviceToDevice);
             }
             else {
-                cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+                cudaMemset(dev_intersections, 0, pixelcount * sizeof(HitRecord));
                 //   * Compute an intersection in the scene for each path ray.
                 //     A very naive version of this has been implemented for you, but feel
                 //     free to add more primitives and/or a better algorithm.
@@ -430,7 +431,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
             }
         }
         else {
-            cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+            cudaMemset(dev_intersections, 0, pixelcount * sizeof(HitRecord));
             //   * Compute an intersection in the scene for each path ray.
             //     A very naive version of this has been implemented for you, but feel
             //     free to add more primitives and/or a better algorithm.

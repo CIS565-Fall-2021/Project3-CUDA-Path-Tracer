@@ -94,7 +94,7 @@ int Scene::loadCamera() {
     cout << "Loading Camera ..." << endl;
     RenderState &state = this->state;
     Camera &camera = state.camera;
-    float fovy;
+    float fovyh;
 
     //load static properties
     for (int i = 0; i < 5; i++) {
@@ -104,8 +104,8 @@ int Scene::loadCamera() {
         if (strcmp(tokens[0].c_str(), "RES") == 0) {
             camera.resolution.x = atoi(tokens[1].c_str());
             camera.resolution.y = atoi(tokens[2].c_str());
-        } else if (strcmp(tokens[0].c_str(), "FOVY") == 0) {
-            fovy = atof(tokens[1].c_str());
+        } else if (strcmp(tokens[0].c_str(), "FOVYH") == 0) {
+            fovyh = atof(tokens[1].c_str());
         } else if (strcmp(tokens[0].c_str(), "ITERATIONS") == 0) {
             state.iterations = atoi(tokens[1].c_str());
         } else if (strcmp(tokens[0].c_str(), "DEPTH") == 0) {
@@ -131,16 +131,17 @@ int Scene::loadCamera() {
     }
 
     //calculate fov based on resolution
-    float yscaled = tan(fovy * (PI / 180));
-    float xscaled = (yscaled * camera.resolution.x) / camera.resolution.y;
-    float fovx = (atan(xscaled) * 180) / PI;
-    camera.fov = glm::vec2(fovx, fovy);
+    //assume |n| = 1. Following Games 101 convention. 
+    float t = tan(fovyh * (PI / 180));
+    float r = (t * camera.resolution.x) / camera.resolution.y;
+    float fovxh = (atan(r) * 180) / PI;
+    camera.fov = glm::vec2(fovxh, fovyh);
     
     camera.view = glm::normalize(camera.lookAt - camera.position);
     camera.right = glm::normalize(glm::cross(camera.view, camera.up));
     // pixels are assumed to be in NDC -1 to 1 
-    camera.pixelLength = glm::vec2(2 * xscaled / (float)camera.resolution.x,
-                                   2 * yscaled / (float)camera.resolution.y);
+    camera.pixelLength = glm::vec2(2 * r / (float)camera.resolution.x,
+                                   2 * t / (float)camera.resolution.y);
 
     //set up render camera stuff
     int arraylen = camera.resolution.x * camera.resolution.y;
