@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 	// Load scene file
 	scene = new Scene(sceneFile);
 
-	GenerateProceduralStructure4(scene->geoms, scene->materials, SPHERE);
+	//GenerateProceduralStructure4(scene->geoms, scene->materials, SPHERE);
 	//generateProcedural(scene->geoms, scene->materials);
 	// Set up camera stuff from loaded path tracer settings
 	iteration = 0;
