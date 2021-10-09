@@ -48,14 +48,14 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Specular red
+// refractive white
 MATERIAL 5
-RGB         .88 .38 .38
+RGB         .98 .98 .98
 SPECEX      0
-SPECRGB     .88 .38 .38
-REFL        1
-REFR        0
-REFRIOR     0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     2
 EMITTANCE   0
 
 // Camera
@@ -126,4 +126,4 @@ sphere
 material 5
 TRANS       -1 4 -1
 ROTAT       0 0 0
-SCALE       2 2 2
+SCALE       4 4 4

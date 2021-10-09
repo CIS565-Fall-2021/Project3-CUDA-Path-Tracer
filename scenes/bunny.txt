@@ -44,17 +44,17 @@ RGB         .98 .98 .98
 SPECEX      0
 SPECRGB     .98 .98 .98
 REFL        1
-REFR        0
+REFR        0.5
 REFRIOR     0
 EMITTANCE   0
 
-// Specular red
+// Refractive, specular red
 MATERIAL 5
-RGB         .88 .38 .38
+RGB         .85 .35 .35
 SPECEX      0
-SPECRGB     .88 .38 .38
-REFL        1
-REFR        0
+SPECRGB     .85 .35 .35
+REFL        0
+REFR        1
 REFRIOR     0
 EMITTANCE   0
 
@@ -64,13 +64,10 @@ RES         800 800
 FOVY        45
 ITERATIONS  5000
 DEPTH       8
-FILE        cornell
+FILE        bunny
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
-FOCALLENGTH 4
-LENSRADIUS  .1
-
 
 // Ceiling light
 OBJECT 0
@@ -78,7 +75,7 @@ cube
 material 0
 TRANS       0 10 0
 ROTAT       0 0 0
-SCALE       4 .2 4
+SCALE       9 .3 9
 
 // Floor
 OBJECT 1
@@ -120,10 +117,10 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// bunny
 OBJECT 6
-sphere
-material 5
-TRANS       -1 4 -1
+mesh
+material 2
+TRANS       -1 3 -1
 ROTAT       0 0 0
-SCALE       2 2 2
+SCALE       3 3 3
