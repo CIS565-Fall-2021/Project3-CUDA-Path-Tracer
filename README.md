@@ -25,54 +25,59 @@ Cornell Box Inspired | Very Fast Shiny Cow
 ## Features
 <br>  
 
-* Diffuse surfaces
-![](finalRenders/cornell_dfl.png)
+* Diffuse surfaces  
 <br>
 Since most surfaces are not microscopically smooth, incoming light can leave in any direction.
 <br>
+![](finalRenders/cornell_dfl.png)
+<br>
 
-* Specular reflection
-![](finalRenders/cornell_specular.png)
+* Specular reflection  
 <br>
 Smooth surfaces reflect light neatly about the surface normal, like a mirror does. 
 <br>
+![](finalRenders/cornell_specular.png)
+<br>
 
-* Dielectrics with Schlick's Approximation and Snell's Law
-![](finalRenders/cornell_dielectric.png)
+* Dielectrics with Schlick's Approximation and Snell's Law  
 <br>
 Light moves at different speeds through different mediums and this can cause light 
 to refract and/or reflect. In these examples, glass and air are used with indices of refractions
 of 1.5 and 1, respectively. The further the incoming light is from the surface normal, the more likely
 it is to reflect. 
 <br>
+![](finalRenders/cornell_dielectric.png)
+<br>
 
-* Anti Aliasing via Stochastic Sampling
-![](finalRenders/cornell_antialiasing.png)
+* Anti Aliasing via Stochastic Sampling  
 <br>
 As opposed to classical antialiasing which involves super-sampling an image and is thus very computationally
 expensive, stochastic sampling wiggles the outgoing ray directions slightly. This reduces the jagged artifacts
 from aliasing at the cost of more noise, but does not involve shooting extra photons per pixel. 
 Notice how the left edge of the sphere is not nearly as jagged in the anti-aliased version
 <br>
+![](finalRenders/cornell_antialiasing.png)
+<br>
 
-* Depth of Field/Defocus Blur
-![](finalRenders/defocus_blur.png)
+* Depth of Field/Defocus Blur  
 <br>
 Despite modelling the rays as shooting out from an infinitesimal point, real life cameras have a lens 
 through which the light passes. Further, the laws of physics also prevent light from being infinitely focused.
 With cameras, this means that objects further away from the focal length will be blurrier. In ray tracing, the origin points of the light rays are wiggled in a manner consistent with approximating a lens. 
 <br>
+![](finalRenders/defocus_blur.png)
+<br>
 
-* Obj Mesh Loading
-![](finalRenders/cornell_mario.png)
+* Obj Mesh Loading  
 <br>
 While cubes and spheres are a great point to start off, one of the great joys in life is 
 to render Mario T-Posing. Many 3d models are available from the internet, with most of them
 being meshes composed of triangles. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to load models that were of the Wavefront OBJ file format. 
 <br>
+![](finalRenders/cornell_mario.png)
+<br>
 
 * Textures from files  
-![](finalRenders/texture_cow.png)
 <br>
 While it is theoretically possible to specify material properties for each shape in a scene, 
 this can be untenable when working with thousands of shapes, let alone millions. 
@@ -80,12 +85,12 @@ Instead, it is common to use textures, images where the color encodes useful dat
 rather than giving every vertex all of its data, it can associate them with texture coordinates 
 and look up the corresponding data only when relevant. I focused on textures that encoded
 base color, tangent space normal mapping, ambient occlusion/roughness/metallicity, and emissivity.
-I also set the background in a few renders to a texture rather than just having it fade to black, 
-lest they be way too dark. 
+I also set the background in a few renders to a texture rather than just having it fade to black, lest they be way too dark 
+<br>
+![](finalRenders/texture_cow.png)
 <br>
 
 * Normal Mapping Texture Adaptation  
-![](finalRenders/tangent_space_normal_map.png)
 <br>
 The normal vector at a location allows for computing reflections, refractions, and more since
 knowing it allows one to calculate the angle of incidence. Technically, it is a co-vector but
@@ -99,8 +104,9 @@ Alternatively, by turning the surface normals into a texture, they can be sample
 down the system with extra computations. Bump maps and height maps accomplish something very similar, but 
 normal maps themselves come in two varieties: Object space and Tangent space. Object space maps let one directly
 sample the rgb components and associate them with the normal's xyz values. Tangent space normal maps involve 
-a perspective shift so that the interpolated norm is pointing straight up. This requires some extra
-computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map. 
+a perspective shift so that the interpolated norm is pointing straight up. This requires some extra computation but is generally preferred due to its flexibility. The change of basis matrix TBN requires the namesake tangent, bitangent, and normal of which the normal is just the triangles planar norm. The other two can be relatively easily computed from the uv/texture coordinates of the vertices. To save on computation, I precompute them when loading in a mesh rather than need to recompute them every time they need to check the normal map. 
+<br>
+![](finalRenders/tangent_space_normal_map.png)
 <br>
 
 * Physically Based Rendering Texture Adaptation  
@@ -124,7 +130,7 @@ This seems to be more tailored towards rasterization as the nature of path traci
 areas which would be occluded more just will not bounce the light rays back towards light sources. 
 The theory goes much deeper, having had whole textbooks written about them but just scratching the 
 surface let me translate the textures and make the model look cool. 
-<br>
+<br>  
 
 * Background Texture  
 
