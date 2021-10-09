@@ -7,7 +7,7 @@ CUDA Path Tracer
   * [LinkedIn](https://www.linkedin.com/in/zhihao-ruan-29b29a13a/), [personal website](https://zhihaoruan.xyz/)
 * Tested on: Ubuntu 20.04 LTS, Ryzen 3700X @ 2.22GHz 48GB, RTX 2060 Super @ 7976MB
 
-![](img/cornell.2021-09-30_02-51-25z.5000samp.png)
+![](img/cornell.2021-10-09_18-44-15z.5000samp.png)
 
 
 ## Highlights
@@ -24,6 +24,34 @@ Finished Advanced Features:
 - Physically-based depth of field
 - OBJ mesh loading with [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)
 
+## Background: Ray Tracing
+Ray tracing is a technique commonly used in rendering. Essentially it mimic the actual physical behavior of light: shoot a ray from every pixel in an image and calculate the final color of the ray by bouncing it off on every surface it hits in the world, until it reaches the light source. In practice a maximum number of depth (bouncing times) would be specified, so that we would not have to deal with infinitely bouncing rays.
+
+Ray tracing is one of the applications considered as "embarrassingly parallel", given the fact that each ray is completely independent of other rays. Hence, it is best to run on an GPU which is capable of providing hundreds of thousands of threads for parallel algorithms. This project aims at developing a CUDA-based application for customized ray tracing, and a detailed instruction can be found [here](INSTRUCTION.md).
+
+### BSDF: Bidirectional Scattering Distribution Functions
+BSDF is a collection of models that approximates the light behavior in real world. It is commonly known to consist of BRDF (Reflection) models and BTDF (Transmission) models. Some typical reflection models include:
+- *Ideal specular* (perfect mirror, `glm::reflect`)
+- *Ideal diffuse.* It is a model that the direction of the reflected ray is randomly sampled from the incident hemisphere, along with other advanced sampling methods.
+- *Microfacet,* such as [Disney model](https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf).
+- *Glossy specular.*
+- *Subsurface scattering.*
+- ...
+
+Some typical transmission models include:
+- *Fresnel effect refraction.* It consists of a regular transmission model based on [Snell's law](https://en.wikipedia.org/wiki/Snell%27s_law) and a partially reflective model based on [Fresnel effect](https://en.wikipedia.org/wiki/Fresnel_equations) and its [Schlick's approximations](https://en.wikipedia.org/wiki/Schlick%27s_approximation).
+- ...
+
+### CUDA Optimization for Ray Tracing
+In order to better utilize CUDA hardware for ray tracing, it is not suggested to parallelize each pixel, as it would lead to a huge amount of divergence. 
+
+![](img/ray-tracing-divergence.png)
+
+Instead, one typical optimization people use is to parallelize each *ray*, and uses **stream compaction** to remove those rays that terminates early. By this means we could better recycle the early ending warps for ray tracing other pixels.
+
+![](img/ray-tracing-parallel-rays.png)
+
+## Results and Demos
 ### Ray Refraction for Glass-like Materials
 |            Perfect Specular Reflection             |               Glass-like Refraction                |
 | :------------------------------------------------: | :------------------------------------------------: |
