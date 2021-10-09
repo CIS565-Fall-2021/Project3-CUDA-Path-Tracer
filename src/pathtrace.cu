@@ -18,7 +18,7 @@
 
 #define SORT_MATERIAL 1
 #define CACHE_INTERSECTION 0
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
 #define MESH_BOUND_CHECK 1
 #define ANTI_ALIASING 0
 
@@ -413,6 +413,12 @@ __global__ void finalGather(int nPaths, glm::vec3* image, PathSegment* iteration
         PathSegment iterationPath = iterationPaths[index];
         image[iterationPath.pixelIndex] += iterationPath.color;
     }
+}
+
+//Apply post processing to the image
+__global__ void kuwaharaFilter(glm::vec3* image, PathSegment* iterationsPaths) {
+    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    
 }
 
 struct needCompact

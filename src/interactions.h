@@ -2,6 +2,31 @@
 
 #include "intersections.h"
 
+#define STRATIFIED_SAMPLING 1
+#define HALTON_SAMPLING 0
+
+//Use for Stratified sampling: division number on each side
+#define SAMPLE_DIVISION 10
+
+//Use for Halton sampling, 100 gives clear patterns on the render, 1000 is ok
+#define SEQUENCE_LENGTH 1000
+
+
+//Halton sequence: en.wikipedia.org/wiki/Halton_sequence
+__host__ __device__ float halton(int base, int index) {
+    float f = 1.f;
+    float r = 0.f;
+    while (index > 0) {
+        f = f / base;
+        r = r + f * (index % base);
+        index = (int) index / base;
+    }
+    return r;
+}
+
+//2 > d:\a_gpu565\project3 - cuda - path - tracer\src\interactions.h(21) : warning: calling a __host__ function("double  ::floor<int, (int)0> (T1)") from a __host__ __device__ function("halton") is not allowed
+
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -11,10 +36,37 @@ __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
         glm::vec3 normal, thrust::default_random_engine &rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
+    thrust::uniform_real_distribution<float> u02(0, 1);
+    thrust::uniform_real_distribution<float> u03(0, 1);
+    float r1 = u01(rng);
+    float r2 = u02(rng);
 
-    float up = sqrt(u01(rng)); // cos(theta)
+#if STRATIFIED_SAMPLING
+    // A number useful for scaling a square of size sqrtVal x sqrtVal to 1 x 1
+    float invSqrtVal = 1.f / SAMPLE_DIVISION;
+    int numSamples = SAMPLE_DIVISION * SAMPLE_DIVISION;
+
+    // Getting uniform x, y coords
+    int i = u01(rng) * numSamples;
+    int y = i / SAMPLE_DIVISION;
+    int x = i % SAMPLE_DIVISION;
+
+    // Jitter the x, y coords
+    glm::vec2 sample = glm::vec2((x + r1) * invSqrtVal,
+        (y + r2) * invSqrtVal);
+    r1 = sample.x;
+    r2 = sample.y;
+
+#elif HALTON_SAMPLING
+    int i = u03(rng) * SEQUENCE_LENGTH;
+    r1 = halton(2, i);
+    r2 = halton(3, i);
+
+#endif
+
+    float up = sqrt(r1); // cos(theta)
     float over = sqrt(1 - up * up); // sin(theta)
-    float around = u01(rng) * TWO_PI;
+    float around = r2 * TWO_PI;
 
     // Find a direction that is not the normal based off of whether or not the
     // normal's components are all equal to sqrt(1/3) or whether or not at
