@@ -24,7 +24,8 @@ public:
     Scene(string filename);
     ~Scene();
 
-    bool LoadObj(string filename, Transform& transform, int materialId, bool kdTree);
+
+    bool LoadObj(string filename, Transform& transform, int materialId, bool bvhTree);
 
     std::vector<Geom> geoms;
     std::vector<Triangle> primitives;

@@ -72,7 +72,33 @@ It is commonly stated that, unlike rasterization, ray tracing gives us antialias
 
 
 
-## Performance Analysis
+## Mesh Improvements
+
+So that we can render more than just boxes and spheres, I utilized the tinyOBJ open-source library to import OBJ files, from which we extract all the individual triangles that make up an object. Once we have the position and shape of all the triangles, rendering the object is as easy as doing a ray-triangle intersection for triangles. 
+
+Note that the time for our ray to traverse our scene grows linearly with the number of primitives it has. When an object is loaded with a lot of triangles, this quickly becomes a problem. That is why we implement this mesh loading with an hierarchical data structure (see below).
+
+![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\cornell.2021-10-09_03-06-12z.5000samp.png)
+
+## Performance Improvements
+
+### Hierarchical Data Structure
+
+Acceleration structures are one of the components at the heart of any ray tracer. It allows us to reject groups of primitives and order the search process so that nearby intersections are likely to be found first and farther away ones are potentially ignored. With a hierarchical data structure, the time it takes to trace a single ray through the scene grows logarithmically with the number of primitives, as opposed to linearly.
+
+![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\img\1000px-Example_of_bounding_volume_hierarchy.svg.png)
+
+For this project, I decided to implement a method called Bounding Volume Hierarchy (BVH), an acceleration based on primitive subdivision, where the primitivizes are partitioned into a hierarchy of disjoints sets. See image above (source: Wikipedia)
+
+Each primitive is contained in a leaf node, defined with a bounding box that contains the whole primitive. These leaf nodes are then group up with other leaf nodes, and those respective nodes are then grouped up together by proximity, until we are left with a root node. Each node also has a bounding box that contains their children nodes.
+
+For the image above, a ray first checks if it hits A (via a ray-box intersection test). If it does, it then checks if it hits B and C. And so forth, until it reaches the end and it is left with a set of primitives to check (via a ray-triangle intersection test for this implementation). This simple breadth-first search is implemented on the device (GPU) using a stack of fixed size to keep track of the nodes that need to be traversed. This stack is of size 20, which, on average, should support 2^20 or about 1 million triangles. It can be easily modified to store more.
+
+To test the performance our data structure, we load a [Stanford Bunny](http://graphics.stanford.edu/data/3Dscanrep/) of 4968 and 69451 triangles, and a Stanford Dragon of 871,414 triangles, into a cornell box to see the time it takes to render. 
+
+**TODO: Make into a graph**![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\img\bvh-table.png)
+
+## Additional Performance Analysis
 
 ### Caching first bounce intersections
 

@@ -39,7 +39,7 @@
  //#define SORT_BY_MATERIAL 
 
 // should be the ceiling of the log of the number of triangles stored in BVH ttree
-#define BVHSearchSize 20 
+#define BVHSearchSize 20
 
 
 #define ERRORCHECK 1
