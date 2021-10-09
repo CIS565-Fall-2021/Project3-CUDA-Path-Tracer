@@ -40,10 +40,20 @@ EMITTANCE   0
 
 // Specular white
 MATERIAL 4
-RGB         .98 .98 .98
+RGB         .53 .81 .92
 SPECEX      0
 SPECRGB     .98 .98 .98
-REFL        1
+REFL        0.1
+REFR        1
+REFRIOR     1.333
+EMITTANCE   0
+
+// Diffuse blue
+MATERIAL 5
+RGB         .53 .81 .92
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
@@ -109,15 +119,9 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Sphere
-OBJECT 6
-sphere
-material 4
+GLTF 0
+material 5
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       1 1 1
-
-GLTF 0
-TRANS       -1 4 -1
-ROTAT       -45 0 0
-SCALE       10 10 10
-../scenes/test/waterbottle.gltf
+../scenes/fate/scene.gltf

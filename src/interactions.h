@@ -41,6 +41,33 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+__host__ __device__
+glm::vec3 calculateStratifiedDirectionInHemisphere(
+        glm::vec3 normal, thrust::default_random_engine &rng) {
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    
+    glm::vec2 samples = glm::vec2(u01(rng), u01(rng));
+
+    // square to disc concentric
+    float phi, r, u, v;
+
+    // remap from -1 to 1
+    float a = 2 * samples.x - 1;
+    float b = 2 * samples.y - 1;
+
+    if (a > -b) {
+        if (a > b) {
+            r = a;
+            phi = (PI / 4.f) * (b / a);
+        } else {
+            r = b;
+            phi = (PI / 4.f) * (2 - a / b);
+        }
+    } 
+
+    return normal;
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -76,12 +103,31 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
-    if (m.hasReflective) {
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float sample = u01(rng);
+    if (m.hasReflective > sample) {
         // reflective
         pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
         pathSegment.ray.origin = intersect + 0.001f * normal;
         pathSegment.color *= m.specular.color;
-    } else if (m.hasRefractive) {
+    } else if (m.hasRefractive > sample) {
+        // refractive
+        float cosTheta = glm::dot(normal, -pathSegment.ray.direction);
+        float sinTheta = glm::sqrt(1.0f - cosTheta * cosTheta);
+        bool entering = cosTheta > 0;
+        float eta = entering ? 1.0f / m.indexOfRefraction : m.indexOfRefraction;
+
+        glm::vec3 dir = glm::refract(pathSegment.ray.direction, normal, eta);
+        glm::vec3 ori = intersect + 0.001f * dir;
+        // cannot refract
+        if (sinTheta * eta > 1.0f) {
+            dir = glm::reflect(pathSegment.ray.direction, normal);
+            ori = intersect + 0.001f * normal;
+        }
+
+        pathSegment.ray.direction = dir;
+        pathSegment.ray.origin = ori;
+        pathSegment.color *= m.specular.color;
 
     } else {
         // diffuse

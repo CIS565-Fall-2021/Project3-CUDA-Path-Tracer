@@ -48,7 +48,8 @@ Scene::Scene(string filename)
     }
 }
 
-void findBoundingBox(glm::vec3 v, Geom &g) {
+void findBoundingBox(glm::vec3 v, Geom &g)
+{
     g.maxBounding.x = g.maxBounding.x < v.x ? v.x : g.maxBounding.x;
     g.maxBounding.y = g.maxBounding.y < v.y ? v.y : g.maxBounding.y;
     g.maxBounding.z = g.maxBounding.z < v.z ? v.z : g.maxBounding.z;
@@ -60,6 +61,14 @@ void findBoundingBox(glm::vec3 v, Geom &g) {
 int Scene::loadGLTF()
 {
     string line;
+    int materialid = -1;
+    //link material
+    utilityCore::safeGetline(fp_in, line);
+    if (!line.empty() && fp_in.good())
+    {
+        vector<string> tokens = utilityCore::tokenizeString(line);
+        materialid = atoi(tokens[1].c_str());
+    }
 
     //load transformations
     glm::vec3 translation, rotation, scale;
@@ -112,20 +121,20 @@ int Scene::loadGLTF()
             printf("Failed to parse glTF\n");
             return -1;
         }
-        
+
         std::vector<int> meshTriIndices;
 
         for (const tinygltf::Mesh &mesh : model.meshes)
         {
             Geom newGeom;
             newGeom.type = MESH;
+            newGeom.materialid = materialid;
             newGeom.minBounding = glm::vec3(FLT_MAX);
             newGeom.maxBounding = glm::vec3(FLT_MIN);
-            newGeom.materialid = 4;
             newGeom.transform = utilityCore::buildTransformationMatrix(translation, rotation, scale);
             newGeom.inverseTransform = glm::inverse(newGeom.transform);
             newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
-            newGeom.triStartIdx = triIdx;            
+            newGeom.triStartIdx = triIdx;
 
             for (const tinygltf::Primitive &primitive : mesh.primitives)
             {
@@ -147,6 +156,7 @@ int Scene::loadGLTF()
                     const tinygltf::BufferView &norBufferView = model.bufferViews[norAccessor.bufferView];
                     const tinygltf::Buffer &norBuffer = model.buffers[norBufferView.buffer];
                     normals = reinterpret_cast<const float *>(&norBuffer.data[norBufferView.byteOffset + norAccessor.byteOffset]);
+                    std::cout << "has normal: " << norAccessor.count << "\n";
                 }
 
                 std::cout << idxAccessor.count << " : " << posAccessor.count << "\n";
@@ -171,7 +181,7 @@ int Scene::loadGLTF()
             std::cout << glm::to_string(newGeom.minBounding) << " : " << glm::to_string(newGeom.maxBounding) << "\n";
 
             newGeom.triEndIdx = triIdx;
-            std::cout<< "mesh index: " << newGeom.triStartIdx << " : " << newGeom.triEndIdx << "\n";
+            std::cout << "mesh index: " << newGeom.triStartIdx << " : " << newGeom.triEndIdx << "\n";
             geoms.push_back(newGeom);
         }
     }

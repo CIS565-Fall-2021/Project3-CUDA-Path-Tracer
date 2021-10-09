@@ -22,6 +22,7 @@
 #define STREAM_COMPACTION
 #define SORT_MARTERIAL
 #define CACHE_FIRST_BOUNCE
+#define ANTI_ALIASING
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -121,7 +122,6 @@ void pathtraceInit(Scene *scene)
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-
     // TODO: initialize any extra device memeory you need
     cudaMalloc(&dev_intersections_cache, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections_cache, 0, pixelcount * sizeof(ShadeableIntersection));
@@ -166,9 +166,15 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         segment.ray.origin = cam.position;
         segment.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-        // TODO: implement antialiasing by jittering the ray
+// implement antialiasing by jittering the ray
+#ifdef ANTI_ALIASING
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+        thrust::uniform_real_distribution<float> u01(-0.5, 0.5);
+        glm::vec2 sample = glm::vec2(u01(rng), u01(rng));
+        segment.ray.direction = glm::normalize(cam.view - cam.right * cam.pixelLength.x * ((float)x + sample.x - (float)cam.resolution.x * 0.5f) - cam.up * cam.pixelLength.y * ((float)y + sample.y - (float)cam.resolution.y * 0.5f));
+#else
         segment.ray.direction = glm::normalize(cam.view - cam.right * cam.pixelLength.x * ((float)x - (float)cam.resolution.x * 0.5f) - cam.up * cam.pixelLength.y * ((float)y - (float)cam.resolution.y * 0.5f));
-
+#endif
         segment.pixelIndex = index;
         segment.remainingBounces = traceDepth;
     }
@@ -431,7 +437,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
         // tracing
         dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-#ifdef CACHE_FIRST_BOUNCE
+#if defined(CACHE_FIRST_BOUNCE) && !defined(ANTI_ALIASING)
         if (depth == 0 && iter == 1) {
             // cache first bounce for the first iteration
             computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(

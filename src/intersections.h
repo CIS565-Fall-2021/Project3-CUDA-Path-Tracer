@@ -6,6 +6,8 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+#define MESH_CULLING
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -160,46 +162,61 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     return glm::length(r.origin - intersectionPoint);
 }
 
+__host__ __device__ float TriArea(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3)
+{
+    return glm::length(glm::cross(p1 - p2, p3 - p2)) * 0.5f;
+}
+
+__host__ __device__ glm::vec3 GetNormal(const Triangle &tri, const glm::vec3 P)
+{
+    float A = TriArea(tri.vertices[0], tri.vertices[1], tri.vertices[2]);
+    float A0 = TriArea(tri.vertices[1], tri.vertices[2], P);
+    float A1 = TriArea(tri.vertices[0], tri.vertices[2], P);
+    float A2 = TriArea(tri.vertices[0], tri.vertices[1], P);
+    return glm::normalize(tri.normals[0] * A0 / A + tri.normals[1] * A1 / A + tri.normals[2] * A2 / A);
+}
+
 __host__ __device__ float triangleIntersectionTest(Geom &mesh, Triangle &triangle, Ray rt, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
 {
+   
+
     glm::vec3 baryPos;
-    
+
     bool hit = glm::intersectRayTriangle(rt.origin, rt.direction,
                                          triangle.vertices[0],
                                          triangle.vertices[1],
                                          triangle.vertices[2], baryPos);
-   
-    if (!hit) {
-        return -1;
-   }
-    
-        float baryZ = baryPos.z;
-        baryPos.z = 1.0f - baryPos.x - baryPos.y;
-        
-        normal = glm::vec3(0.f);
-        for (int i = 0; i < 3; i++) {
-            normal += triangle.normals[i] / triangle.vertices[i].z * baryPos[i];
-        }
-        normal = glm::normalize(baryZ * normal);
-       // normal = glm::normalize(triangle.normals[0] * baryPos.z + triangle.normals[1] * baryPos.x + triangle.normals[2] * baryPos.y);
-      //         normal = triangle.normals[0];
-        normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(normal, 0.f)));
-        baryPos.z = baryZ;
-        outside = false;
-    
-   //intersectionPoint = glm::vec3(0.f);
 
-     float t = glm::length(baryPos - rt.origin);
+    if (!hit)
+    {
+        return -1;
+    }
+    float t = baryPos.z;//glm::length(baryPos - rt.origin);
     intersectionPoint = getPointOnRay(rt, t);
-    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(intersectionPoint, 1.0f));    
+    float baryZ = baryPos.z;
+    baryPos.z = 1.0f - baryPos.x - baryPos.y;
+
+     normal = glm::normalize(triangle.normals[0] * baryPos.z + triangle.normals[1] * baryPos.x + triangle.normals[2] * baryPos.y);
+    // glm::vec3 newpos = triangle.vertices[0] * baryPos.z + triangle.vertices[1] * baryPos.x + triangle.vertices[2] * baryPos.y;
+    // normal = triangle.normals[0];
+    //normal = GetNormal(triangle, newpos);
+    //normal = glm::normalize(triangle.n);
+
+    // normal = glm::normalize(glm::cross(triangle.vertices[1] - triangle.vertices[0], triangle.vertices[2] - triangle.vertices[1]));
+  //   outside = glm::dot(normal, -rt.direction) > 0.f;
+   //  normal *= outside ? 1.f : -1.f;
+    normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(normal, 0.f)));
+
+    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(intersectionPoint, 1.0f));
+
     return t;
 }
 
-__host__ __device__ bool boundingBoxCheck(Geom mesh, Ray r)
+__host__ __device__ bool boundingBoxCheck(Geom mesh, Ray q)
 {
-    Ray q;
-    q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
-    q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    // Ray q;
+    // q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    // q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
     float tmin = -1e38f;
     float tmax = 1e38f;
@@ -231,39 +248,39 @@ __host__ __device__ bool boundingBoxCheck(Geom mesh, Ray r)
     return (tmax >= tmin && tmax > 0);
 }
 
-__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, Triangle *triangles) {
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, Triangle *triangles)
+{
     glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
     glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
     Ray rt;
     rt.origin = ro;
     rt.direction = rd;
-
-    Geom boundingBox;
-    boundingBox.type = CUBE;
-    boundingBox.translation = (mesh.maxBounding + mesh.minBounding) / 2.f;
-    //boundingBox.rotation = glm::vec3(0.f);
-    boundingBox.scale = mesh.maxBounding - mesh.minBounding;
-    float t_box = boxIntersectionTest(boundingBox, rt, intersectionPoint, normal, outside);
-    bool hit = boundingBoxCheck(mesh, r);
-    if (hit) {
-        float min_t = FLT_MAX;
-        glm::vec3 tempIsectPoint;
-        glm::vec3 tempNormal;
-        for (int i = mesh.triStartIdx; i < mesh.triEndIdx; i++) {
-            float t = triangleIntersectionTest(mesh, triangles[i], rt, tempIsectPoint, tempNormal, outside);
-            if (t > 0.0f && t < min_t) {
-                min_t = t;
-                intersectionPoint = tempIsectPoint;
-                normal = tempNormal;
-            }
-        }
-
-        if (glm::abs(min_t - FLT_MAX) < 0.001) {
-            return -1;
-        }
-        return min_t;
+#ifdef MESH_CULLING
+    bool hit = boundingBoxCheck(mesh, rt);
+    if (!hit)
+    {
+        return -1;
     }
-    return -1;
+#endif
 
+    float min_t = FLT_MAX;
+    glm::vec3 tempIsectPoint;
+    glm::vec3 tempNormal;
+    for (int i = mesh.triStartIdx; i < mesh.triEndIdx; i++)
+    {
+        float t = triangleIntersectionTest(mesh, triangles[i], rt, tempIsectPoint, tempNormal, outside);
+        if (t > 0.0f && t < min_t)
+        {
+            min_t = t;
+            intersectionPoint = tempIsectPoint;
+            normal = tempNormal;
+        }
+    }
+
+    if (glm::abs(min_t - FLT_MAX) < 0.001)
+    {
+        return -1;
+    }
+    return min_t;
 }
