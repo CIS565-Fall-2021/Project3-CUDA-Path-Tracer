@@ -612,11 +612,15 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 			cudaDeviceSynchronize();
 		}
 
+#pragma region SortingMaterial
 
 		thrust::device_ptr<ShadeableIntersection> dev_thrust_intersections = thrust::device_ptr<ShadeableIntersection>(dev_intersections);
 		thrust::device_ptr<PathSegment> dev_thrust_PathSegment = thrust::device_ptr<PathSegment>(dev_paths);
-
 		thrust::sort_by_key(thrust::device, dev_thrust_intersections, dev_thrust_intersections + num_paths, dev_thrust_PathSegment, ShadeableIntersectionComparator());
+
+
+#pragma endregion
+
 
 		// TODO:
 		// --- Shading Stage ---
