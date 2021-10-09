@@ -560,7 +560,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
             if (iter == 1)
             {
                 computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(
-                    depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersectionCache, dev_tris);
+                    depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersectionCache, dev_tris, dev_texData, dev_materials);
                 checkCUDAError("trace first bounce");
                 cudaDeviceSynchronize();
             }
@@ -623,8 +623,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
     timerAcc += fElapsed;
 #endif
 #ifdef TIME_PATHTRACE
-    if (iter >= 999)
-        std::cout << "elapsed time: " << timerAcc << "miliseconds" << std::endl;
+    // if (iter >= 999)
+    std::cout << "elapsed time: " << timerAcc << "miliseconds" << std::endl;
 #endif
 
     ///////////////////////////////////////////////////////////////////////////

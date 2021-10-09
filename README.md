@@ -15,7 +15,9 @@ This allows for more accurate rendering at the cost of requiring vast amounts of
 Fortunately, since photons do not (ignoring relativity) interact with each other,
 this is very parallelizable, a perfect fit for running on a GPU. 
 
-![](finalRenders/cornell_demo1.png)
+Cornell Box Inspired | Very Fast Shiny Cow
+---------------------|------------------
+![](finalRenders/cornell_demo1.png) | ![](finalRenders/hyperspace_cow.png)
 <br>
 <!-- ![](finalRenders/cornell_demo2.png)
 ![](finalRenders/cornell_demo_tilt.png) -->
@@ -128,7 +130,7 @@ surface let me translate the textures and make the model look cool.
 
 Raw Texture | Single Pass | Two Passes 
 ------------|-------------|--------------
-![](finalRenders/hyperspace_cow.png) | ![](finalRenders/preproc_background.png) | ![](finalRenders/hawk_darksky.png)  
+![](finalRenders/hawk_nopasses.png) | ![](finalRenders/preproc_background.png) | ![](finalRenders/hawk_darksky.png)  
 
 <br>
 As a Star Wars fan, my thoughts naturally drifted towards making the ship look like it was 
@@ -150,12 +152,29 @@ them to be darker. Then I did it again since it worked well the first time.
 
 
 ## Performance Analysis
-* First cache
-    * Since antialiasing and depth of field are cool effects, this optimization is worthless  
-* mat sort
-* cull threads
+
+![](img/performanceGraph.png)  
+
+* The scene used was a Cornell box with different colored walls, many spheres and cubes that were shiny or glass, and Mario T-Posing menacingly in the back with an emissive texture
+* Caching the First Intersection
+    * The rays start out at a known location and shoot into a screen pixel and then into the scene so it 
+    makes sense to precompute the data on the first intersection for future computations
+    * Since antialiasing and depth of field are cool effects that add randomness and break this optimization, this optimization is worthless  
+* Sorting Rays by Material
+    * When there are multiple materials, checking the rays in order introduces branch divergence since materials will interact with the rays differently. Instead sort the rays by material so that there will be less divergence
+    * Meshes, which are expensive to check, count as a singular material so this optimization is situationally helpful if the scene in question has many different kinds of materials
+* Compact Dead Threads
+    * If a ray terminates early, remove it from the pool so that there are fewer rays to check
+    * Especially when the geometry of the scene is very open, this optimization is very beneficial
 * Mesh Intersection Test via AABB
-    * Very useful; the ship model has more than 69,000 triangles
+    * Rather than check collisions against every triangle, associate each mesh with its min and max bounds
+    for an axis aligned bounding box (AABB) and only check intersection with triangles if it intersects the bounds
+    * Especially if a mesh fits tightly inside a box, this optimization is very helpful. But if the mesh is irregularly shaped enough that the AABB encompasses the whole scene anyway, it would be less useful.
+    * The Ebon Hawk model has more than 69,000 triangles and fits relatively neatly into its AABB so this 
+    is extremely useful
+
+
+
 
 ## Debug Views
 
@@ -187,6 +206,7 @@ lengthy recompilation
 * Dive deeper into PBR to make everything look cooler like making the coppery parts shinier in a realistic way that is not just sidestepping the material behaviors 
 * Learn about the disney BSDF and the GGX equation
 * How to interpolate normals from a tangent space normal map  
+* Support for multiple mesh importing
 
 ## Other
 * Special thanks to lemonaden for creating a free, high quality mesh of the Ebon Hawk https://sketchfab.com/3d-models/ebon-hawk-7f7cd2b43ed64a4ba628b1bb5398d838  
@@ -199,17 +219,14 @@ lengthy recompilation
 
 
 
-4 mesh loading 
+<!-- 4 mesh loading 
 6 hierarchical spatial data structure 
 2 refract 
 2 depth of field 
 2 antialiasing
 5/6 texture/bump mapping
-2 direct lighting
+2 direct lighting -->
 
 
-wrapping negative texture coords
-
-illegal array idxs in gpu kernel
-
-something something shinyness
+<!-- 
+illegal array idxs in gpu kernel -->
