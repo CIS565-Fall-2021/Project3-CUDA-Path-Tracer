@@ -233,6 +233,7 @@ int main(int argc, char** argv) {
 	zoom = glm::length(cam.position - ogLookAt);
 	const char* filepathWahoo = "D:/GitHub/CIS565/Project3-CUDA-Path-Tracer/scenes/wahoo.obj";
 	const char* filepathCube = "D:/GitHub/CIS565/Project3-CUDA-Path-Tracer/scenes/cube.obj";
+	const char* filepathbunny = "D:/GitHub/CIS565/Project3-CUDA-Path-Tracer/scenes/stanford-bunny.obj";
 	Polygon p;
 	char* filename = "wahoo";
 
@@ -240,7 +241,7 @@ int main(int argc, char** argv) {
 	{
 		if ((int)scene->geoms[i].type == 2)
 		{
-			p = LoadOBJ(filepathCube, filename, scene->geoms[i]);
+			p = LoadOBJ(filepathbunny, filename, scene->geoms[i]);
 
 		}
 	}
