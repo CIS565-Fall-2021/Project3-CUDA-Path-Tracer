@@ -68,7 +68,7 @@ The following features were given to us before starting this assignment:
 
 It is commonly stated that, unlike rasterization, ray tracing gives us antialiasing for free. The way it does so is during the iteration process. We shoot multiple rays per pixel, and we average the color for all iterations. By picking a random point in each pixel, as opposed to the center point every time, we get an anti-aliased render.
 
-<img src="images\no-antialiasing-annotated.png" style="zoom: 100%;" /> <img src="images\antialiasing - annotated.png" style="zoom:95%;" />
+<img src="images\no-antialiasing-annotated.png" height="250px" /> <img src="images\antialiasing - annotated.png" height="250px" />
 
 
 
@@ -78,7 +78,7 @@ So that we can render more than just boxes and spheres, I utilized the tinyOBJ o
 
 Note that the time for our ray to traverse our scene grows linearly with the number of primitives it has. When an object is loaded with a lot of triangles, this quickly becomes a problem. That is why we implement this mesh loading with an hierarchical data structure (see below).
 
-![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\images\cornell.2021-10-09_03-06-12z.5000samp.png)
+<img src="images\cornell.2021-10-09_03-06-12z.5000samp.png" height="400px"/>
 
 ## Performance Improvements
 
@@ -86,7 +86,7 @@ Note that the time for our ray to traverse our scene grows linearly with the num
 
 Acceleration structures are one of the components at the heart of any ray tracer. It allows us to reject groups of primitives and order the search process so that nearby intersections are likely to be found first and farther away ones are potentially ignored. With a hierarchical data structure, the time it takes to trace a single ray through the scene grows logarithmically with the number of primitives, as opposed to linearly.
 
-![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\img\1000px-Example_of_bounding_volume_hierarchy.svg.png)
+<img src="img\1000px-Example_of_bounding_volume_hierarchy.svg.png" height="300px" />
 
 For this project, I decided to implement a method called Bounding Volume Hierarchy (BVH), an acceleration based on primitive subdivision, where the primitivizes are partitioned into a hierarchy of disjoints sets. See image above (source: Wikipedia)
 
@@ -96,7 +96,9 @@ For the image above, a ray first checks if it hits A (via a ray-box intersection
 
 To test the performance our data structure, we load a [Stanford Bunny](http://graphics.stanford.edu/data/3Dscanrep/) of 4968 and 69451 triangles, and a Stanford Dragon of 871,414 triangles, into a cornell box to see the time it takes to render. 
 
-**TODO: Make into a graph**![](C:\Users\Anthony\CIS565\Project3-CUDA-Path-Tracer\img\bvh-table.png)
+**TODO: Make into a graph**
+
+<img src="img\bvh-table.png" height="250px" />
 
 ## Additional Performance Analysis
 
@@ -104,4 +106,5 @@ To test the performance our data structure, we load a [Stanford Bunny](http://gr
 
 Using std::chrono, the number of seconds it took to render 5000 iterations of the cornell-box with varying max ray depths were calculated. Generally speaking, caching gave some minor improvements
 
-![](img/caching-table.png)
+<img src="img/caching-table.png" height="250px" />
+
