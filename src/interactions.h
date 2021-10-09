@@ -1,15 +1,14 @@
 #pragma once
 
 #include "intersections.h"
+#include <thrust/random.h>
 
-// CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
 __host__ __device__
-glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+glm::vec3 calculateRandomDirectionInHemisphere(glm::vec3 normal, thrust::default_random_engine &rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -31,14 +30,40 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     }
 
     // Use not-normal direction to generate two perpendicular directions
-    glm::vec3 perpendicularDirection1 =
-        glm::normalize(glm::cross(normal, directionNotNormal));
-    glm::vec3 perpendicularDirection2 =
-        glm::normalize(glm::cross(normal, perpendicularDirection1));
+    glm::vec3 perpendicularDirection1 = glm::normalize(glm::cross(normal, directionNotNormal));
+    glm::vec3 perpendicularDirection2 = glm::normalize(glm::cross(normal, perpendicularDirection1));
 
     return up * normal
         + cos(around) * over * perpendicularDirection1
         + sin(around) * over * perpendicularDirection2;
+}
+
+// https://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/
+__host__ __device__
+float FresnelReflectAmount(float n1, float n2, glm::vec3 normal, glm::vec3 incident) {
+    // Schlick aproximation
+    float r0 = (n1 - n2) / (n1 + n2);
+    r0 *= r0;
+    float cosX = -glm::dot(normal, incident);
+
+    if (n1 > n2) {
+        float n = n1 / n2;
+        float sinT2 = n * n * (1.0 - cosX * cosX);
+
+        // Total internal reflection
+        if (sinT2 > 1.0) {
+            return 1.0;
+        }
+        cosX = glm::sqrt(1.0 - sinT2);
+    }
+
+    float x = 1.0 - cosX;
+    float ret = r0 + (1.0 - r0) * x * x * x * x * x;
+
+    // adjust reflect multiplier for object reflectivity
+    //ret = (OBJECT_REFLECTIVITY + (1.0 - OBJECT_REFLECTIVITY) * ret);
+
+    return ret;
 }
 
 /**
@@ -50,7 +75,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * The visual effect you want is to straight-up add the diffuse and specular
  * components. You can do this in a few ways. This logic also applies to
- * combining other types of materias (such as refractive).
+ * combining other types of materials (such as refractive).
  *
  * - Always take an even (50/50) split between a each effect (a diffuse bounce
  *   and a specular bounce), but divide the resulting color of either branch
@@ -68,12 +93,39 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+    PathSegment &pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material &material,
+    thrust::default_random_engine &rng,
+    bool outside
+) {
+    if (material.emittance > 0.0f) {
+        pathSegment.color *= material.emittance;
+        pathSegment.remainingBounces = 0;
+    } else {
+        pathSegment.ray.origin = intersect;
+        pathSegment.remainingBounces -= 1;
+        pathSegment.color *= material.color;
+
+        if (material.hasReflective) {
+            pathSegment.ray.direction = pathSegment.ray.direction - 2.f * (glm::dot(pathSegment.ray.direction, normal) * normal);
+        } else if (material.hasRefractive) {
+            float n1 = outside ? 1.0 : material.indexOfRefraction;
+            float n2 = outside ? material.indexOfRefraction : 1.0;
+
+            float r = FresnelReflectAmount(n1, n2, normal, pathSegment.ray.direction);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+
+            if (u01(rng) < r) {
+                pathSegment.ray.direction = pathSegment.ray.direction - 2.f * (glm::dot(pathSegment.ray.direction, normal) * normal);
+            } else {
+                float eta = outside ? 1.0 / material.indexOfRefraction : material.indexOfRefraction;
+                pathSegment.ray.direction = glm::normalize(glm::refract(pathSegment.ray.direction, normal, eta));
+            }
+        } else {
+            pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+        }
+    }
 }
+

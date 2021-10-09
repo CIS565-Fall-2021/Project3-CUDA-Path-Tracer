@@ -1,0 +1,222 @@
+DEPTH = 0
+Allocated triangle memory       (348242 bytes)
+Allocated tree memory           (248 bytes)
+iteration times
+0 11113
+1 37670
+2 37349
+3 37624
+4 37711
+5 36435
+6 36596
+7 36309
+TOTAL 270810
+computeIntersections times
+0 10904
+1 37466
+2 37157
+3 37430
+4 37545
+5 36282
+6 36449
+7 36163
+TOTAL 269399
+shadeFakeMaterial times
+0 200
+1 190
+2 179
+3 179
+4 154
+5 142
+6 136
+7 135
+TOTAL 1318
+
+
+
+DEPTH = 1
+Allocated triangle memory       (370082 bytes)
+Allocated tree memory           (2232 bytes)
+
+iteration times
+0 3316
+1 30423
+2 31358
+3 32140
+4 29289
+5 26898
+6 24610
+7 22560
+TOTAL 200597
+computeIntersections times
+0 3099
+1 30235
+2 31164
+3 31974
+4 29129
+5 26753
+6 24471
+7 22423
+TOTAL 199251
+shadeFakeMaterial times
+0 210
+1 183
+2 188
+3 159
+4 155
+5 141
+6 136
+7 131
+TOTAL 1307
+
+
+DEPTH = 2
+Allocated triangle memory       (441242 bytes)
+Allocated tree memory           (18104 bytes)
+
+iteration times
+0 1517
+1 22031
+2 21591
+3 19786
+4 17585
+5 15514
+6 13855
+7 12545
+TOTAL 124428
+computeIntersections times
+0 1322
+1 21839
+2 21394
+3 19620
+4 17429
+5 15362
+6 13701
+7 12411
+TOTAL 123080
+shadeFakeMaterial times
+0 188
+1 189
+2 190
+3 161
+4 150
+5 149
+6 148
+7 129
+TOTAL 1307
+
+
+DEPTH = 3
+Allocated triangle memory       (561182 bytes)
+Allocated tree memory           (145080 bytes)
+
+iteration times
+0 1626
+1 18450
+2 17742
+3 14936
+4 13597
+5 11771
+6 10155
+7 9650
+TOTAL 97929
+computeIntersections times
+0 1391
+1 18264
+2 17558
+3 14768
+4 13436
+5 11619
+6 10011
+7 9516
+TOTAL 96566
+shadeFakeMaterial times
+0 229
+1 182
+2 171
+3 160
+4 151
+5 144
+6 136
+7 127
+TOTAL 1303
+
+DEPTH = 4
+Allocated triangle memory       (798602 bytes)
+Allocated tree memory           (1160888 bytes)
+
+iteration times
+0 3018
+1 38168
+2 35103
+3 29848
+4 25680
+5 21351
+6 18054
+7 15600
+TOTAL 186825
+computeIntersections times
+0 2814
+1 37979
+2 34924
+3 29677
+4 25526
+5 21198
+6 17914
+7 15470
+TOTAL 185505
+shadeFakeMaterial times
+0 198
+1 183
+2 173
+3 167
+4 150
+5 149
+6 136
+7 127
+TOTAL 1287
+
+
+DEPTH = 5
+Allocated triangle memory       (1373282 bytes)
+Allocated tree memory           (9287352 bytes)
+numPaths
+0 640000
+1 640000
+2 640000
+3 640000
+4 640000
+5 640000
+6 640000
+7 640000
+TOTAL 5120001
+iteration times
+0 9945
+1 97615
+2 86318
+3 70876
+4 58390
+5 48984
+6 40971
+7 34946
+TOTAL 448049
+computeIntersections times
+0 9747
+1 97413
+2 86135
+3 70706
+4 58227
+5 48833
+6 40827
+7 34810
+TOTAL 446701
+shadeFakeMaterial times
+0 189
+1 194
+2 172
+3 162
+4 153
+5 142
+6 135
+7 127
+TOTAL 1278

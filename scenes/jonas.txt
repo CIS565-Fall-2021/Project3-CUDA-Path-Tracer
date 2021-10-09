@@ -1,0 +1,144 @@
+// Specular white
+MATERIAL 0
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse white
+MATERIAL 1
+RGB         0.98 0.98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         1 0 0
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         0 1 0
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse blue
+MATERIAL 4
+RGB         0 0 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Emissive material (light)
+MATERIAL 5
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   30
+
+// Refractive white
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.5
+EMITTANCE   0
+
+// Camera
+CAMERA
+RES         800 800
+FOVY        45
+ITERATIONS  5000
+DEPTH       6
+FILE        cornell
+EYE         0.0 5 10.5
+LOOKAT      0 5 0
+UP          0 1 0
+
+// Large ceiling light
+OBJECT 0
+cube
+material 5
+TRANS       0 50 0
+ROTAT       0 0 0
+SCALE       10 .3 10
+
+// Floor
+OBJECT 1
+cube
+material 1
+TRANS       0 -3.6 0
+ROTAT       0 0 0
+SCALE       200 .01 200
+
+// Cow object
+OBJECT 2
+cow.obj
+material 2
+TRANS       5 0 5
+ROTAT       0 30 0
+SCALE       1 1 1
+
+// Cow object
+OBJECT 3
+cow.obj
+material 6
+TRANS       -5 0 -5
+ROTAT       0 -30 0
+SCALE       1 1 1
+
+// Cow object
+OBJECT 4
+cow.obj
+material 4
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       1 1 1
+
+// Ufo object
+OBJECT 5
+ufo.obj
+material 2
+TRANS       5 20 0
+ROTAT       0 0 -30
+SCALE       1 1 1
+
+// ceiling
+OBJECT 6
+cube
+material 3
+TRANS       0 50 0
+ROTAT       0 0 0
+SCALE       100 .01 100
+
+// ball
+OBJECT 7
+sphere
+material 5
+TRANS       5 20 0
+ROTAT       0 0 0
+SCALE       1 1 1
