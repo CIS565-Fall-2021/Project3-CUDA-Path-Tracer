@@ -2,6 +2,8 @@
 #include "preview.h"
 #include <cstring>
 
+#define LOADOBJ 0
+
 static std::string startTimeString;
 
 // For camera controls
@@ -41,7 +43,12 @@ int main(int argc, char** argv) {
     const char *sceneFile = argv[1];
 
     // Load scene file
+#if LOADOBJ
+    scene = new Scene(sceneFile, "../scenes/obj/bunny.obj");
+    scene->makeOctree();
+#else
     scene = new Scene(sceneFile);
+#endif
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;
