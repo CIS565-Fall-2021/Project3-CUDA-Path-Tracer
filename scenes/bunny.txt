@@ -57,17 +57,17 @@ FOVY        45
 ITERATIONS  5000
 DEPTH       8
 FILE        sphere
-EYE         0.0 2.5 10.5
-LOOKAT      0 5 0
+EYE         0.0 10 10.5
+LOOKAT      0 0 0
 UP          0 1 0
 
 // Ceiling light
 OBJECT 0
 cube
 material 0
-TRANS       0 6 0
+TRANS       0 12 0
 ROTAT       0 0 0
-SCALE       3 .3 3
+SCALE       10 .3 10
 
 // Obj
 OBJECT 1
@@ -81,6 +81,14 @@ SCALE       1 1 1
 OBJECT 2
 cube
 material 0
-TRANS       0 0 -5
-ROTAT       90 0 0
-SCALE       6 .3 6
+TRANS       0 0 18
+ROTAT       -90 0 0
+SCALE       10 .3 10
+
+// Floor
+OBJECT 3
+cube
+material 1
+TRANS       0 -5 0
+ROTAT       0 0 0
+SCALE       10 .01 10
