@@ -6,7 +6,7 @@ SPECRGB     0 0 0
 REFL        0
 REFR        0
 REFRIOR     0
-EMITTANCE   5
+EMITTANCE   10
 
 // Diffuse white
 MATERIAL 1
@@ -119,9 +119,10 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Sphere
-GLTF 0
+OBJECT 6
+cube
 material 5
-TRANS       0 0 0
+TRANS       0 2 -2
 ROTAT       0 0 0
-SCALE       1 1 1
+SCALE       3 3 3
 ../scenes/fate/scene.gltf
