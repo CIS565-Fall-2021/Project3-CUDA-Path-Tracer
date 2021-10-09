@@ -84,6 +84,7 @@ static int * dev_shouldCullPixel = NULL;
 static int * dev_iterationsPerPixel = NULL;
 // note variance has to be calculated for R, G, & B so we need a vec3
 static glm::vec3 * dev_variancePerPixel = NULL;
+static int numPixelsCulled = 0;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -491,11 +492,10 @@ __global__ void finalGather(int nPaths,
     }
 }
 
-__global__ void finalGatherAndCull(int nPaths, 
+__global__ void finalGatherAndCalcCull(int nPaths, 
 							glm::vec3 * image, 
 							PathSegment * iterationPaths, 
 							float iter,
-                            bool cullPixels,
                             int * dev_iterationsPerPixel,
                             int * dev_shouldCullPixel,
                             glm::vec3 * dev_variancePerPixel,
@@ -538,6 +538,66 @@ __global__ void finalGatherAndCull(int nPaths,
         dev_iterationsPerPixel[iterationPath.pixelIndex] += 1;
     }
 }
+/*
+int cullPixels(int num_paths,
+							   const PathSegment* dev_pathsRO,
+							   PathSegment* dev_pathsOut,
+							   const ShadeableIntersection* dev_intersectionsRO,
+							   ShadeableIntersection* dev_intersectionsOut,
+							   const int blockSize1d) {
+    // cull and sort in one kernel to save on global reads/writes when 
+    // rearranging paths/intersections
+
+    // --- Cull ---
+    int newNumPaths;
+    int* indices;
+    // the addr of the last non-culled path
+    int* partitionMiddle;
+    
+	cudaMalloc((void**)&indices, num_paths * sizeof(int));
+
+    int numBlocks = ceil((float)num_paths / blockSize1d);
+    kernEnumerate <<<numBlocks, blockSize1d >>> (num_paths, indices);
+
+
+    // effectively sort indices based on whether an object was hit
+    partitionMiddle = thrust::stable_partition(thrust::device, indices, indices + num_paths, dev_pathsRO, hasBounces());
+    // do some pointer math to return the index
+    newNumPaths = partitionMiddle - indices;
+    
+    // --- Sort by Material ---
+    // now everything before noHitIndex has hit something. Sort them by their material
+    if (hst_scene->state.sortMaterials) {
+        int* materialIds;
+        cudaMalloc((void**)&materialIds, newNumPaths * sizeof(int));
+
+        // get material ids. We need to pass indices since we haven't reshuffled intersections yet
+        numBlocks = ceil((float)newNumPaths / blockSize1d);
+        kernGetMaterialIds << <numBlocks, blockSize1d >> > (newNumPaths, materialIds, indices, dev_intersectionsRO);
+
+        thrust::sort_by_key(thrust::device, materialIds, materialIds + newNumPaths, indices);
+
+        cudaFree(materialIds);
+    }
+
+	// assign paths/intersections to the sorted indices. now all paths/intersections before `newNumPaths` have hit an obj
+    // note we have to assign ALL paths and intersections (i.e. use `num_paths` not `newNumPaths`) because some paths wouldn't
+    // be assigned and/or would be overwritten
+	numBlocks = ceil((float)num_paths / blockSize1d);
+	kernScatterPathsAndIntersections << <numBlocks, blockSize1d >> > (num_paths,
+																	  dev_pathsOut,
+																	  dev_pathsRO,
+																	  dev_intersectionsOut,
+																	  dev_intersectionsRO,
+																	  indices);
+	//checkCUDAError("scatter");
+
+
+    cudaFree(indices);
+
+    return newNumPaths;
+}
+*/
 
 // predicate for culling paths based on bounce depth
 struct hasBounces{
@@ -669,7 +729,7 @@ void shade(int iter,
 void pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
-    const int pixelcount = cam.resolution.x * cam.resolution.y;
+    const int pixelcount = cam.resolution.x * cam.resolution.y - numPixelsCulled;
 
     // 2D block for generating ray from camera
     const dim3 blockSize2d(8, 8);
@@ -807,23 +867,36 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 		// path segments that have been reshuffled to be contiguous in memory.
 
 		shade(iter,
-						 num_paths,
-						 dev_intersections,
-						 dev_paths,
-						 dev_materials,
-						 numblocksPathSegmentTracing,
-						 blockSize1d);
+			  num_paths,
+			  dev_intersections,
+			  dev_paths,
+			  dev_materials,
+			  numblocksPathSegmentTracing,
+			  blockSize1d);
 
 
 		if (depth >= traceDepth || num_paths == 0) {
-			iterationComplete = true; // TODO: should also be based off stream compaction results.
+			iterationComplete = true; 
 		}
     }
 
     
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    finalGather<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths, dev_image, dev_paths, iter);
+    if (hst_scene->state.useAdaptiveSampling) {
+        finalGatherAndCalcCull<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths,
+															 dev_image,
+															 dev_paths,
+															 iter,
+															 dev_iterationsPerPixel,
+															 dev_shouldCullPixel,
+															 dev_variancePerPixel,
+															 hst_scene->state.minSamples,
+															 hst_scene->state.pixelVariance);
+    }
+    else {
+        finalGather<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths, dev_image, dev_paths, iter);
+    }
 
     // reset num_paths. We've culled some but want the full number next iteration
     //num_paths = preCulledNumPaths;

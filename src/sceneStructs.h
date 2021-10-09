@@ -81,6 +81,9 @@ struct RenderState {
     bool useDOF = false;
     bool antialias = false;
     bool useBBox = false;
+    bool useAdaptiveSampling = true;
+    int minSamples = 2;
+    float pixelVariance = 0.1;
 };
 
 struct PathSegment {
