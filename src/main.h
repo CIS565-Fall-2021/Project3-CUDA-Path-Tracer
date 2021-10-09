@@ -26,8 +26,8 @@ using namespace std;
 //----------PATH TRACER----------
 //-------------------------------
 
-// toggle for measuring performance
-#define KERNEL_FPS 1
+// Toggle for measuring performance
+#define KERNEL_FPS 0
 extern double kernel_fps;
 
 extern Scene* scene;

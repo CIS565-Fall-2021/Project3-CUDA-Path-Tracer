@@ -23,7 +23,7 @@
 #define MATERIAL_SORT 0
 
 // Cache the first bounce intersections for re-use across all subsequent iterations
-#define CACHE_FIRST_BOUNCE 1
+#define CACHE_FIRST_BOUNCE 0
 
 // Apply 4x stochastic sampling and average
 #define ANTIALIASING 0
@@ -32,7 +32,7 @@
 #define DIRECT_LIGHT 0
 
 // Toggle for bounding volume intersection culling to reduce number of rays to be checked
-#define BOUND_BOX 1
+#define BOUND_BOX 0
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
