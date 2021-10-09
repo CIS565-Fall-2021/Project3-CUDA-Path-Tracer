@@ -62,11 +62,32 @@ __device__ glm::vec3 refract(const glm::vec3& uv, const glm::vec3& n, float etai
     return r_out_perp + r_out_parallel;
 }
 
+#define DISTORTION 0.7f
+#define GLOW 2.0f
+#define SCALE 1.0f
+#define AMBIENT 0.5f
+__device__ glm::vec3 subsurfaceColor(glm::vec3 lightDir, glm::vec3 normal, glm::vec3 viewVec, float thin, const Material& m)
+{
+    glm::vec3 scatterDir = lightDir + normal * DISTORTION;
+    float abc = glm::dot(viewVec, scatterDir);
+    float bcg = glm::dot(normal, lightDir);
+    float def = glm::dot(-viewVec, -lightDir);
+    float lightReacingEYE = glm::pow(glm::clamp(glm::dot(viewVec, scatterDir), 0.0f, 1.0f), GLOW) * SCALE;
+    float attenuation = glm::max(0.0f, glm::dot(normal, lightDir) + glm::dot(-viewVec, -lightDir));
 
+    float totalLight = attenuation * (lightReacingEYE + AMBIENT) * thin;
+    if (totalLight < 0.0f)
+    {
+        totalLight = totalLight;
+    }
+    glm::vec3 scolor = (m.color * totalLight);
+    //glm::vec3 lightColor = glm::vec3(0.98f, 0.2f, 0.5f);
+    return m.color *totalLight;
+}
 
 __device__
 glm::vec3 DielectricScatter(
-    PathSegment& pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material& m, thrust::default_random_engine& rng) {
+    PathSegment& pathSegment, glm::vec3 intersect, glm::vec3 normal, const Material& m, thrust::default_random_engine& rng, const Camera& cam) {
     
    
 
@@ -159,7 +180,7 @@ void scatterRay(
     glm::vec3 intersect,
     glm::vec3 normal,
     const Material& m,
-    thrust::default_random_engine& rng) {
+    thrust::default_random_engine& rng, const Camera &cam) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
@@ -168,7 +189,7 @@ void scatterRay(
     float random = u01(rng);
 
     float scale = 1.0f;
-
+    
 
     if (random <=m.hasReflective )
     {
@@ -184,20 +205,34 @@ void scatterRay(
             {
                 pathSegment.color *= m.color;
             }
+
         }
     }
     else if (random <= m.hasRefractive + m.hasReflective )
     {
-        scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng);
+        scatter_direction = DielectricScatter(pathSegment, intersect, normal, m, rng, cam);
        
     }
     else
     {
+        
         scale = m.hasReflective <= 0.0 ? 0.0 : 1.0 / (1 - m.hasReflective);
         scatter_direction = calculateRandomDirectionInHemisphere(normal, rng);
+        
         if (!m.usingProcTex)
         {
-            pathSegment.color *= m.color;
+            if (m.isSubSurface)
+            {
+                glm::vec3 viewVec = cam.view;
+                glm::vec3 scolor = subsurfaceColor(glm::normalize(pathSegment.ray.direction), normal, viewVec, 3, m);
+                glm::vec3 subsurface = scolor;
+                pathSegment.color *= m.color + subsurface;
+            }
+            else
+            {
+                pathSegment.color *= m.color;
+            }
+
         }
     }
     if (m.usingProcTex)

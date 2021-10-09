@@ -49,7 +49,8 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
-    float usingProcTex =0;
+    float usingProcTex;
+    float isSubSurface;
 };
 
 struct Camera {

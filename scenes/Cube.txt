@@ -7,6 +7,8 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+usingProcTex 0
+isSubSurface 0
 
 // Emissive material
 MATERIAL 1
@@ -17,7 +19,8 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
-
+usingProcTex 0
+isSubSurface 0
 
 // Emissive material 
 MATERIAL 2
@@ -28,7 +31,8 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
-
+usingProcTex 0
+isSubSurface 0
 
 // Emissive material
 MATERIAL 3
@@ -39,8 +43,8 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
-
-
+usingProcTex 0
+isSubSurface 0
 
 // Diffuse white
 MATERIAL 4
@@ -51,6 +55,8 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+usingProcTex 0
+isSubSurface 0
 
 // Reflective white
 MATERIAL 4
@@ -61,6 +67,7 @@ REFL        1
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+isSubSurface 0
 
 // Emissive material
 MATERIAL 5
@@ -71,6 +78,8 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+usingProcTex 0
+isSubSurface 0
 
 // Camera
 CAMERA

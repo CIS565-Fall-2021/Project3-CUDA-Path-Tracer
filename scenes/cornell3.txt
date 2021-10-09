@@ -60,7 +60,7 @@ SPECEX      1
 SPECRGB     .8 .8 .98
 REFL        0
 REFR        1
-REFRIOR     1.2
+REFRIOR     10
 EMITTANCE   0
 usingProcTex 0
 

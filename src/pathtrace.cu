@@ -363,7 +363,7 @@ __global__ void shadeFakeMaterial(
 				glm::vec3 intersectPt = getPointOnRay(pathSegments[idx].ray, intersection.t);
 
 
-				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
+				//scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
 				/*	if (material.hasRefractive > 0.0f)
 					{
 						pathSegments[idx].color = pathSegments[idx].color;
@@ -394,7 +394,7 @@ __global__ void shadeBSDFMaterial(
 	, int num_paths
 	, ShadeableIntersection* shadeableIntersections
 	, PathSegment* pathSegments
-	, Material* materials, int depth
+	, Material* materials, int depth, Camera cam
 )
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -425,7 +425,7 @@ __global__ void shadeBSDFMaterial(
 				glm::vec3 intersectPt = getPointOnRay(pathSegments[idx].ray, intersection.t);
 
 
-				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng);
+				scatterRay(pathSegments[idx], intersectPt, intersection.surfaceNormal, material, rng, cam);
 				/*	if (material.hasRefractive > 0.0f)
 					{
 						pathSegments[idx].color = pathSegments[idx].color;
@@ -632,12 +632,13 @@ void pathtrace(uchar4* pbo, int frame, int iter) {
 	  // TODO: compare between directly shading the path segments and shading
 	  // path segments that have been reshuffled to be contiguous in memory.
 
+		const Camera *camcpy = &cam;
 		shadeBSDFMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
 			iter,
 			num_paths,
 			dev_intersections,
 			dev_paths,
-			dev_materials, depth
+			dev_materials, depth, *camcpy
 			);
 
 		CompactionStencil << <numblocksPathSegmentTracing, blockSize1d >> > (num_paths,

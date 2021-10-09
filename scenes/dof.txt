@@ -7,6 +7,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   5
+usingProcTex 0
 
 // Diffuse white
 MATERIAL 1
@@ -17,7 +18,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-
+usingProcTex 0
 
 // Diffuse red
 MATERIAL 2
@@ -28,6 +29,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+usingProcTex 0
 
 // Diffuse green
 MATERIAL 3
@@ -38,6 +40,7 @@ REFL        0
 REFR        0
 REFRIOR     0
 EMITTANCE   0
+usingProcTex 0
 
 // Specular white
 MATERIAL 4
@@ -48,7 +51,7 @@ REFL        1
 REFR        0
 REFRIOR     0
 EMITTANCE   0
-
+usingProcTex 0
 
 // Refractive white
 MATERIAL 5
@@ -59,6 +62,7 @@ REFL        0
 REFR        1
 REFRIOR     1.5
 EMITTANCE   0
+usingProcTex 0
 
 // Camera
 CAMERA
