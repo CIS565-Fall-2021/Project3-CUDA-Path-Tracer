@@ -121,7 +121,7 @@ void GenerateProceduralStructure1(vector<Geom> &geoms, vector<Material>& mats, G
 	BuildingSystem1->AddRule('F', F_Rule1);
 	BuildingSystem1->AssignAxiom("-F");
 	BuildingSystem1->LSystemParse(4);
-	BuildingSystem1->PrintParsedSystem();
+	//BuildingSystem1->PrintParsedSystem();
 	BuildingSystem1->CarveBuilding(posValues, geoms, mats, geomType);
 }
 
@@ -154,7 +154,6 @@ void GenerateProceduralStructure3(vector<Geom>& geoms, vector<Material>& mats, G
 	BuildingSystem3->AddRule('F', F_Rule1);
 	BuildingSystem3->AssignAxiom("F-F++F-F");
 	BuildingSystem3->LSystemParse(4);
-	BuildingSystem3->PrintParsedSystem();
 	BuildingSystem3->CarveBuilding(posValues, geoms, mats, geomType);
 }
 
@@ -171,7 +170,6 @@ void GenerateProceduralStructure4(vector<Geom>& geoms, vector<Material>& mats, G
 	BuildingSystem3->AddRule('F', F_Rule1);
 	BuildingSystem3->AssignAxiom("F");
 	BuildingSystem3->LSystemParse(3);
-	BuildingSystem3->PrintParsedSystem();
 	BuildingSystem3->CarveBuilding(posValues, geoms, mats, geomType);
 }
 
