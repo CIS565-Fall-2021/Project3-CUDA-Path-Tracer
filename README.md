@@ -22,6 +22,8 @@ This project involves an implementation of GPU path tracing rendering algorithm 
 
 Diffuse, specular and refractive materials are supported. Fresnel effects are applied on refractive materials to give the surfaces specular highlight.
 
+![](img/materials.png)
+
 ## Depth of Field
 
 Two properties are included in the camera model: focal distance and aperture size. To achieve depth-of-field effect, initial rays' origins are randomly offsetted in the aperture, with the updated direction still pointing to the focal point.
