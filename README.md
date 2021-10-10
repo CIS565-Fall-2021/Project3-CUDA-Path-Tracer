@@ -37,9 +37,13 @@ Focal Distance = 12         |  Focal Distance = 3
 
 To render with smoother edges, we jitter the initial rays' direction slightly, so that over iterations, the result averages to an anti-aliased image with less discrete edges.
 
-Anti-aliasing         |  No anti-aliasing
-:-------------------------:|:-------------------------:
-![](img/aa.png)   |  ![](img/noaa.png)
+No anti-aliasing:
+
+![](img/noaa.png)
+
+Anti-aliasing:
+
+![](img/aa.png)
 
 ## glTF 2.0 Support
 
