@@ -93,7 +93,7 @@ int Scene::loadGLTF(string filename, Geom& geom)
             offset = bufferView->byteOffset + accessor->byteOffset;
             positions = reinterpret_cast<const float*>(&buffer->data[offset]);
 
-            if (prim.attributes["NORMAL"] >= 0)
+            if (prim.attributes.find("NORMAL") != prim.attributes.end())
             {
                 accessor = &model.accessors[prim.attributes["NORMAL"]];
                 bufferView = &model.bufferViews[accessor->bufferView];
@@ -102,7 +102,7 @@ int Scene::loadGLTF(string filename, Geom& geom)
                 normals = reinterpret_cast<const float*>(&buffer->data[offset]);
             }
 
-            if (prim.attributes["TEXCOORD_0"] >= 0)
+            if (prim.attributes.find("TEXCOORD_0") != prim.attributes.end())
             {
                 accessor = &model.accessors[prim.attributes["TEXCOORD_0"]];
                 bufferView = &model.bufferViews[accessor->bufferView];
@@ -111,7 +111,7 @@ int Scene::loadGLTF(string filename, Geom& geom)
                 uvs = reinterpret_cast<const float*>(&buffer->data[offset]);
             }
 
-            if (prim.attributes["TANGENT"] >= 0)
+            if (prim.attributes.find("TANGENT") != prim.attributes.end())
             {
                 accessor = &model.accessors[prim.attributes["TANGENT"]];
                 bufferView = &model.bufferViews[accessor->bufferView];

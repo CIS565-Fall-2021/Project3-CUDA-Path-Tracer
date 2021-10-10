@@ -37,7 +37,19 @@ To render with smoother edges, we jitter the initial rays' direction slightly, s
 
 ## Texture Mapping and Normal Mapping
 
-The user can set a texture map and a normal map for materials in the scene files. If the mesh associated with the material has its texture coordinates (**TEXCOORD_0**) set, the path-tracer will use the texture information when rendering. If a normal map is set and the mesh doesn't have vertex normals or tangents set up, the renderer will compute them using vertex positions when loading the mesh.
+The user can set a texture map and a normal map for materials in the scene files. If the mesh associated with the material has its texture coordinates (**TEXCOORD_0**) set, the path-tracer will use the texture information when rendering. If a normal map is set and the mesh doesn't have vertex normals or tangents set up, the renderer will compute them using vertex positions when loading the mesh. Below are scenes of a cube ([boxtextured.txt](scenes/boxtextured.txt)) rendered with respectively a procedural texture, a texture map and both texture and normal map.
+
+Cube with procedural texture:
+
+![](img/tex1.png)
+
+Cube with texture map:
+
+![](img/tex2.png)
+
+Cube with texture map and normal map:
+
+![](img/tex3.png)
 
 # Performance Analysis
 
@@ -63,7 +75,7 @@ In [cornell_open.txt](scenes/cornell_open.txt) scene, the performance analysis r
 
 ![](img/sort.png)
 
-When the scene is more complex, suchas in the case of the title sample scene [title_sample.txt](scenes/title_sample.txt), however, sorting ray paths by material does provide performance benefit, as seen from the graph below.
+When the scene is more complex, such as in the case of the title sample scene [title_sample.txt](scenes/title_sample.txt), however, sorting ray paths by material does provide performance benefit, as seen from the graph below.
 
 ![](img/sort2.png)
 
@@ -72,6 +84,12 @@ When the scene is more complex, suchas in the case of the title sample scene [ti
 We could also cache first ray bounce for future iterations. This ended up with minimal performance gains, and the performance gain eliminates as trace depth increases.
 
 ![](img/cache.png)
+
+## Procedurla Texture vs Loaded Texture
+
+In [boxtextured.txt](scenes/boxtextured.txt) scene, using procedurla texture is slightly faster than loaded texture, as seen in the chart. This is due to the fact that loaded texture information is stored in global memory in GPU, and reading those information take extra time.
+
+![](img/texChart.png)
 
 # Bloopers
 
