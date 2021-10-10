@@ -46,10 +46,16 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
 __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
-        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, bool forBB) {
     Ray q;
-    q.origin    =                multiplyMV(box.inverseTransform, glm::vec4(r.origin   , 1.0f));
-    q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    if (forBB) {
+        q.origin = multiplyMV(box.bbInverseTransform, glm::vec4(r.origin, 1.0f));
+        q.direction = glm::normalize(multiplyMV(box.bbInverseTransform, glm::vec4(r.direction, 0.0f)));
+    }
+    else {
+        q.origin = multiplyMV(box.inverseTransform, glm::vec4(r.origin, 1.0f));
+        q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    }
 
     float tmin = -1e38f;
     float tmax = 1e38f;
@@ -145,7 +151,7 @@ __host__ __device__ float OBJIntersectionTest(Geom& objGeom, Ray r,
     glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
 
 #if USE_BOUNDING_BOX 
-    if (boxIntersectionTest(objGeom, r, intersectionPoint, normal, outside) < 0) {
+    if (boxIntersectionTest(objGeom, r, intersectionPoint, normal, outside, true) < 0) {
         return -1.f;
     }
 #endif // USE_BOUNDING_BOX 

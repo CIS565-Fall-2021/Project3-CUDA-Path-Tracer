@@ -9,7 +9,7 @@
 
 #define DOF_APERATURE       1.0f
 #define DOF_FOCUSDIST       2.0f
-#define USE_DOF             1
+#define USE_DOF             0
 #define USE_BOUNDING_BOX    1
 #define USE_MESH_LOADING    1
 #define ANTIALIASING        0
@@ -42,7 +42,6 @@ struct Geom {
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
 
-    bool hasAllocatedMem = false;
     int  triCount = 0; 
     glm::vec4* host_VecNorArr; 
     glm::vec4* dev_VecNorArr;

@@ -115,12 +115,34 @@ int main(int argc, char** argv) {
     scene = new Scene(sceneFile);
 
 #if USE_MESH_LOADING
-    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/cube.obj";
+    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/wahoo.obj";
     for (int i = 0; i < scene->geoms.size(); i++) {
         if (scene->geoms[i].type == GeomType::OBJ) {
-            scene->geoms[i].hasAllocatedMem = true;
             LoadOBJ(objPath, scene->geoms[i]);
+
+            float minX = std::numeric_limits<float>::max();
+            float minY = std::numeric_limits<float>::max();
+            float minZ = std::numeric_limits<float>::max();
+
+            float maxX = std::numeric_limits<float>::min();
+            float maxY = std::numeric_limits<float>::min();
+            float maxZ = std::numeric_limits<float>::min();
+
+            for (int i = 0; i < scene->geoms[i].triCount * 6; i += 2) {
+                minX = (scene->geoms[i].host_VecNorArr[i].x < minX) ? scene->geoms[i].host_VecNorArr[i].x : minX;
+                minY = (scene->geoms[i].host_VecNorArr[i].y < minY) ? scene->geoms[i].host_VecNorArr[i].y : minY;
+                minZ = (scene->geoms[i].host_VecNorArr[i].z < minZ) ? scene->geoms[i].host_VecNorArr[i].z : minZ;
+
+                maxX = (scene->geoms[i].host_VecNorArr[i].x > maxX) ? scene->geoms[i].host_VecNorArr[i].x : maxX;
+                maxY = (scene->geoms[i].host_VecNorArr[i].y > maxY) ? scene->geoms[i].host_VecNorArr[i].y : maxY;
+                maxZ = (scene->geoms[i].host_VecNorArr[i].z > maxZ) ? scene->geoms[i].host_VecNorArr[i].z : maxZ;
+            }
+
+            scene->geoms[i].bbScale = glm::vec3(glm::abs((maxX - minX) / 2.0f), glm::abs((maxY - minY) / 2.0f), glm::abs((maxZ - minZ) / 2.0f));
+            scene->geoms[i].bbInverseTransform = glm::inverse(utilityCore::buildTransformationMatrix(
+                scene->geoms[i].translation, scene->geoms[i].rotation, scene->geoms[i].bbScale));
         } 
+
     }
 #endif // USE_MESH_LOADING
 
