@@ -15,9 +15,11 @@ This is a CUDA-based path tracer with global illumination able to render scenes 
 ## Table of Contents
 
 [Features Overview](#overview-features)   
-[Miscellaneous](#miscellaneous)   
+[Miscellaneous](#misc)   
 [Performance Analysis](#performance-analysis)   
 [Bloopers](#bloopers)
+
+[Reference](#Reference)
 
 <a name="overview-features"/> 
 
@@ -70,19 +72,19 @@ Halton sampling is quasi-random number generation, it leaves a pattern on the re
 | ------------------------------ | ------------------------------ | ------------------------------- |
 | ![no_dof](img/halton_100.png)  | ![no_dof](img/halton_500.png)  | ![no_dof](img/halton_1000.png)  |
 
-<a name="optimizations"/> 
+<a name="misc"/> 
 
 ## Miscellaneous
 
-<a name="performance-analysis"/> 
-
 I implemented material sort using thrust to improve the performance of path tracer. In addition, there is a togglable option for caching the first intersections (does not work together with anti-aliasing). 
 
+<a name="performance-analysis"/> 
 ## Performance Analysis
 
-<a name="blooper"/> 
 
-## Blooper
+
+<a name="blooper"/> 
+## Bloopers
 
 | Normal Error & Distance calculation error                    | Refraction calculation error                                 | Randomness error                                             |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
