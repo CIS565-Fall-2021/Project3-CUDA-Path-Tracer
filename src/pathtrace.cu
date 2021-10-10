@@ -299,7 +299,7 @@ __global__ void computeIntersections(
       glm::vec3 normal;
       float t_min = FLT_MAX;
       int hit_geom_index = -1;
-      bool outside = true;
+      bool outside = !pathSegment.insideObject;
       int materialId = -1;
 
       glm::vec3 tmp_intersect;

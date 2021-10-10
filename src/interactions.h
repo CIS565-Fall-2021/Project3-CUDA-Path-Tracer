@@ -11,7 +11,7 @@
  */
 __host__ __device__
 glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
+    glm::vec3 normal, thrust::default_random_engine& rng) {
     thrust::uniform_real_distribution<float> u01(0, 1);
 
     float up = sqrt(u01(rng)); // cos(theta)
@@ -26,9 +26,11 @@ glm::vec3 calculateRandomDirectionInHemisphere(
     glm::vec3 directionNotNormal;
     if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(1, 0, 0);
-    } else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
+    }
+    else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
         directionNotNormal = glm::vec3(0, 1, 0);
-    } else {
+    }
+    else {
         directionNotNormal = glm::vec3(0, 0, 1);
     }
 
@@ -79,75 +81,101 @@ float reflectance(float cosine, float ref_idx) {
  */
 __host__ __device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-  // TODO: implement this.
-  // A basic implementation of pure-diffuse shading will just call the
-  // calculateRandomDirectionInHemisphere defined above.
+    PathSegment& pathSegment,
+    glm::vec3 intersect,
+    glm::vec3 normal,
+    const Material& m,
+    thrust::default_random_engine& rng) {
+    // TODO: implement this.
+    // A basic implementation of pure-diffuse shading will just call the
+    // calculateRandomDirectionInHemisphere defined above.
 
- thrust::uniform_real_distribution<float> u01(0, 1);
- glm::vec3 n_pathDirection = glm::normalize(pathSegment.ray.direction);
- glm::vec3 n_normal = glm::normalize(normal);
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    glm::vec3 n_pathDirection = glm::normalize(pathSegment.ray.direction);
+    glm::vec3 n_normal = glm::normalize(normal);
 
-  // If the material indicates that the object was a light, "light" the ray
-  if (m.emittance > 0.0f) {
-    pathSegment.color *= (m.color * m.emittance);
-    pathSegment.remainingBounces = 0;
-  }
-  else {
-    // find the new direction of the ray based on material (BSDF)
-    pathSegment.ray.origin = intersect;
-
-    bool divideColorInHalf = false;
-    if (m.hasReflective > 0.0)
-    {
-      // reflective
-      glm::vec3 diffuse = calculateRandomDirectionInHemisphere(normal, rng);
-      glm::vec3 reflect = glm::reflect(n_pathDirection,
-          n_normal);
-      float result = u01(rng);
-
-      pathSegment.ray.direction = diffuse;
-      pathSegment.ray.direction = (result > 0.5f) ? diffuse : reflect;
-      divideColorInHalf = true;
+    // If the material indicates that the object was a light, "light" the ray
+    if (m.emittance > 0.0f) {
+        pathSegment.color *= (m.color * m.emittance);
+        pathSegment.remainingBounces = 0;
     }
-    else if (m.hasRefractive > 0.0)
-    {
-        // refractive
-        // adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.htm 
-        float refractionRatio = pathSegment.insideObject ? (1.0 / m.indexOfRefraction) : m.indexOfRefraction; // TODO: doublecheck
+    else {
+        // find the new direction of the ray based on material (BSDF)
+        pathSegment.ray.origin = intersect;
 
-        float cosTheta = min(glm::dot(-n_pathDirection, n_normal), 1.f);
-        float sinTheta = sqrt(1.f - cosTheta * cosTheta);
-
-        bool cannotRefract = refractionRatio * sinTheta > 1.f;
-        glm::vec3 direction;
-
-        if (cannotRefract || reflectance(cosTheta, refractionRatio) > u01(rng))
-            direction = glm::reflect(n_pathDirection, n_normal);
-        else
-            direction = glm::refract(n_pathDirection, n_normal, m.indexOfRefraction);
-
-        if (glm::dot(direction, n_normal) < 0.05f)
+        bool divideColorInHalf = false;
+        if (m.hasReflective > 0.0)
         {
-            pathSegment.insideObject = !pathSegment.insideObject;
-            pathSegment.ray.origin += pathSegment.ray.direction * 0.01f;
-        }
-        pathSegment.ray.direction = direction;
-    }
-    else
-    {
-      // diffuse
-      pathSegment.ray.direction =
-        calculateRandomDirectionInHemisphere(normal, rng); // TODO: improve basic implementation
-    }
+            // reflective
+            glm::vec3 diffuse = calculateRandomDirectionInHemisphere(normal, rng);
+            glm::vec3 reflect = glm::reflect(n_pathDirection,
+                n_normal);
+            float result = u01(rng);
 
-    pathSegment.color *= divideColorInHalf ? (m.color/2.f) : m.color;
-    pathSegment.remainingBounces--;
-    if (pathSegment.remainingBounces == 0)
-      pathSegment.color = glm::vec3(0.0f); // if didn't reach light, terminate
-  }
+            pathSegment.ray.direction = diffuse;
+            pathSegment.ray.direction = (result > 0.5f) ? diffuse : reflect;
+            divideColorInHalf = true;
+        }
+        else if (m.hasRefractive > 0.0)
+        {
+            // refractive
+            // adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.htm 
+
+            // Flip the refraction ratio depending if we are entering the object or leaving it
+            float refractionRatio = !pathSegment.insideObject ? (1.0 / m.indexOfRefraction) : m.indexOfRefraction; 
+
+            // Determine if we should reflect or refract
+            float cosTheta = min(glm::dot(-n_pathDirection, n_normal), 1.f);
+            float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+            bool cannotRefract = refractionRatio * sinTheta > 1.f;
+
+            // Schlick's Approximation
+            bool reflect = reflectance(cosTheta, refractionRatio) > u01(rng);
+
+            glm::vec3 direction;
+            if (cannotRefract || reflect)
+            {
+                direction = glm::reflect(n_pathDirection, n_normal);
+            }
+            else
+            {
+                direction = glm::refract(n_pathDirection, n_normal, refractionRatio);
+            }
+
+            //if (cannotRefract || reflectance(cosTheta, refractionRatio) > u01(rng))
+            //{
+            //    direction = glm::reflect(n_pathDirection, n_normal);
+            //    pathSegment.ray.origin += pathSegment.ray.direction * 0.1f;
+            //    //if (pathSegment.insideObject)
+            //    //{
+            //    //    pathSegment.insideObject = false;
+
+            //    //    // take intersection point out of object
+            //    //    pathSegment.ray.origin += pathSegment.ray.direction * 0.1f; // TODO: make epsilon
+            //    //}
+            //}
+            //else
+            //{
+            //    direction = glm::refract(n_pathDirection, n_normal, m.indexOfRefraction);
+            //    pathSegment.insideObject = true;
+
+            //    // take intersection point into the object
+            //    pathSegment.ray.origin -= n_normal * 0.1f; // TODO: make epsilon
+            //}
+
+            pathSegment.ray.direction = direction;
+            pathSegment.ray.origin += direction * 0.01f;
+        }
+        else
+        {
+            // diffuse
+            pathSegment.ray.direction =
+                calculateRandomDirectionInHemisphere(normal, rng); // TODO: improve basic implementation
+        }
+
+        pathSegment.color *= divideColorInHalf ? (m.color / 2.f) : m.color;
+        pathSegment.remainingBounces--;
+        if (pathSegment.remainingBounces == 0)
+            pathSegment.color = glm::vec3(0.0f); // if didn't reach light, terminate
+    }
 }
