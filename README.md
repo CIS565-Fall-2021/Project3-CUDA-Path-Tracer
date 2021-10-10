@@ -12,6 +12,8 @@ CUDA Path Tracer
 
 This is a CUDA-based path tracer with global illumination able to render scenes utilizing the parallel computing power of GPU. 
 
+![bunny](img/main.png)
+
 ## Table of Contents
 
 [Features Overview](#overview-features)   
@@ -81,14 +83,25 @@ I implemented material sort using thrust to improve the performance of path trac
 <a name="performance-analysis"/> 
 ## Performance Analysis
 
+#### Mesh Culling
 
+Applying mesh culling gives a performance advantage compared to no bounding volume checks. 
+
+The following performance is tested rendering for the profile main scene. It's a 1.6 times performance increase. 
+
+![boundcheck1](img/boundcheck_comp.png)
+
+For the mesh only scene of the bunny render, the performance is also measured. We can see the advantage is less significant. Since in the previous render, the rabbit is smaller in the entire render, using a bounding box to bound that smaller region gives much more advantage. 
+
+![Snipaste_2021-10-06_13-04-02](img/boundcheck2.png)
 
 <a name="blooper"/> 
+
 ## Bloopers
 
 | Normal Error & Distance calculation error                    | Refraction calculation error                                 | Randomness error                                             |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| ![Snipaste_2021-10-06_13-04-02](D:\a_gpu565\Project3-CUDA-Path-Tracer\img\Snipaste_2021-10-06_13-04-02.png) | ![Snipaste_2021-10-03_18-55-19](D:\a_gpu565\Project3-CUDA-Path-Tracer\img\Snipaste_2021-10-03_18-55-19.png) | ![Snipaste_2021-10-08_21-11-44](D:\a_gpu565\Project3-CUDA-Path-Tracer\img\Snipaste_2021-10-08_21-11-44.png) |
+| ![Snipaste_2021-10-06_13-04-02](img/Snipaste_2021-10-06_13-04-02.png) | ![Snipaste_2021-10-03_18-55-19](img/Snipaste_2021-10-03_18-55-19.png) | ![Snipaste_2021-10-08_21-11-44](img/Snipaste_2021-10-08_21-11-44.png) |
 
 ## Reference
 
