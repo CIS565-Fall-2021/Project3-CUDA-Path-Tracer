@@ -29,6 +29,10 @@ Diffuse, specular and refractive materials are supported. Fresnel effects are ap
 Two properties are included in the camera model: focal distance and aperture size. To achieve depth-of-field effect, initial rays' origins are randomly offsetted in the aperture, with the updated direction still pointing to the focal point.
 This way, objects around the focal distance are in focus while other objects are blurred.
 
+Focal Distance = 12         |  Focal Distance = 3
+:-------------------------:|:-------------------------:
+![](img/title_sample.png)   |  ![](img/dof.png)
+
 ## Anti-Aliasing
 
 To render with smoother edges, we jitter the initial rays' direction slightly, so that over iterations, the result averages to an anti-aliased image with less discrete edges.
