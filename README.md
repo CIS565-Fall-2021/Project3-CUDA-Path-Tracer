@@ -6,6 +6,8 @@ CUDA Path Tracer
 * Jiyu Huang
 * Tested on: Windows 10, AMD Ryzen 7 5800H @ 3.20GHz 16GB, RTX 3070 Laptop 8GB
 
+![](img/title_sample.png)
+
 This project involves an implementation of GPU path tracing rendering algorithm in CUDA. Features include:
 
 - BSDF shading for diffuse, specular and refractive materials
@@ -39,7 +41,7 @@ The user can set a texture map and a normal map for materials in the scene files
 
 # Performance Analysis
 
-Execution time is measued after 100 iterations in milliseconds. The scene file [cornell_open.txt](scenes/cornell_open.txt) is used to measure the performances.
+Execution time is measued after 100 iterations in milliseconds. The scene file [cornell_open.txt](scenes/cornell_open.txt) is used to measure the performances. The rendered result is illustrated below.
 
 ![](img/cornell_open.png)
 
