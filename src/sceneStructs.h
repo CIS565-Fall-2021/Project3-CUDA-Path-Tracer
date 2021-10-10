@@ -75,6 +75,7 @@ struct RenderState {
     unsigned int iterations;
     int traceDepth;
     std::vector<glm::vec3> image;
+    std::vector<int> heatMap;
     std::string imageName;
     bool sortMaterials = false;
     bool cacheFirstBounce = false;
@@ -82,8 +83,8 @@ struct RenderState {
     bool antialias = false;
     bool useBBox = false;
     bool useAdaptiveSampling = true;
-    int minSamples = 2;
-    float pixelVariance = 0.1;
+    int minSamples = 3;
+    float pixelVariance = 0.001f;
 };
 
 struct PathSegment {
@@ -91,6 +92,7 @@ struct PathSegment {
     glm::vec3 color;
     int pixelIndex;
     int remainingBounces;
+    bool shouldCull = false;
 };
 
 // Use with a corresponding PathSegment to do:

@@ -299,6 +299,7 @@ int Scene::loadCamera() {
     //set up render camera stuff
     int arraylen = camera.resolution.x * camera.resolution.y;
     state.image.resize(arraylen);
+    state.heatMap.resize(arraylen);
     std::fill(state.image.begin(), state.image.end(), glm::vec3());
 
     cout << "Loaded camera!" << endl;
@@ -349,7 +350,7 @@ int Scene::loadSceneSettings() {
     RenderState &state = this->state;
 
     //load static properties
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 8; i++) {
         string line;
         utilityCore::safeGetline(fp_in, line);
         vector<string> tokens = utilityCore::tokenizeString(line);
@@ -367,6 +368,15 @@ int Scene::loadSceneSettings() {
         }
         else if (strcmp(tokens[0].c_str(), "USE_BBOX") == 0) {
             state.useBBox = atoi(tokens[1].c_str());
+        }
+        else if (strcmp(tokens[0].c_str(), "ADAPTIVE_SAMPLING") == 0) {
+            state.useAdaptiveSampling = atoi(tokens[1].c_str());
+        }
+        else if (strcmp(tokens[0].c_str(), "MIN_SAMPLES") == 0) {
+            state.minSamples = atoi(tokens[1].c_str());
+        }
+        else if (strcmp(tokens[0].c_str(), "PIX_VARIANCE") == 0) {
+            state.pixelVariance = atof(tokens[1].c_str());
         }
     }
     return 1;

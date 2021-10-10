@@ -43,13 +43,14 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
-        int iter, glm::vec3* image) {
+        int * dev_iterationsPerPixel, glm::vec3* image) {
     int x = (blockIdx.x * blockDim.x) + threadIdx.x;
     int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
     if (x < resolution.x && y < resolution.y) {
         int index = x + (y * resolution.x);
         glm::vec3 pix = image[index];
+        int iter = dev_iterationsPerPixel[index];
 
         glm::ivec3 color;
         color.x = glm::clamp((int) (pix.x / iter * 255.0), 0, 255);
@@ -80,7 +81,6 @@ static int* dev_meshStartIndices = NULL;
 static int* dev_meshEndIndices = NULL;
 static Tri * dev_bboxTris = NULL;
 // adaptive sampling data
-static int * dev_shouldCullPixel = NULL;
 static int * dev_iterationsPerPixel = NULL;
 // note variance has to be calculated for R, G, & B so we need a vec3
 static glm::vec3 * dev_variancePerPixel = NULL;
@@ -110,8 +110,6 @@ void pathtraceInit(Scene *scene) {
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
     // --- init adaptive sampling ---
-    cudaMalloc(&dev_shouldCullPixel, pixelcount * sizeof(int));
-    cudaMemset(dev_shouldCullPixel, 0, pixelcount * sizeof(int));
     cudaMalloc(&dev_iterationsPerPixel, pixelcount * sizeof(int));
     cudaMemset(dev_iterationsPerPixel, 0, pixelcount * sizeof(int));
     cudaMalloc(&dev_variancePerPixel, pixelcount * sizeof(glm::vec3));
@@ -199,7 +197,6 @@ void pathtraceFree() {
     cudaFree(dev_meshStartIndices);
     cudaFree(dev_meshEndIndices);
     cudaFree(dev_bboxTris);
-    cudaFree(dev_shouldCullPixel);
     cudaFree(dev_iterationsPerPixel);
     cudaFree(dev_variancePerPixel);
 
@@ -476,28 +473,27 @@ __device__ glm::vec3 devClampRGB(glm::vec3 col) {
 }
 
 // Add the current iteration's output to the overall image
-__global__ void finalGather(int nPaths, 
-							glm::vec3 * image, 
-							PathSegment * iterationPaths, 
-							int iter){
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
-
-
-    if (index < nPaths)
-    {
-        PathSegment iterationPath = iterationPaths[index];
-        // yes we have to clamp here even though there is later clamping
-        // otherwise reflective surfaces generate fireflies
-		image[iterationPath.pixelIndex] += devClampRGB(iterationPath.color);
-    }
-}
+//__global__ void finalGather(int nPaths, 
+//							glm::vec3 * image, 
+//							PathSegment * iterationPaths, 
+//							int iter){
+//    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+//
+//
+//    if (index < nPaths)
+//    {
+//        PathSegment iterationPath = iterationPaths[index];
+//        // yes we have to clamp here even though there is later clamping
+//        // otherwise reflective surfaces generate fireflies
+//		image[iterationPath.pixelIndex] += devClampRGB(iterationPath.color);
+//    }
+//}
 
 __global__ void finalGatherAndCalcCull(int nPaths, 
 							glm::vec3 * image, 
 							PathSegment * iterationPaths, 
 							float iter,
                             int * dev_iterationsPerPixel,
-                            int * dev_shouldCullPixel,
                             glm::vec3 * dev_variancePerPixel,
                             int minSamples,
                             float pixelVariance){
@@ -518,18 +514,18 @@ __global__ void finalGatherAndCalcCull(int nPaths,
         // This is rolling so we need to be calculating it every iteration regardless
         // of whether we're below minSamples or not
         // p.s. we've cast iter to a float for this
+
         glm::vec3 newV = ((iter - 1.0f) / iter) * (oldV + (meanCol - newCol) * (meanCol - newCol) / iter);
+        volatile float3 vvv = make_float3(newV.x, newV.y, newV.z);
         dev_variancePerPixel[iterationPath.pixelIndex] = newV;
-        volatile float3 nvf = make_float3(newV.x, newV.y, newV.z);
 
         // where we set pixels to be culled
         if (iter > minSamples) {
-            glm::vec3 vvv = glm::lessThan(newV, glm::vec3(pixelVariance));
-            volatile float3 vvvf = make_float3(vvv.x, vvv.y, vvv.z);
-            dev_shouldCullPixel[iterationPath.pixelIndex] = 
+            iterationPaths[index].shouldCull = 
                 // if variance for R,G,&B are all under threshold, cull=true
                 glm::all(glm::lessThan(newV, glm::vec3(pixelVariance)));
         }
+        volatile int foo = glm::all(glm::lessThan(newV, glm::vec3(pixelVariance)));
 
         // yes we have to clamp here even though there is later clamping
         // otherwise reflective surfaces generate fireflies
@@ -642,36 +638,54 @@ int cullPathsAndSortByMaterial(int num_paths,
 }
 
 // predicate for culling pixels based on pre-calculated array of ints
-struct toBool{
-  __device__ bool operator()(const int &i){
-    return i;
+struct shouldNotCull{
+  __device__ bool operator()(const PathSegment &path){
+    return !path.shouldCull;
   }
 };
+
+//__global__ void kernGetPixelIds(int n, 
+//                                    int* pixIds,
+//                                    const PathSegment* dev_pathsRO) {
+//    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+//    if (index < n) {
+//        pixIds[index] = dev_pathsRO[index].pixelIndex;
+//    }
+//}
+
+
 int cullPixels(int num_paths,
-			   const PathSegment* dev_pathsRO,
+			   PathSegment* dev_pathsRO,
 			   PathSegment* dev_pathsOut,
 			   const ShadeableIntersection* dev_intersectionsRO,
 			   ShadeableIntersection* dev_intersectionsOut,
-			   int * dev_shouldCullPixel,
 			   const int blockSize1d) {
     // --- Cull ---
     int newNumPaths;
     int* indices;
+    int* pixIds;
     // the addr of the last non-culled path
     int* partitionMiddle;
     
 	cudaMalloc((void**)&indices, num_paths * sizeof(int));
+	cudaMalloc((void**)&pixIds, num_paths * sizeof(int));
 
     int numBlocks = ceil((float)num_paths / blockSize1d);
     kernEnumerate <<<numBlocks, blockSize1d >>> (num_paths, indices);
 
+    //kernGetPixelIds << <numBlocks, blockSize1d >> > (num_paths, pixIds, dev_pathsRO);
+
+    //thrust::sort_by_key(thrust::device, pixIds, pixIds + num_paths, dev_pathsRO);
+
 
     // effectively sort indices based on pre-calculated indicator of if we should cull
+    // everything that should NOT be culled is placed before everything that should be.
+    // Then partition middle is the index of the first cullable path
     partitionMiddle = thrust::stable_partition(thrust::device, 
 											   indices, 
 											   indices + num_paths, 
-											   dev_shouldCullPixel, 
-											   toBool());
+											   dev_pathsRO, 
+											   shouldNotCull());
     // do some pointer math to return the index
     newNumPaths = partitionMiddle - indices;
 
@@ -688,6 +702,7 @@ int cullPixels(int num_paths,
 	//checkCUDAError("scatter");
 
 
+    cudaFree(pixIds);
     cudaFree(indices);
 
     return newNumPaths;
@@ -714,10 +729,15 @@ void shade(int iter,
 * Wrapper for the __global__ call that sets up the kernel calls and does a ton
 * of memory management
 */
-void pathtrace(uchar4 *pbo, int frame, int iter) {
+int pathtrace(uchar4 *pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera &cam = hst_scene->state.camera;
-    const int pixelcount = cam.resolution.x * cam.resolution.y - numPixelsCulled;
+    const int pixelcount = cam.resolution.x * cam.resolution.y;
+
+    if (pixelcount == numPixelsCulled) {
+        fprintf(stdout, "All pixels have converged after %i iterations, exiting\n", iter);
+        return 1;
+    }
 
     // 2D block for generating ray from camera
     const dim3 blockSize2d(8, 8);
@@ -758,9 +778,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
     //   for you.
     int depth = 0;
-    PathSegment* dev_path_end = dev_paths + pixelcount;
+    PathSegment* dev_path_end = dev_paths + pixelcount - numPixelsCulled;
     int num_paths = dev_path_end - dev_paths;
-    int preCulledNumPaths = num_paths;
+    int preBounceCullNumPaths = num_paths;
+    int prePixCullNumPaths = pixelcount;
     PathSegment* pathSwp;
     ShadeableIntersection* intxnSwp; // for ping ponging buffers
     if (hst_scene->state.cacheFirstBounce && iter > 1) {
@@ -816,7 +837,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 
 
 		// --- cull dead-end paths ---
-        num_paths = cullPathsAndSortByMaterial(preCulledNumPaths, 
+        num_paths = cullPathsAndSortByMaterial(preBounceCullNumPaths, 
 											   dev_paths, 
 											   dev_paths2, 
 										       dev_intersections, 
@@ -834,12 +855,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         if (iter == 1 && depth == 1 && hst_scene->state.cacheFirstBounce) {
 			cudaMemcpy(dev_itxnBounce1Cache, 
 					   dev_intersections, 
-					   preCulledNumPaths * sizeof(ShadeableIntersection), 
+					   preBounceCullNumPaths * sizeof(ShadeableIntersection), 
 					   cudaMemcpyDeviceToDevice);
         checkCUDAError("reading itxn cache");
 			cudaMemcpy(dev_pathBounce1Cache, 
 					   dev_paths, 
-					   preCulledNumPaths * sizeof(PathSegment), 
+					   preBounceCullNumPaths * sizeof(PathSegment), 
 					   cudaMemcpyDeviceToDevice);
         checkCUDAError("reading path cache");
         }
@@ -867,44 +888,62 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
 			iterationComplete = true; 
 		}
     }
+	checkCUDAError("somewhere in main loop");
 
     
     // Assemble this iteration and apply it to the image
     dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-    if (hst_scene->state.useAdaptiveSampling) {
-        finalGatherAndCalcCull<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths,
-															 dev_image,
-															 dev_paths,
-															 iter,
-															 dev_iterationsPerPixel,
-															 dev_shouldCullPixel,
-															 dev_variancePerPixel,
-															 hst_scene->state.minSamples,
-															 hst_scene->state.pixelVariance);
-    }
-    else {
-        finalGather<<<numBlocksPixels, blockSize1d>>>(preCulledNumPaths, dev_image, dev_paths, iter);
-    }
+    //if (hst_scene->state.useAdaptiveSampling) {
+	finalGatherAndCalcCull<<<numBlocksPixels, blockSize1d>>>(preBounceCullNumPaths,
+														 dev_image,
+														 dev_paths,
+														 iter,
+														 dev_iterationsPerPixel,
+														 dev_variancePerPixel,
+														 hst_scene->state.minSamples,
+														 hst_scene->state.pixelVariance);
+    //}
+    //else {
+    //    finalGather<<<numBlocksPixels, blockSize1d>>>(preBounceCullNumPaths, dev_image, dev_paths, iter);
+    //}
+		checkCUDAError("final gather");
 
     // reset num_paths. We've culled some but want the full number next iteration
-    //num_paths = preCulledNumPaths;
+    //num_paths = preBounceCullNumPaths;
     ///////////////////////////////////////////////////////////////////////////
 
     // Send results to OpenGL buffer for rendering
-    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dev_image);
+    sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, dev_iterationsPerPixel, dev_image);
 
     // Retrieve image from GPU
     cudaMemcpy(hst_scene->state.image.data(), dev_image,
             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
 
+	checkCUDAError("copying image");
+    cudaMemcpy(hst_scene->state.heatMap.data(), dev_iterationsPerPixel,
+            pixelcount * sizeof(int), cudaMemcpyDeviceToHost);
+	checkCUDAError("copying heatmap");
+
     // cull pixels for the next iteration
-	num_paths = cullPixels(preCulledNumPaths, 
-						   dev_paths, 
-						   dev_paths2, 
-						   dev_intersections, 
-						   dev_intersections2, 
-						   dev_shouldCullPixel,
-						   blockSize1d);
+    if (hst_scene->state.useAdaptiveSampling && iter > hst_scene->state.minSamples) {
+        int pixelCullCount = cullPixels(preBounceCullNumPaths,
+											   dev_paths,
+											   dev_paths2,
+											   dev_intersections,
+											   dev_intersections2,
+											   blockSize1d);
+        // ping-pong buffers after culling.
+        pathSwp = dev_paths;
+        dev_paths = dev_paths2;
+        dev_paths2 = pathSwp;
+        intxnSwp = dev_intersections;
+        dev_intersections = dev_intersections2;
+        dev_intersections2 = intxnSwp;
+
+		checkCUDAError("culling pixels");
+        numPixelsCulled = pixelCullCount;
+    }
 
     checkCUDAError("pathtrace");
+    return 0;
 }
