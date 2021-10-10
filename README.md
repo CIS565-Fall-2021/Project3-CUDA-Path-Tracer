@@ -105,6 +105,10 @@ In [boxtextured.txt](scenes/boxtextured.txt) scene, using procedurla texture is 
 
 ![](img/texChart.png)
 
+# Reference
+
+[Models](https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0)
+
 # Bloopers
 
 ![](img/blooper1.png)
