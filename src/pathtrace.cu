@@ -99,6 +99,14 @@ void pathtraceInit(Scene *scene) {
 
     cudaMalloc(&dev_paths, pixelcount * sizeof(PathSegment));
 
+    //triangles for mesh intersection test (not sure if need to do this for every triangle)
+    for (int i = 0; i < scene->geoms.size(); i++) {
+        if (scene->geoms[i].type == MESH) {
+            cudaMalloc(&dev_triangles, scene->geoms[i].numTriangles * sizeof(Triangle));
+            cudaMemcpy(dev_triangles, scene->geoms[i].triangles, scene->geoms[i].numTriangles * sizeof(Triangle), cudaMemcpyHostToDevice);
+        }
+    }
+
     cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
     cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
 
@@ -107,14 +115,6 @@ void pathtraceInit(Scene *scene) {
 
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-
-    //triangles for mesh intersection test (not sure if need to do this for every triangle)
-    for (int i = 0; i < scene->geoms.size(); i++) {
-        if (scene->geoms[i].type == MESH) {
-            cudaMalloc(&dev_triangles, scene->geoms[i].numTriangles * sizeof(Triangle));
-            cudaMemcpy(dev_triangles, scene->geoms[i].triangles, scene->geoms[i].numTriangles * sizeof(Triangle), cudaMemcpyHostToDevice);
-        }
-    }
 
     // TODO: initialize any extra device memeory you need
 #if CACHE_BOUNCE || SORT_MATERIALS
@@ -135,7 +135,7 @@ void pathtraceFree() {
 #if CACHE_BOUNCE || SORT_MATERIALS
     cudaFree(dev_first_bounce);
 #endif
-
+    cudaFree(dev_triangles);
     checkCUDAError("pathtraceFree");
 }
 

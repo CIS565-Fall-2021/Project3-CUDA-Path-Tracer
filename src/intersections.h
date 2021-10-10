@@ -6,7 +6,7 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
-#define BOUNDING_BOX 1
+#define BOUNDING_BOX 0
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -161,9 +161,9 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
 #endif
 
     if (box_intersections != -1) {
-        float min = -1e38f;
-        float max = -1e38f;
-        glm::vec3 tmin, tmax, temp_intersect;
+        float tmin = -1e38f;
+        float tmax = -1e38f;
+        glm::vec3 tmin_n, tmax_n, temp_intersect;
     
         for (int i = 0; i < mesh.numTriangles; i++) {
             Triangle t = triangles[i];
@@ -180,24 +180,24 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
             glm::vec3 v2 = pt3 - pt1;
             glm::vec3 v = glm::normalize(glm::cross(v1, v2));
 
-            if (len > max) {
-                max = len;
-                tmax = v;
+            if (len > tmax) {
+                tmax = len;
+                tmax_n = v;
             }
 
-            if (len < min || i == 0) {
-                min = len;
-                tmin = v;
+            if (len < tmin || i == 0) {
+                tmin = len;
+                tmin_n = v;
             }
         }
 
-        if (min <= 0) {
-            min = max;
+        if (tmin <= 0) {
             tmin = tmax;
+            tmin_n = tmax_n;
         }
-        else {
-            intersectionPoint = getPointOnRay(r, min);
-            normal = tmin;
+        if (tmin > 0) {
+            intersectionPoint = getPointOnRay(r, tmin);
+            normal = tmin_n;
             return (glm::length(r.origin - intersectionPoint));
         }
     }

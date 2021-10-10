@@ -37,8 +37,9 @@ Scene::Scene(string filename) {
     this->trianglePtrs = std::vector<std::unique_ptr<std::vector<Triangle>>>(); //does this go here?
 }
 
+
 int Scene::loadOBJ(string filename, Geom& geom) {
-    //adopted from CIS 460 obj loader
+
     geom.boundingBox.minX = 100000000.f;
     geom.boundingBox.minY = 100000000.f;
     geom.boundingBox.minZ = 100000000.f;

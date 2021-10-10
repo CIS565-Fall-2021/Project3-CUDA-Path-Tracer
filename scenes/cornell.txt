@@ -147,23 +147,32 @@ ROTAT       0 0 0
 SCALE       3 3 3
 
 // Sphere 2
-OBJECT 7
-sphere
-material 7
-TRANS       -3 6 5
-ROTAT       0 0 0
-SCALE       3 3 3
+//OBJECT 7
+//sphere
+//material 7
+//TRANS       -3 6 5
+//ROTAT       0 0 0
+//SCALE       3 3 3
 
 // Sphere 3
-OBJECT 8
-sphere
-material 6
-TRANS       2 3 6
-ROTAT       0 0 0
-SCALE       3 3 3
+//OBJECT 8
+//sphere
+//material 6
+//TRANS       2 3 6
+//ROTAT       0 0 0
+//SCALE       3 3 3
+
+// mesh cube
+OBJECT 7
+mesh
+material 0
+FILENAME ../obj/cube.obj
+TRANS 0 0 0
+ROTAT 0 0 0
+SCALE 3 3 3
 
 //outside light
-OBJECT 9
+OBJECT 8
 cube
 material 0
 TRANS       0 4 12
