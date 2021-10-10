@@ -1,0 +1,310 @@
+// Scene settings
+SETTINGS
+SORT_MATERIALS 0
+CACHE_BOUNCE 1
+USE_DOF 0
+ANTIALIAS 0
+USE_BBOX 1
+ADAPTIVE_SAMPLING 0
+MIN_SAMPLES 2000
+PIX_VARIANCE 0.2
+
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   25
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         .85 .35 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Specular white
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Diffuse blue
+MATERIAL 5
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Glass
+MATERIAL 6
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR		1.5  
+FRESNELPOW  2.75
+EMITTANCE   0
+
+// teapot
+MATERIAL 7
+RGB         .8 .2 .8
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+////// purple glass
+//MATERIAL 8
+//RGB         .98 .38 .98
+//SPECEX      0
+//SPECRGB     .98 .98 .98
+//REF L        1
+//REFR        1
+//REFRIOR     1.5
+//FRESNELPOW  2.5
+//EMITTANCE   0
+//
+//// dark floor
+//MATERIAL 9
+//RGB         .5 .5 .5
+//SPECEX      0
+//SPECRGB     0 0 0
+//REFL        0
+//REFR        0
+//REFRIOR     1
+//FRESNELPOW  5
+//EMITTANCE   0
+
+// Camera
+CAMERA
+RES         720 480
+FOVY        45
+ITERATIONS  5000
+DEPTH       8
+FILE        cornell
+FOCALDIST	8
+APERTURE	0.5
+LENSRAD		1
+EYE         0.0 9 5.5
+LOOKAT      0 5 -10.5
+UP          0 1 0
+
+// Floor
+OBJECT 0
+cube
+material 9
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       10 .01 10
+
+// Ceiling
+OBJECT 1
+cube
+material 1
+TRANS       0 10 0
+ROTAT       0 0 90
+SCALE       .01 10 10
+
+// Back wall
+OBJECT 2
+cube
+material 5
+TRANS       0 5 -5
+ROTAT       0 90 0
+SCALE       .01 10 10
+
+// Left wall
+OBJECT 3
+cube
+material 2
+TRANS       -5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+// Right wall
+OBJECT 4
+cube
+material 3
+TRANS       5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+// Floor light
+OBJECT 5
+cube
+material 0
+TRANS       -3 0.05 2
+ROTAT       0 -25 0
+SCALE       3 .1 .1
+
+// Floor light
+OBJECT 6
+cube
+material 0
+TRANS       1.5 0.05 2.75
+ROTAT       0 20 0
+SCALE       3 .1 .1
+
+// Floor light
+OBJECT 7
+cube
+material 0
+TRANS       2 0.05 2
+ROTAT       0 -5 0
+SCALE       3 .1 .1
+
+// Floor light
+OBJECT 8
+cube
+material 0
+TRANS       -1.25 0.05 1.5
+ROTAT       0 -15 0
+SCALE       3 .1 .1
+
+// t-rex
+OBJECT 9
+C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\tyra.obj
+material 7
+TRANS       .75 0 -1
+ROTAT       0 110 0
+SCALE       -2.5 2.5 2.5 
+
+// Sphere
+OBJECT 10
+sphere
+material 4
+TRANS       5 10 -5
+ROTAT       0 0 0
+SCALE       8 8 8
+
+//// Sphere
+//OBJECT 11
+//sphere
+//material 0
+//TRANS       3 8 10.5
+//ROTAT       0 0 0
+//SCALE       1 1 1
+
+//// bunny
+//OBJECT 6
+//C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\bunnyLoPoly.obj
+//material 8
+//TRANS       1 0 -2
+//ROTAT       0 0 0
+//SCALE       1 1 1 
+//
+//// platform
+//OBJECT 7
+//cube
+//material 5
+//TRANS       -3 1.25 -1
+//ROTAT       0 0 0
+//SCALE       3 2.5 7
+//
+////// teapot
+////OBJECT 6
+////C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\teapotTris.obj
+////material 7
+////TRANS       0 0 0
+////ROTAT       0 0 0
+////SCALE       .5 .5 .5 
+//
+//// glass Sphere
+//OBJECT 8
+//sphere
+//material 6
+//TRANS       0 2 -2
+//ROTAT       0 0 0
+//SCALE       3 3 3
+//
+//// grid line
+//OBJECT 8
+//cube
+//material 7
+//TRANS       0 1 -4.5
+//ROTAT       0 0 0
+//SCALE       10 1 0.1
+//
+//// grid line
+//OBJECT 9
+//cube
+//material 7
+//TRANS       0 3 -4.5
+//ROTAT       0 0 0
+//SCALE       10 1 0.1
+//
+//// grid line
+//OBJECT 10
+//cube
+//material 7
+//TRANS       0 5 -4.5
+//ROTAT       0 0 0
+//SCALE       10 1 0.1
+//
+//// grid line
+//OBJECT 11
+//cube
+//material 7
+//TRANS       0 7 -4.5
+//ROTAT       0 0 0
+//SCALE       10 1 0.1
+//
+//// grid line
+//OBJECT 12
+//cube
+//material 7
+//TRANS       0 5 -4.5
+//ROTAT       0 0 0
+//SCALE       1 10 0.1
+//
+//// mirror cube
+//OBJECT 13
+//cube
+//material 4
+//TRANS       0 8 0
+//ROTAT       0 0 45
+//SCALE       3 .1 3
