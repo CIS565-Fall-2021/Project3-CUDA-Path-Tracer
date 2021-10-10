@@ -73,7 +73,7 @@ Here we can compare the benefits of stream compacting terminated rays for differ
 
 # Bloopers
 "Shredder" - forgetting to update the depth paramater after caching the first bounce
-<img src="img/cacheError.png">
+<img src="img/cacheError.PNG">
 
 "The Circle of Light" - an issue with how I was setting up some calculated paramters when evaluating refractive materials.
 <img src="img/refractionError.png">
