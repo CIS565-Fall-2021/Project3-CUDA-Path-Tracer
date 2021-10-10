@@ -1,6 +1,6 @@
 CUDA Path Tracer
 ================
-![](finalRenders/ebonhawktmp.png)
+![](finalRenders/ebon_final.png)
 
 **University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
 

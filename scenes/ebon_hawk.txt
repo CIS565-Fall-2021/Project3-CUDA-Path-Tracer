@@ -12,9 +12,9 @@ EMITMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_emissive.png
 ROUGHMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_metallicRoughness.png
 NORMALMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_normal.png
 
-// Camera
+// Camera RES         1920 1200
 CAMERA
-RES         1920 1200
+RES         3840 2400
 FOVY        45
 ITERATIONS  1000
 DEPTH       8

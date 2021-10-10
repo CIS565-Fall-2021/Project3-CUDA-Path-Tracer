@@ -30,15 +30,15 @@
 // Sets to grayscale representing the t value
 // #define DEBUG_T_VAL
 // Times execution of whole pathtrace, assumes memops time << computation time
-#define TIME_PATHTRACE
+// #define TIME_PATHTRACE
 // Groups the rays by material type for better warp coherence (stream compact)
 // #define GROUP_RAYS
 // Removes finished rays
 #define COMPACT_RAYS
 // Jitter the ray directions slightly to trade noise for jagged edges
-// #define ANTIALIASING
+#define ANTIALIASING
 // Use thin lens to randomize ray origin to approximate depth of field
-// #define DEPTH_OF_FIELD
+#define DEPTH_OF_FIELD
 #if defined(ANTIALIASING) || defined(DEPTH_OF_FIELD)
 #else
 // Cache first iter; only if first rays cast are deterministic
