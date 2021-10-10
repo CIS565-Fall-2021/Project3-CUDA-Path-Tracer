@@ -45,9 +45,9 @@ Anti-aliasing:
 
 ![](img/aa.png)
 
-## glTF 2.0 Support
+## glTF 2.0 Support w/ Bounding Volume Culling
 
-[tinygltf](https://github.com/syoyo/tinygltf/) library is used to parse glTF 2.0 files. Triangle meshes with indexed geometries are supported.
+[tinygltf](https://github.com/syoyo/tinygltf/) library is used to parse glTF 2.0 files. Triangle meshes with indexed geometries are supported. Vertices' index, position, normal, uv and tangent values are loaded. For faster rendering, an axis-aligned bounding box is created when loading an object.
 
 ## Texture Mapping and Normal Mapping
 
