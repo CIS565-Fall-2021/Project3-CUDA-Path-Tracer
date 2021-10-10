@@ -18,9 +18,9 @@
 
 #define SORT_MATERIAL 1
 #define CACHE_INTERSECTION 0
-#define DEPTH_OF_FIELD 0
+#define DEPTH_OF_FIELD 1
 #define MESH_BOUND_CHECK 1
-#define ANTI_ALIASING 0
+#define ANTI_ALIASING 1
 
 #define ERRORCHECK 1
 
@@ -185,7 +185,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 #endif
 
 #if DEPTH_OF_FIELD
-        cam.focalDistance = 5.f;
+        cam.focalDistance = 10.f;
         cam.lensRadius = 0.2f;
 
         if (cam.lensRadius > 0) {
@@ -445,6 +445,10 @@ struct cmpMaterials
 void pathtrace(uchar4* pbo, int frame, int iter) {
     const int traceDepth = hst_scene->state.traceDepth;
     const Camera& cam = hst_scene->state.camera;
+
+    //printf("Camera position: %f, %f, %f\n", cam.position.x, cam.position.y, cam.position.z);
+    //printf("Camera lookat: %f, %f, %f\n", cam.lookAt.x, cam.lookAt.y, cam.lookAt.z);
+
     const int pixelcount = cam.resolution.x * cam.resolution.y;
 
     // 2D block for generating ray from camera

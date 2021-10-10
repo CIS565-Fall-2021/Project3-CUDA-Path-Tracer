@@ -1,0 +1,316 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   25
+
+// Diffuse white
+MATERIAL 1
+RGB         0.97, 0.97, 0.98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         0.639, 0.078, 0.035
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Specular white
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+
+//glass
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR     1.52
+EMITTANCE   0
+
+// Specular Yellow
+MATERIAL 6
+RGB        0.855, 0.647, 0.125
+SPECEX      0
+SPECRGB    0.855, 0.647, 0.125
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse dark blue
+MATERIAL 7
+RGB         0.06, 0.10, 0.29
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse Yellow
+MATERIAL 8
+RGB         0.855, 0.647, 0.125
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse Black
+MATERIAL 9
+RGB         0.157, 0.125, 0.125
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Specular red
+MATERIAL 10
+RGB         0.639, 0.078, 0.035
+SPECEX      0
+SPECRGB     0.639, 0.078, 0.035
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Emissive material
+MATERIAL 11
+RGB         0.549, 0, 0.039
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   6
+
+// Emissive material
+MATERIAL 12
+RGB         0.855, 0.647, 0.125
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   10
+
+
+// Camera
+CAMERA
+RES         800 800
+FOVY        35
+ITERATIONS  50000
+DEPTH       8
+FILE        dof_demo
+//Depth of field render:
+//EYE         3.369895 5.022058 6.247115
+//LOOKAT      3.070699 5.000000 5.817878
+EYE         0.0 5 10.5
+LOOKAT      0 5 0
+UP          0 1 0
+
+
+
+// Ceiling light 1
+OBJECT 0
+cube
+material 0
+TRANS       0 10 0
+ROTAT       0 0 0
+SCALE       2 .2 2
+
+// Floor
+OBJECT 1
+cube
+material 1
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       10 .01 10
+
+// Ceiling
+OBJECT 2
+cube
+material 2
+TRANS       0 10 0
+ROTAT       0 0 90
+SCALE       .01 10 10
+
+// Back wall
+OBJECT 3
+cube
+material 2
+TRANS       0 5 -5
+ROTAT       0 90 0
+SCALE       .01 10 10
+
+// Left wall
+OBJECT 4
+cube
+material 9
+TRANS       -5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+// Right wall
+OBJECT 5
+cube
+material 9
+TRANS       5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+// Sphere 1
+OBJECT 6
+sphere
+material 10
+TRANS       3 2 3
+ROTAT       0 0 0
+SCALE       4 4 4
+
+
+// Sphere 2
+OBJECT 7
+sphere
+material 11
+TRANS       1 0.75 1
+ROTAT       0 0 0
+SCALE       1.5 1.5 1.5
+
+// Cube 3, use material 1 when doing dof renders, material 5 otherwise
+OBJECT 8
+cube
+material 5
+TRANS 0 0 0
+ROTAT 0 35 0
+SCALE 1.5 4.5 1.5
+
+// Sphere 4
+OBJECT 9
+sphere
+material 6
+TRANS       -3 1 3
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Cube 5
+OBJECT 10
+cube
+material 1
+TRANS       -3 1.5 -2
+ROTAT       0 30 0
+SCALE       3 3 3
+
+// Sphere 6
+OBJECT 11
+custom_obj
+material 5
+TRANS       -3 2.5 -2
+ROTAT       0 0 0
+SCALE       15 15 15
+
+// Cube 7
+OBJECT 12
+cube
+material 2
+TRANS       4 5 0
+ROTAT       0 0 0
+SCALE       2 .4 2
+
+// Sphere 8
+OBJECT 13
+sphere
+material 6
+TRANS       4 5.75 0
+ROTAT       0 0 0
+SCALE       1.5 1.5 1.5
+
+// Cube 9
+OBJECT 14
+cube
+material 1
+TRANS       -5 6 2
+ROTAT       -30 0 0
+SCALE       2 .4 2
+
+// Cube 10
+OBJECT 15
+cube
+material 2
+TRANS       -5 6 0
+ROTAT       30 0 0
+SCALE       2 .4 2
+
+// Sphere 11
+OBJECT 16
+sphere
+material 12
+TRANS       -4.5 6.3 1
+ROTAT       0 0 0
+SCALE       1 1 1
+
+// Ceiling light 2
+OBJECT 17
+cube
+material 0
+TRANS       4 10 0
+ROTAT       0 0 0
+SCALE       1 .1 1
+
+// Ceiling light 3
+OBJECT 18
+cube
+material 0
+TRANS       -4 10 0
+ROTAT       0 0 0
+SCALE       1 .1 1
+
+// Ceiling light 4
+OBJECT 19
+cube
+material 0
+TRANS       0 10 4
+ROTAT       0 0 0
+SCALE       1 .1 1
+
+// Ceiling light 5
+OBJECT 20
+cube
+material 0
+TRANS       0 10 -4
+ROTAT       0 0 0
+SCALE       1 .1 1
