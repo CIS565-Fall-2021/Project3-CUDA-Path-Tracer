@@ -10,6 +10,8 @@ CUDA Path Tracer
 ![Mirror Scene](img/final_renders/mirror_scene.png)
 *Mirrored hall effect, iterations: 5,000, depth: 8, resolution: 1200x1200*
 
+![Mirror Scene Markup](img/final_renders/mirror_scene2.png)
+
 Usage
 =====
 
@@ -90,10 +92,20 @@ I also added a computeIntersection function for the mesh, which iterates through
 
 ![Mesh Example](img/final_renders/cornell.2021-10-09_20-37-05z.2503samp.png)
 
+I provide an option `USE_BB`, which will create a bounding box for the mesh. The savings for this depends on how much of the space the mesh takes up -- if the mesh encompasses most of the viewing space, the bounding box offers little help efficiency-wise. However, if it takes up a fraction of the viewing space, you are saving a large amount of time that would be spent iterating over and testing for intersection with triangles. I performed a test to demonstrate this, where I timed the rendering of the same mesh at two different scales, which you can see below.
+
+| Lamp: Scale 0.5 | Lamp: Scale 4 |
+| --------------- | ------------- |
+| ![Lamp Scale 0.5](img/performance_renders/scaleHalfBB.png) | ![Lamp Scale 4](img/performance_renders/scale4BB.png) |
+
+You can see that the bounding box saves much more time for the half-sized lamp than for the scale 4 lamp. 
+
+![How Bounding Boxes Improve Mesh Render Time](img/performance_renders/HowBoundingBoxesImproveMeshRenderingTime2.png)
+
 ### Anti-Aliasing
 I jittered the pixel point by some fractional value to achieve anti-aliasing, as seen below. I rendered this scene at a low resolution (200x200) so that the improvements are obvious.
 
-![Anti-Alias Comparison](img/final_renders/anti-alias-comparison.png)
+![Anti-Alias Comparison](img/final_renders/anti-alias_comparison2.png)
 
 As you can see below, enabling anti-aliasing doesn't seem to have a major effect on runtime. There is an additional cost associated with jittering the rays, but this is minimal. 
 
@@ -106,7 +118,7 @@ Optimizations
 
 ### Stream Compaction
 
-I created an array of pointers on the GPU, all pointing to existing rays. I used Thrust's `partition` function to sort all of the "truthy", i.e. non-terminatable, to the front of the array, and maintained a pointer to the back of the "truthy" values. This array of pointers to rays is used for future intersection and shading calculations, as it represents the collection of rays that are active. You can see below the number of rays that are culled at every depth. 
+I created an array of pointers on the GPU, all pointing to existing rays. I used Thrust's `partition` function to sort all of the "truthy", i.e. non-terminatable, rays to the front of the array, and maintained a pointer to the back of the "truthy" values. This array of pointers to rays is used for future intersection and shading calculations, as it represents the collection of rays that are active. You can see below the number of rays that are culled at every depth. 
 
 I ran the following on a simple cornell box with a diffuse sphere in the middle, and removed the side and back walls for the "Open" configuration. I only ran 1 iteration, with max depth 100 and resolution 800x800 (this is why you will notice the number of rays start at 640,000). I only show up to depth 50, since the flatline trend continues on to 100. 
 
@@ -120,6 +132,10 @@ I have a toggleable option `SORT_BY_MATERIAL` that will sort the rays by materia
 
 As it stands, sorting by material seems to have a negative impact on runtime performance. I rendered the following scene that contains 6 spheres with interleaved materials with and without sorting by material. I imagine that there are so few materials in the scene that the cost of sorting at each depth is not offset by the savings gained by grouping rays with similar materials together. If you were to drastically increase the number of materials and objects in the scene, I would guess you would see more of an improvement. 
 
+![Sorting By Materials Render](img/performance_renders/sortMats5000it8depth.png)
+
+*800x800, iterations: 5000, depth: 8*
+
 ![Performance Impactof Sorting Materials](img/performance_renders/PerformanceImpactofSortingRaysByMaterial.png)
 
 ### Caching the First Bounce
@@ -129,12 +145,6 @@ I also have a toggleable option `CACHE_FIRST_BOUNCE` which, if enabled, saves th
 You can see significant time savings as the resolution is increased, as you save on that much more computation.
 
 ![Performance Impact of Caching First Bounce](img/performance_renders/HowCachingFirstBounceImprovesPerformance.png)
-
-### Mesh Bounding Box
-
-Another option I provide is `USE_BB`, which will create a bounding box for the mesh. The savings for this depends on how much of the space the mesh takes up -- if the mesh encompasses most of the viewing space, the bounding box offers little help efficiency-wise. However, if it takes up a fraction of the viewing space, you are saving a large amount of time that would be spent iterating over and testing for intersection with triangles.
-
-![How Bounding Boxes Improve Mesh Render Time](img/performance_renders/HowBoundingBoxesImproveMeshRenderingTime.png)
 
 Bloopers
 =======
