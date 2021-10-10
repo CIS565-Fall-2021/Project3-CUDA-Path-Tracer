@@ -1,6 +1,6 @@
 // Emissive material (light)
 MATERIAL 0
-RGB         2 2 2
+RGB         1 1 1
 SPECEX      0
 SPECRGB     0 0 0
 REFL        0
@@ -128,18 +128,18 @@ TRANS       5 5 0
 ROTAT       0 0 0
 SCALE       .01 10 10
 
-// Sphere
+// Ceiling light
 OBJECT 6
-sphere
-material 1
-TRANS       -2 3 -2.5
+cube
+material 0
+TRANS       0 10 3
 ROTAT       0 0 0
-SCALE       3 3 3
+SCALE       3 .3 3
 
 // Sphere
-OBJECT 7
-sphere
-material 6
-TRANS       -1 4 1
-ROTAT       0 0 0
-SCALE       3 3 3
+//OBJECT 6
+//cube
+//material 4
+//TRANS       -1 4 -1
+//ROTAT       0 0 0
+//SCALE       3 3 3

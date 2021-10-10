@@ -43,6 +43,15 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+// adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.htm  
+__host__ __device__
+float reflectance(float cosine, float ref_idx) {
+    // Use Schlick's approximation for reflectance.
+    auto r0 = (1 - ref_idx) / (1 + ref_idx);
+    r0 = r0 * r0;
+    return r0 + (1 - r0) * pow((1 - cosine), 5);
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -79,6 +88,10 @@ void scatterRay(
   // A basic implementation of pure-diffuse shading will just call the
   // calculateRandomDirectionInHemisphere defined above.
 
+ thrust::uniform_real_distribution<float> u01(0, 1);
+ glm::vec3 n_pathDirection = glm::normalize(pathSegment.ray.direction);
+ glm::vec3 n_normal = glm::normalize(normal);
+
   // If the material indicates that the object was a light, "light" the ray
   if (m.emittance > 0.0f) {
     pathSegment.color *= (m.color * m.emittance);
@@ -89,20 +102,41 @@ void scatterRay(
     pathSegment.ray.origin = intersect;
 
     bool divideColorInHalf = false;
-    glm::vec3 diffuse = calculateRandomDirectionInHemisphere(normal, rng);
-    glm::vec3 reflect = glm::reflect(glm::normalize(pathSegment.ray.direction),
-      glm::normalize(normal));
-
     if (m.hasReflective > 0.0)
     {
       // reflective
-      pathSegment.ray.direction = diffuse;
-
-      thrust::uniform_real_distribution<float> u01(0, 1);
+      glm::vec3 diffuse = calculateRandomDirectionInHemisphere(normal, rng);
+      glm::vec3 reflect = glm::reflect(n_pathDirection,
+          n_normal);
       float result = u01(rng);
 
+      pathSegment.ray.direction = diffuse;
       pathSegment.ray.direction = (result > 0.5f) ? diffuse : reflect;
       divideColorInHalf = true;
+    }
+    else if (m.hasRefractive > 0.0)
+    {
+        // refractive
+        // adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.htm 
+        float refractionRatio = pathSegment.insideObject ? (1.0 / m.indexOfRefraction) : m.indexOfRefraction; // TODO: doublecheck
+
+        float cosTheta = min(glm::dot(-n_pathDirection, n_normal), 1.f);
+        float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+
+        bool cannotRefract = refractionRatio * sinTheta > 1.f;
+        glm::vec3 direction;
+
+        if (cannotRefract || reflectance(cosTheta, refractionRatio) > u01(rng))
+            direction = glm::reflect(n_pathDirection, n_normal);
+        else
+            direction = glm::refract(n_pathDirection, n_normal, m.indexOfRefraction);
+
+        if (glm::dot(direction, n_normal) < 0.05f)
+        {
+            pathSegment.insideObject = !pathSegment.insideObject;
+            pathSegment.ray.origin += pathSegment.ray.direction * 0.01f;
+        }
+        pathSegment.ray.direction = direction;
     }
     else
     {

@@ -62,16 +62,17 @@ int main(int argc, char** argv) {
     //scene->LoadObj("../objs/cube.obj", transform, 2, true);
 
     // load bunny :3
-    /*Transform transform;
-    transform.rotate = glm::vec3(0);
-    transform.scale = glm::vec3(30.f);
-    transform.translate = glm::vec3(0);
-    scene->LoadObj("../objs/bunny.obj", transform, 4, false);*/
-    Transform transform;
-    transform.rotate = glm::vec3(0);
-    transform.scale = glm::vec3(30.f);
-    transform.translate = glm::vec3(0);
-    scene->LoadObj("../objs/stanford_dragon.obj", transform, 1, true);
+    //Transform transform;
+    //transform.rotate = glm::vec3(0);
+    //transform.scale = glm::vec3(30.f);
+    //transform.translate = glm::vec3(0);
+    //scene->LoadObj("../objs/bunny.obj", transform, 6, true);
+
+    //Transform transform;
+    //transform.rotate = glm::vec3(0);
+    //transform.scale = glm::vec3(30.f);
+    //transform.translate = glm::vec3(0);
+    //scene->LoadObj("../objs/stanford_dragon.obj", transform, 1, true);
 
 
     // Set up camera stuff from loaded path tracer settings

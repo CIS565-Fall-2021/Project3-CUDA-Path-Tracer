@@ -266,6 +266,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
       segment.pixelIndex = index;
       segment.remainingBounces = traceDepth;
+      segment.insideObject = false;
   }
 }
 
