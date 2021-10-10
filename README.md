@@ -14,15 +14,15 @@ Project 3 CUSA Path Tracer
 ## Introduction 
 The objective of this project was to implement a naive core path tracer that took a simplistic approach to rendering scenes. 
 <p align="center">
-  <img src="img/a.PNG" alt="drawing" width="500" />
+  <img src="img/a.png" alt="drawing" width="500" />
 </p>
 From a camera, a viewing plane (or image plane) can projected. We simulate the physical characters of light by shooting a ray (photon) from each pixel within our viewing plane towards the scene. The rays would iteratively be bounced from an origin point and a surface. In each iteration, the ray can either miss the scene entirely (entering a void) or can be obstructed by an entity within the scene. The ray can be obstructed either by a light source or non-light source. 
 <p align="center">
-  <img src="img/b.PNG" alt="drawing" width="500" />
+  <img src="img/b.png" alt="drawing" width="500" />
 </p>
 For each iteration, if the ray is not obstructed or is obstructed by a light source, the ray is terminated. If the ray is obstructed by a non-light source, it will reflect, refract, and/or diffuse against the obstructing surface. 
 <p align="center">
-  <img src="img/c.PNG" alt="drawing" width="500" />
+  <img src="img/c.png" alt="drawing" width="500" />
 </p>
 For each successful obstruction, the color of the obstructing surface is factored into the final color the ray's original corresponding pixel. 
 
@@ -59,7 +59,7 @@ Each mesh is a complex arrangement of numerous triangular faces with unique vert
 ### Anti-Aliasing 
 Anti-aliasing is a common feature that slightly distorts how a scene is rendered. This prevents far objects from being rendered with sharp edges that would typically result in texture jittering and collisions. The current implementation deviates the origin ray direction that is first projected from the camera into the scene on a random distribution. More precisely, the first ray of each iteration is shot out from a random position within the same pixel. That way, we obtain a better average of the color of the pixel. 
 <p align="center">
-  <img src="img/d.PNG" alt="https://raytracing.github.io/images/fig-1.07-pixel-samples.jpg" width="500" />
+  <img src="img/d.png" alt="https://raytracing.github.io/images/fig-1.07-pixel-samples.jpg" width="500" />
 </p>
 
 ### Refraction using Schlick's Approximation 
