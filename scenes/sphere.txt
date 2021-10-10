@@ -26,3 +26,12 @@ material 0
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       3 3 3
+
+// mesh cube
+OBJECT 1
+mesh
+material 0
+FILENAME ../obj/cube.obj
+TRANS 0 0 3
+ROTAT 0 0 0
+SCALE 3 3 3

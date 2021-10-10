@@ -6,6 +6,8 @@
 #include "sceneStructs.h"
 #include "utilities.h"
 
+#define BOUNDING_BOX 1
+
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
  */
@@ -141,4 +143,63 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside, Triangle* triangles) {
+
+    int box_intersections = 0;
+
+#if BOUNDING_BOX
+    Geom box;
+    box.type = CUBE;
+    box.transform = mesh.boundingBox.transform;
+    box.inverseTransform = mesh.boundingBox.inverseTransform;
+    box.invTranspose = mesh.boundingBox.invTranspose;
+
+    box_intersections = boxIntersectionTest(box, r, intersectionPoint, normal, outside);
+#endif
+
+    if (box_intersections != -1) {
+        float min = -1e38f;
+        float max = -1e38f;
+        glm::vec3 tmin, tmax, temp_intersect;
+    
+        for (int i = 0; i < mesh.numTriangles; i++) {
+            Triangle t = triangles[i];
+            glm::vec3 pt1 = multiplyMV(mesh.transform, glm::vec4(t.p1, 1.0));
+            glm::vec3 pt2 = multiplyMV(mesh.transform, glm::vec4(t.p2, 1.0));
+            glm::vec3 pt3 = multiplyMV(mesh.transform, glm::vec4(t.p3, 1.0));
+
+            //ray intersection check
+            bool intersects = glm::intersectRayTriangle(r.origin, r.direction, pt1, pt2, pt3, temp_intersect);
+            if (!intersects) continue;
+
+            float len = glm::length(r.origin - temp_intersect);
+            glm::vec3 v1 = pt2 - pt1;
+            glm::vec3 v2 = pt3 - pt1;
+            glm::vec3 v = glm::normalize(glm::cross(v1, v2));
+
+            if (len > max) {
+                max = len;
+                tmax = v;
+            }
+
+            if (len < min || i == 0) {
+                min = len;
+                tmin = v;
+            }
+        }
+
+        if (min <= 0) {
+            min = max;
+            tmin = tmax;
+        }
+        else {
+            intersectionPoint = getPointOnRay(r, min);
+            normal = tmin;
+            return (glm::length(r.origin - intersectionPoint));
+        }
+    }
+    return -1;
 }

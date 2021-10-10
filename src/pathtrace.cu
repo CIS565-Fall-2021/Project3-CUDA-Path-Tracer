@@ -19,13 +19,13 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define ANTI_ALIASING 1
+#define ANTI_ALIASING 0
 #define CACHE_BOUNCE 0
 #define SORT_MATERIALS 0
 #define DEPTH_OF_FIELD 0
 
-#define LENS_RADIUS 0.1
-#define FOCAL_DISTANCE 10
+#define LENS_RADIUS 0.13
+#define FOCAL_DISTANCE 6
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -87,6 +87,7 @@ static ShadeableIntersection * dev_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 // ...
 static ShadeableIntersection* dev_first_bounce = NULL;
+static Triangle* dev_triangles = NULL;
 
 void pathtraceInit(Scene *scene) {
     hst_scene = scene;
@@ -106,6 +107,14 @@ void pathtraceInit(Scene *scene) {
 
     cudaMalloc(&dev_intersections, pixelcount * sizeof(ShadeableIntersection));
     cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+
+    //triangles for mesh intersection test (not sure if need to do this for every triangle)
+    for (int i = 0; i < scene->geoms.size(); i++) {
+        if (scene->geoms[i].type == MESH) {
+            cudaMalloc(&dev_triangles, scene->geoms[i].numTriangles * sizeof(Triangle));
+            cudaMemcpy(dev_triangles, scene->geoms[i].triangles, scene->geoms[i].numTriangles * sizeof(Triangle), cudaMemcpyHostToDevice);
+        }
+    }
 
     // TODO: initialize any extra device memeory you need
 #if CACHE_BOUNCE || SORT_MATERIALS
@@ -190,9 +199,10 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         float x_aa = x;
         float y_aa = y;
         thrust::default_random_engine random = makeSeededRandomEngine(iter, index, traceDepth);
-        thrust::uniform_real_distribution<float> u01(-0.55f, 0.55f);
+        
 
 #if ANTI_ALIASING
+        thrust::uniform_real_distribution<float> u01(-0.55f, 0.55f);
         x_aa += u01(random);
         y_aa += u01(random);
 #endif
@@ -231,6 +241,7 @@ __global__ void computeIntersections(
     , Geom * geoms
     , int geoms_size
     , ShadeableIntersection * intersections
+    , Triangle * triangles
     )
 {
     int path_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -262,6 +273,9 @@ __global__ void computeIntersections(
             else if (geom.type == SPHERE)
             {
                 t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+            }
+            else if (geom.type == MESH) {
+                t = meshIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside, triangles);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -451,7 +465,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         // clean shading chunks
         cudaMemset(dev_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
 
-        computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections);
+        computeIntersections<<<numblocksPathSegmentTracing, blockSize1d>>>(depth, num_paths, dev_paths, dev_geoms, hst_scene->geoms.size(), dev_intersections, dev_triangles);
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
 
