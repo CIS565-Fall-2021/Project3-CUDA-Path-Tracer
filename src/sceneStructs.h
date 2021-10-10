@@ -10,6 +10,7 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH
 };
 
 struct Ray {
@@ -17,8 +18,28 @@ struct Ray {
     glm::vec3 direction;
 };
 
+struct Triangle {
+    glm::vec3 p1;
+    glm::vec3 p2;
+    glm::vec3 p3;
+    glm::vec3 n1;
+    glm::vec3 n2;
+    glm::vec3 n3;
+};
+
 struct Geom {
     enum GeomType type;
+    struct {
+        float minX;
+        float minY;
+        float minZ;
+        float maxX;
+        float maxY;
+        float maxZ;
+        glm::mat4 transform;
+        glm::mat4 inverseTransform;
+        glm::mat4 invTranspose;
+    } boundingBox;
     int materialid;
     glm::vec3 translation;
     glm::vec3 rotation;
@@ -26,6 +47,10 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+   
+    //glm::vec3* triangles;
+    Triangle* triangles;
+    int numTriangles;
 };
 
 struct Material {
@@ -64,6 +89,7 @@ struct PathSegment {
     glm::vec3 color;
     int pixelIndex;
     int remainingBounces;
+    bool terminated;
 };
 
 // Use with a corresponding PathSegment to do:

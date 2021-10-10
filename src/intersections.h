@@ -2,9 +2,11 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/intersect.hpp>
-
+#include <glm/gtc/matrix_inverse.hpp>
 #include "sceneStructs.h"
 #include "utilities.h"
+
+#define USE_BB false
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -141,4 +143,84 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+
+__host__ __device__ glm::vec3 getNormal(glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
+    glm::vec3 v1 = p2 - p1;
+    glm::vec3 v2 = p3 - p1;
+    return glm::normalize(glm::cross(v1, v2));
+}
+
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside, Triangle* triangles){
+    // NOTE: transforming the ray caused bugs -- instead transformed the triangles
+    
+    // create bounding box and test for intersection
+    int intersectsBB = 0;
+
+    if (USE_BB) {
+        Geom box;
+        box.type = CUBE;
+        box.transform = mesh.boundingBox.transform;
+        box.inverseTransform = mesh.boundingBox.inverseTransform;
+        box.invTranspose = mesh.boundingBox.invTranspose;
+
+        intersectsBB = boxIntersectionTest(box, r, intersectionPoint, normal, outside);
+    }
+ 
+    // if intersects the bounding box, check against each triangle
+    if (intersectsBB != -1) {
+
+        glm::vec3 tmp_isect_pt;
+        float tmin = -1e38f;
+        float tmax = -1e38f;
+        glm::vec3 tmin_n;
+        glm::vec3 tmax_n;
+
+        for (int i = 0; i < mesh.numTriangles; i++) {
+
+
+            Triangle tri = triangles[i];
+
+            glm::vec3 newPt1 = multiplyMV(mesh.transform, glm::vec4(tri.p1, 1.0));
+            glm::vec3 newPt2 = multiplyMV(mesh.transform, glm::vec4(tri.p2, 1.0));
+            glm::vec3 newPt3 = multiplyMV(mesh.transform, glm::vec4(tri.p3, 1.0));
+
+            // check if ray intersects triangle
+            bool intersects = glm::intersectRayTriangle(r.origin, r.direction, newPt1, newPt2, newPt3, tmp_isect_pt);
+
+            if (!intersects) {
+                continue;
+            }
+
+            // if this t value is less than tmin, replace
+            float t = glm::length(r.origin - tmp_isect_pt);
+
+            glm::vec3 n = getNormal(newPt1, newPt2, newPt3);
+            
+            if (t > tmax) {
+                tmax = t;
+                tmax_n = n;
+            }
+            if (i == 0 || t < tmin) {
+                tmin = t;
+                tmin_n = n;
+            }
+        }
+
+        if (tmin <= 0) {
+            tmin = tmax;
+            tmin_n = tmax_n;
+        }
+
+        if (tmin > 0) {
+            // transform ray back to find the intersection point
+            intersectionPoint = getPointOnRay(r, tmin);
+            normal = tmin_n;
+            return glm::length(r.origin - intersectionPoint);
+        }
+    }
+
+    return -1;
 }
