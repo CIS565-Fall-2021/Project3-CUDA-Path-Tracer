@@ -25,16 +25,6 @@ struct Triangle {
     Point pt3;
 };
 
-//Triangle for mesh loading
-//struct Triangle {
-//    glm::vec3 p1;
-//    glm::vec3 p2;
-//    glm::vec3 p3;
-//    glm::vec3 n1;
-//    glm::vec3 n2;
-//    glm::vec3 n3;
-//};
-
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;

@@ -23,6 +23,5 @@ public:
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
-    //std::vector<unique_ptr<std::vector<Triangle>>> trianglePtrs;
     RenderState state;
 };

@@ -22,10 +22,10 @@
 #define ANTI_ALIASING 0
 #define CACHE_BOUNCE 0
 #define SORT_MATERIALS 0
-#define DEPTH_OF_FIELD 0
+#define DEPTH_OF_FIELD 1
 
-#define LENS_RADIUS 0.13
-#define FOCAL_DISTANCE 6
+#define LENS_RADIUS 0.07
+#define FOCAL_DISTANCE 13
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -204,16 +204,14 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
         //for depth of field
 #if DEPTH_OF_FIELD
-        thrust::uniform_real_distribution<float> u02(0.f, 1.f);
-        glm::vec3 lens = convertDisk(glm::vec2(u02(random), u02(random)));
-        lens *= LENS_RADIUS;
-        
-       // float fp = FOCAL_DISTANCE / glm::abs(segment.ray.direction.z);
-        glm::vec3 d = (float) FOCAL_DISTANCE * segment.ray.direction;
-        glm::vec3 focal = segment.ray.origin + d;
+        thrust::uniform_real_distribution<float> u02(0, 1);
+        glm::vec3 sample = convertDisk(glm::vec2(u02(random), u02(random)));
+        glm::vec3 lens = (float)LENS_RADIUS * sample;
+        glm::vec3 pt = segment.ray.origin + lens;
+        glm::vec3 fp = segment.ray.origin + (float)FOCAL_DISTANCE * segment.ray.direction;
 
-        segment.ray.origin += lens;
-        segment.ray.direction = glm::normalize(focal - segment.ray.origin);
+        segment.ray.origin = pt;
+        segment.ray.direction = glm::normalize(fp - pt);
 
 #endif
         segment.pixelIndex = index;

@@ -117,85 +117,6 @@ int Scene::loadOBJ(string filename, std::vector<Geom>& triangles, int materialID
             }
         }
     }
-
-    //OLD CODE
-    //geom.boundingBox.minX = 100000000.f;
-    //geom.boundingBox.minY = 100000000.f;
-    //geom.boundingBox.minZ = 100000000.f;
-    //geom.boundingBox.maxX = 0.f;
-    //geom.boundingBox.maxY = 0.f;
-    //geom.boundingBox.maxZ = 0.f;
-
-    //std::vector<Triangle> triangles;
-    //tinyobj::ObjReaderConfig config;
-    //config.triangulate = true;
-    //tinyobj::ObjReader reader;
-
-    //if (!reader.ParseFromFile(filename, config)) {
-    //    if (!reader.Error().empty()) {
-    //        std::cerr << "TinyObjReader: " << reader.Error();
-    //        return -1;
-    //    }
-    //    exit(1);
-    //}
-
-    //if (!reader.Warning().empty()) {
-    //    std::cout << "TinyObjReader: " << reader.Warning();
-    //}
-
-    //auto& shapes = reader.GetShapes();
-    //auto& attrib = reader.GetAttrib();
-
-    //for (size_t s = 0; s < shapes.size(); s++) {
-
-    //    size_t offset = 0;
-    //    for (size_t fv = 0; fv < shapes[s].mesh.num_face_vertices.size(); fv++) {
-
-    //        Triangle t;
-    //        std::vector<glm::vec3> pts;
-    //        std::vector<glm::vec3> nors;
-
-    //        for (size_t vtx = 0; vtx < 3; vtx++) {
-                /*tinyobj::index_t idx = shapes[s].mesh.indices[offset + vtx];
-                tinyobj::real_t vtxX = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
-                tinyobj::real_t vtxY = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
-                tinyobj::real_t vtxZ = attrib.vertices[3 * size_t(idx.vertex_index) + 2];*/
-
-    //            // Check for normal data
-    //            if (idx.normal_index >= 0) {
-    //                tinyobj::real_t normX = attrib.normals[3 * size_t(idx.normal_index) + 0];
-    //                tinyobj::real_t normY = attrib.normals[3 * size_t(idx.normal_index) + 1];
-    //                tinyobj::real_t normZ = attrib.normals[3 * size_t(idx.normal_index) + 2];
-
-    //                nors.push_back(glm::vec3(normX, normY, normZ));
-    //            }
-
-    //            // check with bounding box
-    //            geom.boundingBox.minX = min(geom.boundingBox.minX, vtxX);
-    //            geom.boundingBox.maxX = max(geom.boundingBox.maxX, vtxX);
-    //            geom.boundingBox.minY = min(geom.boundingBox.minY, vtxY);
-    //            geom.boundingBox.maxY = max(geom.boundingBox.maxY, vtxY);
-    //            geom.boundingBox.minZ = min(geom.boundingBox.minZ, vtxZ);
-    //            geom.boundingBox.maxZ = max(geom.boundingBox.maxZ, vtxZ);
-
-    //            pts.push_back(glm::vec3(vtxX, vtxY, vtxZ));
-    //        }
-
-    //        t.p1 = glm::vec3(pts[0].x, pts[0].y, pts[0].z);
-    //        t.p2 = glm::vec3(pts[1].x, pts[1].y, pts[1].z);
-    //        t.p3 = glm::vec3(pts[2].x, pts[2].y, pts[2].z);
-    //        t.n1 = glm::vec3(nors[0].x, nors[0].y, nors[0].z);
-    //        t.n2 = glm::vec3(nors[1].x, nors[1].y, nors[1].z);
-    //        t.n3 = glm::vec3(nors[2].x, nors[2].y, nors[2].z);
-    //        triangles.push_back(t);
-    //        offset = offset + 3;
-    //    }
-    //}
-
-    //this->trianglePtrs.push_back(make_unique<vector<Triangle>>(triangles));
-    //geom.triangles = &this->trianglePtrs[this->trianglePtrs.size() - 1].get()->front();
-    //geom.numTriangles = triangles.size();
-
     return 1;
 }
 
@@ -275,21 +196,6 @@ int Scene::loadGeom(string objectid) {
         else {
             geoms.push_back(newGeom);
         }
-
-//#if BOUNDING_BOX
-//        if (newGeom.type == MESH) {
-//            glm::vec3 scale(geom.boundingBox.maxX - geom.boundingBox.minX, geom.boundingBox.maxY - geom.boundingBox.minY, geom.boundingBox.maxZ - geom.boundingBox.minZ);
-//            glm::vec3 unit(0.5, 0.5, 0.5);
-//            glm::vec3 top(geom.boundingBox.maxX, geom.boundingBox.maxY, geom.boundingBox.maxZ);
-//            glm::vec3 transform = top - unit * scale;
-//            scale *= geom.scale;
-//            transform += geom.translation;
-//            geom.boundingBox.transform = utilityCore::buildTransformationMatrix(transform, geom.rotation, scale);
-//            geom.boundingBox.inverseTransform = glm::inverse(geom.boundingBox.transform);
-//            geom.boundingBox.invTranspose = glm::inverseTranspose(geom.boundingBox.transform);
-//        }
-//#endif
-
         return 1;
     }
 }
