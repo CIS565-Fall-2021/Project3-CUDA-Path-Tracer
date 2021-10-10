@@ -37,6 +37,10 @@ Focal Distance = 12         |  Focal Distance = 3
 
 To render with smoother edges, we jitter the initial rays' direction slightly, so that over iterations, the result averages to an anti-aliased image with less discrete edges.
 
+Anti-aliasing         |  No anti-aliasing
+:-------------------------:|:-------------------------:
+![](img/aa.png)   |  ![](img/noaa.png)
+
 ## glTF 2.0 Support
 
 [tinygltf](https://github.com/syoyo/tinygltf/) library is used to parse glTF 2.0 files. Triangle meshes with indexed geometries are supported.
