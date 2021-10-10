@@ -3,6 +3,7 @@
 #include "intersections.h"
 
 #define STRATIFIED_SAMPLING
+//#define PROCEDURAL_COLOR
 
 // CHECKITOUT
 /**
@@ -118,7 +119,8 @@ __host__ __device__
     }
     bitangent = glm::cross(normal, tangent);
     glm::mat3 tangentToWorld;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         tangentToWorld[0][i] = tangent[i];
         tangentToWorld[1][i] = bitangent[i];
         tangentToWorld[2][i] = normal[i];
@@ -156,7 +158,9 @@ __host__ __device__ void scatterRay(
     PathSegment &pathSegment,
     glm::vec3 intersect,
     glm::vec3 normal,
+    glm::vec2 uv,
     const Material &m,
+    const glm::vec4 *textures,
     thrust::default_random_engine &rng)
 {
     // TODO: implement this.
@@ -164,6 +168,9 @@ __host__ __device__ void scatterRay(
     // calculateRandomDirectionInHemisphere defined above.
     thrust::uniform_real_distribution<float> u01(0, 1);
     float sample = u01(rng);
+
+
+
     if (m.hasReflective > sample)
     {
         // reflective
@@ -194,16 +201,33 @@ __host__ __device__ void scatterRay(
     }
     else
     {
-        // diffuse
-
 #ifdef STRATIFIED_SAMPLING
         pathSegment.ray.direction = calculateStratifiedDirectionInHemisphere(normal, rng);
 #else
         pathSegment.ray.direction = glm::normalize(calculateRandomDirectionInHemisphere(normal, rng));
 #endif
-        //     dir = glm::dot(dir, normal) > 0 ? dir : -dir;
-        //    pathSegment.ray.direction = dir;
         pathSegment.ray.origin = intersect + 0.001f * normal;
-        pathSegment.color *= m.color;
+
+        // diffuse
+        glm::vec3 color = m.color;
+
+        // texture
+        if (m.tex.textureOffset >= 0)
+        {
+#ifdef PROCEDURAL_COLOR
+            glm::vec3 a = glm::vec3(0.5, 0.5, 0.5);
+            glm::vec3 b = glm::vec3(0.5, 0.5, 0.5);
+            glm::vec3 c = glm::vec3(1.0, 1.0, 1.0);
+            glm::vec3 d = glm::vec3(0.0, 0.33, 0.67);
+            float t = glm::clamp(glm::dot(normal, pathSegment.ray.direction), 0.f, 1.f);
+            color = a + b * cos(2 * PI * (c * t + d));
+#else
+            int x = glm::min(m.tex.imageWidth * uv.x, m.tex.imageWidth - 1.0f);
+            int y = glm::min(m.tex.imageHeight * uv.y, m.tex.imageHeight - 1.0f);
+            color = glm::vec3(textures[m.tex.textureOffset + y * m.tex.imageWidth + x]);
+#endif
+        }
+
+        pathSegment.color *= color;
     }
 }

@@ -76,7 +76,7 @@ cube
 material 0
 TRANS       0 10 0
 ROTAT       0 0 0
-SCALE       3 .3 3
+SCALE       5 .3 5
 
 // Floor
 OBJECT 1
@@ -119,10 +119,10 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 // Sphere
-OBJECT 6
-cube
+GLTF 0
 material 5
-TRANS       0 2 -2
-ROTAT       0 0 0
-SCALE       3 3 3
-../scenes/fate/scene.gltf
+TRANS       0 0 -2
+ROTAT       0 45 0
+SCALE       0.3 0.3 0.3
+../scenes/fate/
+scene.gltf

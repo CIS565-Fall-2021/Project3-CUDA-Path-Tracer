@@ -24,6 +24,7 @@ struct Triangle
 {
     glm::vec3 vertices[3];
     glm::vec3 normals[3];
+    glm::vec2 uvs[3];
 };
 
 struct Geom
@@ -44,6 +45,12 @@ struct Geom
     glm::vec3 maxBounding;
 };
 
+struct Texture{
+    int textureOffset = -1;
+    int imageWidth;
+    int imageHeight;
+};
+
 struct Material
 {
     glm::vec3 color;
@@ -56,6 +63,8 @@ struct Material
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    Texture tex;
+    Texture bump;
 };
 
 struct Camera
@@ -94,5 +103,6 @@ struct ShadeableIntersection
 {
     float t;
     glm::vec3 surfaceNormal;
+    glm::vec2 uv;
     int materialId;
 };

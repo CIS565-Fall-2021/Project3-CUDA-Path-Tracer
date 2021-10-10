@@ -98,92 +98,190 @@ int Scene::loadGLTF()
     }
 
     // load gltf
+    string gltfPath = "";
     utilityCore::safeGetline(fp_in, line);
     if (!line.empty() && fp_in.good())
     {
-        tinygltf::Model model;
-        tinygltf::TinyGLTF loader;
-        string err;
-        string warn;
-        bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, line.c_str());
-        if (!warn.empty())
+        gltfPath = line;
+    }
+    string gltfName = "";
+    utilityCore::safeGetline(fp_in, line);
+    if (!line.empty() && fp_in.good())
+    {
+        gltfName = line;
+    }
+    tinygltf::Model model;
+    tinygltf::TinyGLTF loader;
+    string err;
+    string warn;
+    bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, (gltfPath + gltfName).c_str());
+    if (!warn.empty())
+    {
+        printf("Warn: %s\n", warn.c_str());
+    }
+
+    if (!err.empty())
+    {
+        printf("Err: %s\n", err.c_str());
+    }
+
+    if (!ret)
+    {
+        printf("Failed to parse glTF\n");
+        return -1;
+    }
+
+    // load node transformation
+    std::map<int, glm::mat4> nodeTrans;
+    for (const tinygltf::Node &node : model.nodes)
+    {
+        if (node.mesh == -1)
         {
-            printf("Warn: %s\n", warn.c_str());
+            continue;
+        }
+        glm::vec3 translation(0.f);
+        glm::vec4 rotation(0.f);
+        glm::vec3 scale(1.f);
+        for (int i = 0; i < node.translation.size(); i++)
+        {
+            translation[i] = node.translation[i];
+        }
+        for (int i = 0; i < node.rotation.size(); i++)
+        {
+            rotation[i] = node.rotation[i];
+        }
+        for (int i = 0; i < node.scale.size(); i++)
+        {
+            scale[i] = node.scale[i];
         }
 
-        if (!err.empty())
-        {
-            printf("Err: %s\n", err.c_str());
-        }
+        glm::mat4 trans = utilityCore::buildTransformationMatrix(translation, glm::vec3(rotation), scale);
+        nodeTrans[node.mesh] = trans;
+    }
 
-        if (!ret)
-        {
-            printf("Failed to parse glTF\n");
-            return -1;
-        }
-
-        std::vector<int> meshTriIndices;
-
-        for (const tinygltf::Mesh &mesh : model.meshes)
+    std::vector<int> meshTriIndices;
+    int meshIdx = 0;
+    for (const tinygltf::Mesh &mesh : model.meshes)
+    {
+        for (const tinygltf::Primitive &primitive : mesh.primitives)
         {
             Geom newGeom;
             newGeom.type = MESH;
             newGeom.materialid = materialid;
             newGeom.minBounding = glm::vec3(FLT_MAX);
             newGeom.maxBounding = glm::vec3(FLT_MIN);
-            newGeom.transform = utilityCore::buildTransformationMatrix(translation, rotation, scale);
+            std::cout << "node trans: " << glm::to_string(nodeTrans[meshIdx]) << "\n";
+            newGeom.transform = utilityCore::buildTransformationMatrix(translation, rotation, scale) * nodeTrans[meshIdx];
             newGeom.inverseTransform = glm::inverse(newGeom.transform);
             newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
             newGeom.triStartIdx = triIdx;
+            const tinygltf::Accessor &idxAccessor = model.accessors[primitive.indices];
+            const tinygltf::BufferView &idxBufferView = model.bufferViews[idxAccessor.bufferView];
+            const tinygltf::Buffer &idxBuffer = model.buffers[idxBufferView.buffer];
+            const unsigned short *indices = reinterpret_cast<const unsigned short *>(&idxBuffer.data[idxBufferView.byteOffset + idxAccessor.byteOffset]);
 
-            for (const tinygltf::Primitive &primitive : mesh.primitives)
+            const tinygltf::Accessor &posAccessor = model.accessors[primitive.attributes.at("POSITION")];
+            const tinygltf::BufferView &posBufferView = model.bufferViews[posAccessor.bufferView];
+            const tinygltf::Buffer &posBuffer = model.buffers[posBufferView.buffer];
+            const float *positions = reinterpret_cast<const float *>(&posBuffer.data[posBufferView.byteOffset + posAccessor.byteOffset]);
+
+            const float *normals = nullptr;
+            if (primitive.attributes.count("NORMAL"))
+            {
+                const tinygltf::Accessor &norAccessor = model.accessors[primitive.attributes.at("NORMAL")];
+                const tinygltf::BufferView &norBufferView = model.bufferViews[norAccessor.bufferView];
+                const tinygltf::Buffer &norBuffer = model.buffers[norBufferView.buffer];
+                normals = reinterpret_cast<const float *>(&norBuffer.data[norBufferView.byteOffset + norAccessor.byteOffset]);
+                std::cout << "has normal: " << norAccessor.count << "\n";
+            }
+
+            const float *uvs = nullptr;
+            Material m;
+            if (primitive.attributes.count("TEXCOORD_0"))
+            {
+                const tinygltf::Accessor &uvAccessor = model.accessors[primitive.attributes.at("TEXCOORD_0")];
+                const tinygltf::BufferView &uvBufferView = model.bufferViews[uvAccessor.bufferView];
+                const tinygltf::Buffer &uvBuffer = model.buffers[uvBufferView.buffer];
+                uvs = reinterpret_cast<const float *>(&uvBuffer.data[uvBufferView.byteOffset + uvAccessor.byteOffset]);
+                std::cout << "has texture: " << uvAccessor.count << "\n";
+
+                // load texture
+                m.emittance = 0;
+                m.hasReflective = 0;
+                m.hasRefractive = 0;
+                m.indexOfRefraction = 0;
+                const tinygltf::Material tempM = model.materials[primitive.material];
+                const tinygltf::TextureInfo baseTexture = tempM.pbrMetallicRoughness.baseColorTexture;
+                if (baseTexture.texCoord == 0)
+                {
+                    m.tex.textureOffset = textures.size();
+                    int imageId = model.textures[baseTexture.index].source;
+                    tinygltf::Image image = model.images[imageId];
+                    std::vector<unsigned char> pixels = image.image;
+                    for (int i = 0; i < image.width * image.height; i++)
+                    {
+                        glm::vec4 col;
+                        for (int j = 0; j < image.component; j++)
+                        {
+                            col[j] = (float)pixels[i * image.component + j] / 255.f;
+                        }
+                        textures.push_back(col);
+                    }
+                    m.tex.imageWidth = image.width;
+                    m.tex.imageHeight = image.height;
+                    std::cout << "texture size: " << textures.size() << "\n";
+                }
+                const tinygltf::NormalTextureInfo normalTexture = tempM.normalTexture;
+                if (normalTexture.texCoord == 0)
+                {
+                    m.bump.textureOffset = textures.size();
+                    int imageId = model.textures[normalTexture.index].source;
+                    tinygltf::Image image = model.images[imageId];
+                    std::vector<unsigned char> pixels = image.image;
+                    for (int i = 0; i < image.width * image.height; i++)
+                    {
+                        glm::vec4 col;
+                        for (int j = 0; j < image.component; j++)
+                        {
+                            col[j] = (float)pixels[i * image.component + j] / 255.f * normalTexture.scale;
+                        }
+                        textures.push_back(col);
+                    }
+                    m.bump.imageWidth = image.width;
+                    m.bump.imageHeight = image.height;
+                }
+                newGeom.materialid = materials.size();
+                materials.push_back(m);
+            }
+
+            for (size_t i = 0; i < idxAccessor.count; i += 3)
             {
 
-                const tinygltf::Accessor &idxAccessor = model.accessors[primitive.indices];
-                const tinygltf::BufferView &idxBufferView = model.bufferViews[idxAccessor.bufferView];
-                const tinygltf::Buffer &idxBuffer = model.buffers[idxBufferView.buffer];
-                const unsigned short *indices = reinterpret_cast<const unsigned short *>(&idxBuffer.data[idxBufferView.byteOffset + idxAccessor.byteOffset]);
-
-                const tinygltf::Accessor &posAccessor = model.accessors[primitive.attributes.at("POSITION")];
-                const tinygltf::BufferView &posBufferView = model.bufferViews[posAccessor.bufferView];
-                const tinygltf::Buffer &posBuffer = model.buffers[posBufferView.buffer];
-                const float *positions = reinterpret_cast<const float *>(&posBuffer.data[posBufferView.byteOffset + posAccessor.byteOffset]);
-
-                const float *normals = nullptr;
-                if (primitive.attributes.count("NORMAL"))
+                Triangle tri;
+                for (int j = 0; j < 3; j++)
                 {
-                    const tinygltf::Accessor &norAccessor = model.accessors[primitive.attributes.at("NORMAL")];
-                    const tinygltf::BufferView &norBufferView = model.bufferViews[norAccessor.bufferView];
-                    const tinygltf::Buffer &norBuffer = model.buffers[norBufferView.buffer];
-                    normals = reinterpret_cast<const float *>(&norBuffer.data[norBufferView.byteOffset + norAccessor.byteOffset]);
-                    std::cout << "has normal: " << norAccessor.count << "\n";
-                }
-
-                std::cout << idxAccessor.count << " : " << posAccessor.count << "\n";
-                for (size_t i = 0; i < idxAccessor.count; i += 3)
-                {
-
-                    Triangle tri;
-                    for (int j = 0; j < 3; j++)
+                    int idx = indices[j + i];
+                    tri.vertices[j] = glm::vec3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
+                    findBoundingBox(tri.vertices[j], newGeom);
+                    if (normals)
                     {
-                        int idx = indices[j + i];
-                        tri.vertices[j] = glm::vec3(positions[idx * 3], positions[idx * 3 + 1], positions[idx * 3 + 2]);
-                        findBoundingBox(tri.vertices[j], newGeom);
-                        if (normals)
-                        {
-                            tri.normals[j] = glm::vec3(normals[idx * 3], normals[idx * 3 + 1], normals[idx * 3 + 2]);
-                        }
+                        tri.normals[j] = glm::vec3(normals[idx * 3], normals[idx * 3 + 1], normals[idx * 3 + 2]);
                     }
-                    triangles.push_back(tri);
-                    triIdx++;
+                    if (uvs)
+                    {
+                        tri.uvs[j] = glm::vec2(uvs[idx * 2], uvs[idx * 2 + 1]);
+                    }
                 }
+                triangles.push_back(tri);
+                triIdx++;
             }
             std::cout << glm::to_string(newGeom.minBounding) << " : " << glm::to_string(newGeom.maxBounding) << "\n";
 
             newGeom.triEndIdx = triIdx;
-            std::cout << "mesh index: " << newGeom.triStartIdx << " : " << newGeom.triEndIdx << "\n";
+            std::cout << "primitive index: " << newGeom.triStartIdx << " : " << newGeom.triEndIdx << "\n";
             geoms.push_back(newGeom);
         }
+        meshIdx++;
     }
 
     std::cout << "geoms size: " << geoms.size() << "\n";

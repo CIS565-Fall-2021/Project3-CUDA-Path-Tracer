@@ -176,9 +176,15 @@ __host__ __device__ glm::vec3 GetNormal(const Triangle &tri, const glm::vec3 P)
     return glm::normalize(tri.normals[0] * A0 / A + tri.normals[1] * A1 / A + tri.normals[2] * A2 / A);
 }
 
-__host__ __device__ float triangleIntersectionTest(Geom &mesh, Triangle &triangle, Ray rt, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside)
+__host__ __device__ float triangleIntersectionTest(Geom &mesh, Triangle &triangle, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, glm::vec2 &uv, bool &outside, Material &m, glm::vec4 *textures)
 {
-   
+
+    glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    Ray rt;
+    rt.origin = ro;
+    rt.direction = rd;
 
     glm::vec3 baryPos;
 
@@ -191,32 +197,49 @@ __host__ __device__ float triangleIntersectionTest(Geom &mesh, Triangle &triangl
     {
         return -1;
     }
-    float t = baryPos.z;//glm::length(baryPos - rt.origin);
-    intersectionPoint = getPointOnRay(rt, t);
-    float baryZ = baryPos.z;
+    float t = baryPos.z;
+    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(getPointOnRay(rt, t), 1.0f));
+
     baryPos.z = 1.0f - baryPos.x - baryPos.y;
 
-     normal = glm::normalize(triangle.normals[0] * baryPos.z + triangle.normals[1] * baryPos.x + triangle.normals[2] * baryPos.y);
-    // glm::vec3 newpos = triangle.vertices[0] * baryPos.z + triangle.vertices[1] * baryPos.x + triangle.vertices[2] * baryPos.y;
-    // normal = triangle.normals[0];
-    //normal = GetNormal(triangle, newpos);
-    //normal = glm::normalize(triangle.n);
+    uv = triangle.uvs[0] * baryPos.x + triangle.uvs[1] * baryPos.y + triangle.uvs[2] * baryPos.z;
+    normal = glm::normalize(triangle.normals[0] * baryPos.x + triangle.normals[1] * baryPos.y + triangle.normals[2] * baryPos.z);
 
-    // normal = glm::normalize(glm::cross(triangle.vertices[1] - triangle.vertices[0], triangle.vertices[2] - triangle.vertices[1]));
-  //   outside = glm::dot(normal, -rt.direction) > 0.f;
-   //  normal *= outside ? 1.f : -1.f;
+    // bump texture
+    if (m.bump.textureOffset >= 0)
+    {
+        // convert direction from tangent to world space
+        glm::vec3 tangent, bitangent;
+        if (std::abs(normal.x) > std::abs(normal.y))
+        {
+
+            tangent = glm::vec3(-normal.z, 0, normal.x) / std::sqrt(normal.x * normal.x + normal.z * normal.z);
+        }
+        else
+        {
+            tangent = glm::vec3(0, normal.z, -normal.y) / std::sqrt(normal.y * normal.y + normal.z * normal.z);
+        }
+        bitangent = glm::cross(normal, tangent);
+        glm::mat3 tangentToWorld(tangent, bitangent, normal);
+
+        int x = glm::min(m.bump.imageWidth * uv.x, m.bump.imageWidth - 1.0f);
+        int y = glm::min(m.bump.imageHeight * uv.y, m.bump.imageHeight - 1.0f);
+
+        normal = tangentToWorld * glm::vec3(textures[m.bump.textureOffset + y * m.bump.imageWidth + x]);
+    }
     normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(normal, 0.f)));
 
-    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(intersectionPoint, 1.0f));
+    outside = glm::dot(normal, r.direction) < 0;
+    normal = outside ? normal : -normal;
 
-    return t;
+    return glm::length(r.origin - intersectionPoint);
 }
 
-__host__ __device__ bool boundingBoxCheck(Geom mesh, Ray q)
+__host__ __device__ bool boundingBoxCheck(Geom mesh, Ray r)
 {
-    // Ray q;
-    // q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
-    // q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    Ray q;
+    q.origin = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    q.direction = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
     float tmin = -1e38f;
     float tmax = 1e38f;
@@ -248,16 +271,12 @@ __host__ __device__ bool boundingBoxCheck(Geom mesh, Ray q)
     return (tmax >= tmin && tmax > 0);
 }
 
-__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, Triangle *triangles)
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r, glm::vec3 &intersectionPoint, glm::vec3 &normal, 
+                                                glm::vec2 &uv, bool &outside, Triangle *triangles, Material &m, glm::vec4 *textures)
 {
-    glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
-    glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-    Ray rt;
-    rt.origin = ro;
-    rt.direction = rd;
 #ifdef MESH_CULLING
-    bool hit = boundingBoxCheck(mesh, rt);
+    bool hit = boundingBoxCheck(mesh, r);
     if (!hit)
     {
         return -1;
@@ -267,14 +286,16 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r, glm::vec3 &inte
     float min_t = FLT_MAX;
     glm::vec3 tempIsectPoint;
     glm::vec3 tempNormal;
+    glm::vec2 tempUV;
     for (int i = mesh.triStartIdx; i < mesh.triEndIdx; i++)
     {
-        float t = triangleIntersectionTest(mesh, triangles[i], rt, tempIsectPoint, tempNormal, outside);
+        float t = triangleIntersectionTest(mesh, triangles[i], r, tempIsectPoint, tempNormal, tempUV, outside, m, textures);
         if (t > 0.0f && t < min_t)
         {
             min_t = t;
             intersectionPoint = tempIsectPoint;
             normal = tempNormal;
+            uv = tempUV;
         }
     }
 
