@@ -68,10 +68,12 @@ In this project, I implemented a pathtracer on the GPU by evaluating "batches" o
 
 Features
 ========
-### Dialectric Materials
-I added support for refractive materials, where the reflective and refractive components are based on a fresnel coefficient. The coefficient determines the likelihood of scattering a reflective or a refractive ray. 
+### Dielectrics
+I added support for transmissive materials, where the reflective and refractive components are based on a fresnel coefficient. The coefficient determines the likelihood of scattering a reflective or a refractive ray. 
 
-![Dialectric](img/cornell.2021-10-02_20-31-01z.240samp.png)
+| | |
+|-|-|
+|![Refraction 1](img/final_renders/refraction1.png) | ![Refraction 2](img/final_renders/refraction2.png)|
 
 ### Depth of Field
 
@@ -86,12 +88,12 @@ I added support for obj loading and mesh display. I used [tinyobjloader](https:/
 
 I also added a computeIntersection function for the mesh, which iterates through all of the mesh's triangles, and computes the intersection of the given ray with each triangle, finding the minimum distance along the ray to the nearest triangle. 
 
+![Mesh Example](img/final_renders/cornell.2021-10-09_20-37-05z.2503samp.png)
+
 ### Anti-Aliasing
 I jittered the pixel point by some fractional value to achieve anti-aliasing, as seen below. I rendered this scene at a low resolution (200x200) so that the improvements are obvious.
 
-| Without Anti-Aliasing | With Anti-Aliasing |
-| --------------------- | ------------------ |
-| ![Without Anti-Aliasing](img/final_renders/cornell.2021-10-07_22-22-41z.5000samp.png) | ![With Anti-Aliasing](img/final_renders/cornell.2021-10-07_22-20-52z.5000samp.png) |
+![Anti-Alias Comparison](img/final_renders/anti-alias-comparison.png)
 
 As you can see below, enabling anti-aliasing doesn't seem to have a major effect on runtime. There is an additional cost associated with jittering the rays, but this is minimal. 
 
