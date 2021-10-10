@@ -12,13 +12,13 @@ This project involves an implementation of GPU path tracing rendering algorithm 
 - Physically-based depth-of-field
 - Stochastic sampled anti-aliasing
 - glTF 2.0 object loading with bounding volume culling
-- Texture mapping and bump mapping
+- Texture mapping and normal mapping
 
 # Features
 
 ## Materials
 
-Diffuse, specular, refractive
+Diffuse, specular and refractive materials are supported. Fresnel effects are applied on refractive materials to give the surfaces specular highlight.
 
 ## Depth of Field
 
@@ -33,7 +33,7 @@ To render with smoother edges, we jitter the initial rays' direction slightly, s
 
 [tinygltf](https://github.com/syoyo/tinygltf/) library is used to parse glTF 2.0 files. Triangle meshes with indexed geometries are supported.
 
-## Texture Mapping and Bump Mapping
+## Texture Mapping and Normal Mapping
 
 The user can set a texture map and a normal map for materials in the scene files. If the mesh associated with the material has its texture coordinates (**TEXCOORD_0**) set, the path-tracer will use the texture information when rendering. If a normal map is set and the mesh doesn't have vertex normals or tangents set up, the renderer will compute them using vertex positions when loading the mesh.
 
@@ -57,12 +57,23 @@ It is worth noting that the scene used for this performance comparison is open o
 
 During the shading stage, we need potentially different algorithms for different materials. This could lead to warp divergences and is also not the ideal memory access pattern on GPU. One way we could reduce the severity of this issue is by sorting the rays by their material ids. Theoretically, this enables contiguous memory access to material information reduces divergence.
 
+In [cornell_open.txt](scenes/cornell_open.txt) scene, the performance analysis result suggests that for the standard cornell scene, sorting paths by materials is actually slower. This is due to the fact the number of materials is small, and the performance gain from sorting by materials is vastly overshadowed by the overhead of sorting itself.
+
 ![](img/sort.png)
 
-However, the performance analysis result suggests that for the standard cornell scene, sorting paths by materials is actually slower. This is due to the fact the number of materials is small, and the performance gain from sorting by materials is vastly overshadowed by the overhead of sorting itself.
+When the scene is more complex, suchas in the case of the title sample scene [title_sample.txt](scenes/title_sample.txt), however, sorting ray paths by material does provide performance benefit, as seen from the graph below.
+
+![](img/sort2.png)
 
 ## Caching first ray bounce
 
 We could also cache first ray bounce for future iterations. This ended up with minimal performance gains, and the performance gain eliminates as trace depth increases.
 
 ![](img/cache.png)
+
+# Bloopers
+
+![](img/blooper1.png)
+![](img/blooper2.png)
+![](img/blooper3.png)
+![](img/blooper4.png)
