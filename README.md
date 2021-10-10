@@ -1,7 +1,7 @@
 CUDA Path Tracer
 ================
 
-<img src="images\basic-cornell.png" style="zoom:40%;" />
+<img src="images\stanford-bunny-glass.png" height="500px"/>
 
 Implementation of a CUDA-based path tracer capable of rendering globally-illuminated images.
 
@@ -72,6 +72,16 @@ It is commonly stated that, unlike rasterization, ray tracing gives us antialias
 
 
 
+### Refraction
+
+The objects you import in a ray tracer may vary in material. An object's material is, in essence, determines how a ray bounces off of or into the object. One cool phenomenon is the way that light refracts when it interacts with water, glass, and other dielectrics. The tricky part to getting this to look right is to formulate how the light will reflect or refract based on the varying angles of the camera and the index of refraction of the material. Once accomplished, you get interesting looking results as shown below.
+
+<img src="images\glass-ball.png" height="400px" />
+
+Notice the caustic that is created by the lighting interacting with the glass sphere!
+
+
+
 ## Mesh Improvements
 
 So that we can render more than just boxes and spheres, I utilized the tinyOBJ open-source library to import OBJ files, from which we extract all the individual triangles that make up an object. Once we have the position and shape of all the triangles, rendering the object is as easy as doing a ray-triangle intersection for triangles. 
@@ -98,7 +108,7 @@ To test the performance our data structure, we load a [Stanford Bunny](http://gr
 
 **TODO: Make into a graph**
 
-<img src="img\bvh-table.png" height="250px" />
+<img src="img\bvh-perf-table.png" height="250px" />
 
 ## Additional Performance Analysis
 
@@ -107,4 +117,14 @@ To test the performance our data structure, we load a [Stanford Bunny](http://gr
 Using std::chrono, the number of seconds it took to render 5000 iterations of the cornell-box with varying max ray depths were calculated. Generally speaking, caching gave some minor improvements
 
 <img src="img/caching-table.png" height="250px" />
+
+
+
+## Submission
+
+### CMake
+
+I have updated the CMakeLists.txt to include a new cpp (src/bvhtree.cpp) and added a directory with the tinyobj import (add_subdirectory + adding tinyobj in the target link libraries).
+
+
 

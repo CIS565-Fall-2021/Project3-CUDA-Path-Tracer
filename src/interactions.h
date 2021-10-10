@@ -142,27 +142,6 @@ void scatterRay(
                 direction = glm::refract(n_pathDirection, n_normal, refractionRatio);
             }
 
-            //if (cannotRefract || reflectance(cosTheta, refractionRatio) > u01(rng))
-            //{
-            //    direction = glm::reflect(n_pathDirection, n_normal);
-            //    pathSegment.ray.origin += pathSegment.ray.direction * 0.1f;
-            //    //if (pathSegment.insideObject)
-            //    //{
-            //    //    pathSegment.insideObject = false;
-
-            //    //    // take intersection point out of object
-            //    //    pathSegment.ray.origin += pathSegment.ray.direction * 0.1f; // TODO: make epsilon
-            //    //}
-            //}
-            //else
-            //{
-            //    direction = glm::refract(n_pathDirection, n_normal, m.indexOfRefraction);
-            //    pathSegment.insideObject = true;
-
-            //    // take intersection point into the object
-            //    pathSegment.ray.origin -= n_normal * 0.1f; // TODO: make epsilon
-            //}
-
             pathSegment.ray.direction = direction;
             pathSegment.ray.origin += direction * 0.01f;
         }
