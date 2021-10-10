@@ -6,13 +6,20 @@ CUDA Path Tracer
 * Stephen Lee
   * [LinkedIn](https://www.linkedin.com/in/stephen-lee-bb5a40163/)
 * Tested on: Windows 10, i7-9750H @2.60GHz, RTX 2060 6GB (personal laptop)
+* 2 late days used to implement additional features
 
 #  Project Overview
 
 The goal of this project was to implement a path tracer on the GPU to render images. While computationally expensive, the algorithm's embarassingly parallel nature lends itself well to a GPU implementation, and allows us to create a far more realistic render of a scene than rasterization can by more accuractely simulating light physics.
+<img src="img/bunnyPlus.png">
+
+# What is Path Tracing
+Path tracing is a rendering technique used to create photorealistic scenes. This is accomplished by simulating the light physics of light rays travelling throughout the scene, to create an accurate simulation of what would happen in real life. As light rays travel throughout the scene, they interact with different types of objects made of various materials in the scene that we can customize to have diffuse, reflective, and refractive properties to mimic those of real life materials. We can accumulate these interactions throughout a light ray's lifetime in our simulation to determine how we should shade each pixel in our rendered scene.
+<img src="img/pathTrace.png">
+In the diagram above, you can see this in action as rays of light are cast from the screen (the image plane) and bounce around through the screen to interact with objects in the scene made out of different materials such as chrome and glass. Credit to [Christensen and Jarosz](https://cs.dartmouth.edu/wjarosz/publications/christensen16path.html) for this image.
 
 # Special Features Implemented
-Below is a brief list of the features I implemented as part of my path tracer project.
+Below is a brief list of the additional features I implemented as part of my path tracer project.
 * Refraction with Fresnel effects using Schlick's approximation
 * Physically-based depth-of-field effects by jittering rays within an aperture
 * Stochastic Sampled Antialiasing
@@ -24,20 +31,20 @@ In addition to perfectly specular-reflective and ideal diffuse surfaces, I imple
 <img src="img/refraction.png">
 
 ### Physically-Based Depth-of-Field Effects
-Depth of field is a technique used in photography to focus the image on a certain object and have the rest of the image out of focus. This is generally accomplished with using a wider aperture to create an exposure. This was simulated in this project by defining a lens radius and focal distance for the camera and sending out rays by sampling points around the lens. Below we can see that the reflective red ball is in focus in the foreground, while the diffuse red ball in the background is out of focus.
+Depth of field is a technique used in photography to focus the image on a certain object and have the rest of the image out of focus. This is generally accomplished with using a wider aperture to create an exposure. This was simulated in this project by defining a lens radius and focal distance for the camera and sending out rays by sampling points around the lens. Below we can see that the reflective red ball is in focus in the foreground, while the diffuse red ball in the background is out of focus. The feature is great for scenes where you want to draw the viewers focus towards a certain object.
 <img src="img/depthOfField.png">
 
 ### Anti-Aliasing
-Anti-aliasing is a pixel operation that smooths edges in a geometry. This was accomplished by adding a randomized offset to the ray direction to average out the color with the pixels around it. We have anti-aliasing on the top and no anti-aliasing on the bottom. There's very slight smoothing of edges around the sphere for the anti-aliasing render as well as smoothing of the background wall colors.
+Anti-aliasing is a pixel operation that smooths edges in a geometry. This was accomplished by adding a randomized offset to the ray direction to average out the color with the pixels around it. We have a scene rendered with anti-aliasing on the top and without anti-aliasing on the bottom. There's very slight smoothing of edges around the sphere for the anti-aliasing render as well as smoothing of the background wall colors.
 <img src="img/AAZoom.PNG">
 <img src="img/noAAZoom.PNG">
 
 ### Mesh Loading from OBJ Files
-3D mesh models were rendered in some scenes using tiny_obj_loader to help process OBJ files. Only one mesh can be loaded into the scene at any given time, where the path to the OBJ file containing the mesh data is hardcoded into main.cpp. Once this mesh data is loaded into the scene, we now have to check for each triangle in the mesh whether it intersects our rays. This method leads to many pointless intersection tests, since some rays may not hit any of the triangles at all. To help improve performance, a bounding box was created around the mesh and first testing to see if the ray intersected the bounding box at all before checking all of the triangles.
+3D mesh models were rendered in some scenes using [tiny_obj_loader](https://github.com/tinyobjloader/tinyobjloader) to help process OBJ files. This allowed me to load in models that were more complex than simple geometric models such as spheres and boxes so that I could create more visually interesting scenes. Only one mesh can be loaded into the scene at any given time, where the path to the OBJ file containing the mesh data is hardcoded into main.cpp. Once this mesh data is loaded into the scene, we now have to check for each triangle in the mesh whether it intersects our rays. This method leads to many pointless intersection tests, since some rays may not hit any of the triangles at all. To help improve performance, a bounding box was created around the mesh and first testing to see if the ray intersected the bounding box at all before checking all of the triangles.
 <img src="img/bunny.png">
 <img src="img/cloud.png">
 
-### Hierarchical Spatial Data Structures (Octrees)g
+### Hierarchical Spatial Data Structures (Octrees)
 This is a further performance improvement that builds off of the bounding box idea from the mesh loading section. We essentially define the bounding box of the entire mesh to be the root of an [octree](https://en.wikipedia.org/wiki/Octree) and subdivide it into octants that comprise its children up to a certain tunable depth. Once we hit the leaves of the octree, we have essentially subdivided the entire bounding box into unique mini bounding boxes where we can track which triangles are bounded by this leaf. I kept track of this by creating a buffer of Triangles and maintaining start and end pointers within the Octree nodes for the ranges of Triangles that fell within the bounds of the box. We can then traverse the tree when shooting rays to check a much smaller subset of Triangles to get some performance improvements.
 
 I wasn't able to complete this feature in its entirety, but I've implemented tree construction on the CPU to determine which triangles belong to which nodes, and an iterative check for each leaf's bounding box. I'm not entirely sure why some parts of the mesh are rendered while other aren't, but the general outline of the bunny is still there. I'd imagine there are some edge cases I'm missing that's causing me to ignore some triangles and not consider them in my ray calculations.
@@ -61,4 +68,13 @@ Sorting intersections by materials makes it more likely that the same materials 
 ### Stream Compacting Terminated Rays
 As the rays bounce around the scene, some will terminate before others. This means that they will not contribute any more detail to the image and can thus be removed from consideration. This process is known as stream compaction and will decrease the number of rays we have to consider within each iteration. In the graph below we can see that as the simulation goes on, many paths are culled from consideration, thus decreasing the amount of computation we need to do.
 <img src="img/streamCompaction.png">
+<img src="img/streamCompactionOpen.png">
+Here we can compare the benefits of stream compacting terminated rays for different types of renders. For the "Closed Scene", I used the standard Cornell box that I used to showcase the special feature I implemented, and for the open scene I broke down all the walls and was left with just the light and the floor. We can clearly see that stream compaction is incredibly useful in both cases since many rays terminate before reaching max depth, thus saving us some computation. The open scene however saw even greater benefits since more rays terminated earlier since they bounced out of the scene and no longer had to be considered, while the walls of the closed Cornell box kept rays bouncing around for a longer period of time.
+
+# Bloopers
+"Shredder" - forgetting to update the depth paramater after caching the first bounce
+<img src="img/cacheError.png">
+
+"The Circle of Light" - an issue with how I was setting up some calculated paramters when evaluating refractive materials.
+<img src="img/refractionError.png">
 
