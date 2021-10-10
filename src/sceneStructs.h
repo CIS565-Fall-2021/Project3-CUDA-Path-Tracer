@@ -179,6 +179,6 @@ struct isPathCompleted {
 struct compareIntersections {
   __host__ __device__
     bool operator()(const ShadeableIntersection& a, const ShadeableIntersection& b) {
-    return a.materialId < b.materialId;
+    return a.materialId > b.materialId;
   }
 };

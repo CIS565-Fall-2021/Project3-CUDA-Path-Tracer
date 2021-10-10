@@ -165,7 +165,7 @@ void scatterRay(
     }
     else {
       albedo = sampleTexture(textures[txId], i.uv);
-      // color *= checkerBoard(i.uv);
+      //albedo = checkerBoard(i.uv);
     }
 
     // Get Metallic and Roughness Parameters
@@ -194,6 +194,7 @@ void scatterRay(
       // Specular
       glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, normal);
       newDir = calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR);
+      //newDir = reflect;  //<---- use this for perfect specular
       color = pM * albedo;
     }
     else {

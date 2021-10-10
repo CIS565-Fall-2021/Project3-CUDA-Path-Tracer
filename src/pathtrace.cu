@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cuda.h>
+#include <cuda_runtime.h>
 #include <cmath>
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
@@ -7,6 +8,7 @@
 #include <thrust/sort.h>
 #include <thrust/partition.h>
 #include <vector>
+#include <iostream>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -17,8 +19,10 @@
 #include "intersections.h"
 #include "interactions.h"
 
+#define TIMING 1
 #define ERRORCHECK 1
 #define CACHE_FIRST_BOUNCE 1
+#define RAY_SORTING 1
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
@@ -88,6 +92,12 @@ static std::vector<cudaTextureObject_t> texObjs;
 
 // Mesh Data for the GPU
 static MeshData dev_mesh_data;
+
+
+#if TIMING
+static cudaEvent_t startEvent = NULL;
+static cudaEvent_t endEvent = NULL;
+#endif
 
 
 template <class T>
@@ -167,10 +177,15 @@ void pathtraceInit(Scene *scene) {
     for (int i = 0; i < scene->textures.size(); i++)
       textureInit(scene->textures[i], i);
 
-    if (CACHE_FIRST_BOUNCE) {
-      cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
-      cudaMemset(dev_first_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
-    }
+#if CACHE_FIRST_BOUNCE
+    cudaMalloc(&dev_first_intersections, pixelcount * sizeof(ShadeableIntersection));
+    cudaMemset(dev_first_intersections, 0, pixelcount * sizeof(ShadeableIntersection));
+#endif
+
+#if TIMING
+    cudaEventCreate(&startEvent);
+    cudaEventCreate(&endEvent);
+#endif
 
     checkCUDAError("pathtraceInit");
 }
@@ -190,9 +205,16 @@ void pathtraceFree() {
       cudaFreeArray(dev_texArrays[i]);
     }
 
-    if (CACHE_FIRST_BOUNCE) {
-      cudaFree(dev_first_intersections);
-    }
+#if CACHE_FIRST_BOUNCE
+    cudaFree(dev_first_intersections);
+#endif
+    
+#if TIMING
+    if (startEvent != NULL)
+      cudaEventDestroy(startEvent);
+    if (endEvent != NULL)
+      cudaEventDestroy(endEvent);
+#endif
 
     checkCUDAError("pathtraceFree");
 }
@@ -346,8 +368,6 @@ __global__ void shadeBSDF(
       else {
         scatterRay(pathSegment, intersection, material, textures, rng);
         --pathSegment.remainingBounces;
-        //pathSegment.color *= materialColor;
-        //pathSegment.remainingBounces = 0;
       }
     }
     else {
@@ -484,18 +504,24 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // Shoot ray into scene, bounce between objects, push shading chunks
 
     bool iterationComplete = false;
+    ShadeableIntersection* intersections = NULL;
+
     while (!iterationComplete) {
 
-      // clean shading chunks
-      cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
+
       dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
-      if (CACHE_FIRST_BOUNCE && depth == 0 && iter != 1) {
-        // Copy from the first bounce cache
-        cudaMemcpy(dev_intersections, dev_first_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
-      }
-      else {
-        computeIntersections <<<numblocksPathSegmentTracing, blockSize1d >> > (
+
+#if CACHE_FIRST_BOUNCE
+      if (depth == 0 && iter != 1)
+        intersections = dev_first_intersections;
+#endif
+
+      if (intersections == NULL) {
+        // Clean shading chunks
+        cudaMemset(dev_intersections, 0, num_paths * sizeof(ShadeableIntersection));
+
+        computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
           depth
           , num_paths
           , dev_paths
@@ -507,15 +533,25 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
         checkCUDAError("trace one bounce");
         cudaDeviceSynchronize();
 
-        // Cache the first bounce
-        if (CACHE_FIRST_BOUNCE && depth == 0 && iter == 1)
+#if CACHE_FIRST_BOUNCE
+        // NOTE: Copy before sorting since dev_first_intersections should map to unsorted dev_paths
+        if(depth == 0 && iter == 1)
           cudaMemcpy(dev_first_intersections, dev_intersections, pixelcount * sizeof(ShadeableIntersection), cudaMemcpyDeviceToDevice);
+#endif
+
+#if RAY_SORTING
+        // sort the intersections and rays based on material types
+        thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, compareIntersections());
+#endif
+
+        intersections = dev_intersections;
       }
 
       depth++;
 
-      // sort the intersections and rays based on material types
-      thrust::sort_by_key(thrust::device, dev_intersections, dev_intersections + num_paths, dev_paths, compareIntersections());
+#if TIMING
+      cudaEventRecord(startEvent);
+#endif
 
       // TODO:
       // --- Shading Stage ---
@@ -528,7 +564,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       shadeBSDF <<<numblocksPathSegmentTracing, blockSize1d>>> (
         iter,
         num_paths,
-        dev_intersections,
+        intersections,
         dev_paths,
         dev_materials,
         dev_texObjs
@@ -541,6 +577,21 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       num_paths = dev_path_end - dev_paths;
 
       iterationComplete = num_paths == 0;
+
+      intersections = NULL;
+
+#if TIMING
+      cudaEventRecord(endEvent);
+      cudaEventSynchronize(endEvent);
+      float ms;
+      cudaEventElapsedTime(&ms, startEvent, endEvent);
+      if (depth == 2 && iter % 10 == 0) {
+        std::cout << iter;
+        std::cout << " " << depth;
+        std::cout << " " << ms;
+        std::cout << " " << num_paths << endl;
+      }
+#endif
     }
 
     // Assemble this iteration and apply it to the image

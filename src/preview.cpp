@@ -2,6 +2,8 @@
 #include <ctime>
 #include "main.h"
 #include "preview.h"
+#include <chrono>
+#include <iostream>
 
 GLuint positionLocation = 0;
 GLuint texcoordsLocation = 1;
@@ -168,7 +170,13 @@ bool init() {
     return true;
 }
 
+using time_point_t = std::chrono::high_resolution_clock::time_point;
+
 void mainLoop() {
+  
+    //time_point_t time_start_cpu;
+    //time_point_t time_end_cpu;
+    //time_start_cpu = std::chrono::high_resolution_clock::now();
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         runCuda();
@@ -184,6 +192,11 @@ void mainLoop() {
         // VAO, shader program, and texture already bound
         glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
         glfwSwapBuffers(window);
+
+        //time_end_cpu = std::chrono::high_resolution_clock::now();
+        //std::chrono::duration<double, std::milli> duro = time_end_cpu - time_start_cpu;
+        //float duration = static_cast<float>(duro.count());
+        //std::cout << iteration << " " << duration << endl;
     }
     glfwDestroyWindow(window);
     glfwTerminate();
