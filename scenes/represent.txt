@@ -20,14 +20,16 @@ EMITTANCE   0
 
 // Camera
 CAMERA
-RES         800 800
+RES         1280 720
 FOVY        45
-ITERATIONS  2000
+ITERATIONS  5000
 DEPTH       5
 FILE        cornell
 EYE         0.0 5 10.5
 LOOKAT      0 5 0
 UP          0 1 0
+LENRAD 0.1
+FOCALLEN 5.5
 
 
 // Ceiling light
@@ -35,15 +37,16 @@ OBJECT 0
 cube
 material 0
 TRANS       0 30 0
-ROTAT       0 0 0
+ROTAT       30 0 0
 SCALE       50 .3 50
 
 // Mesh
 OBJECT 1
 mesh
-../scenes/wahoo.obj
+../scenes/robo.obj
 material 1
-TRANS       0 0 0
-ROTAT       -45 30 0
+TRANS       2 -3 2
+ROTAT       0 -45 0
 SCALE       1 1 1
-texture ../scenes/wahoo.bmp
+texture ../scenes/Texture_1K.jpg
+normal ../scenes/LP_BodyNormalsMap_1K.jpg
