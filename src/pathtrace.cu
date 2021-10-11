@@ -193,8 +193,8 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
         }
 
         if (depthOfField) {
-            float lensRadius = 0.5f; // 0.003f
-            float focalDistance = 8.5f;
+            float lensRadius = 0.2f; // 0.003f
+            float focalDistance = 4.f;
             thrust::normal_distribution<float> n01(0, 1);
             float theta = u01(rng) * TWO_PI;
             glm::vec3 circlePerturb = lensRadius * n01(rng) * (cos(theta) * cam.right + sin(theta) * cam.up);
@@ -436,7 +436,7 @@ __global__ void shadeMaterial(
             else {
                 scatterRay(pathSegments[idx], intersection.intersectionPoint, intersection.surfaceNormal, 
                     material, intersection.outside, intersection.t, rng);
-                //pathSegments[idx].color *= u01(rng);
+                pathSegments[idx].color *= 0.75f + u01(rng) / 4;
                 pathSegments[idx].remainingBounces -= 1;
             }
             // If there was no intersection, color the ray black.
@@ -445,7 +445,8 @@ __global__ void shadeMaterial(
             // This can be useful for post-processing and image compositing.
         }
         else {
-            pathSegments[idx].color = glm::vec3(0.0f);
+            //pathSegments[idx].color = glm::vec3(0.3f, 0.28f, 0.2f);
+            pathSegments[idx].color = glm::vec3(0.f);
             pathSegments[idx].remainingBounces = 0;
         }
     }

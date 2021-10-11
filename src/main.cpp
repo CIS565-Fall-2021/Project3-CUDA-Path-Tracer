@@ -45,8 +45,8 @@ std::string warn;
 int main(int argc, char** argv) {
     startTimeString = currentTimeString();
 
-    if (argc < 2) {
-        printf("Usage: %s SCENEFILE.txt\n", argv[0]);
+    if (argc < 3) {
+        printf("Usage: %s SCENEFILE.txt CUSTOMGLTF.gltf\n Try ../scenes/environment.txt ../scenes/Duck.gltf\n", argv[0]);
         return 1;
     }
 
@@ -154,8 +154,10 @@ void runCuda() {
 
         // execute the kernel
         int frame = 0;
+        timer().startGpuTimer();
         pathtrace(pbo_dptr, frame, iteration, sortByMaterial, cacheFirstBounce, stochasticAA, depthOfField, boundingVolumeCulling);
-        //std::cout << "   elapsed time: " << timer().getGpuElapsedTimeForPreviousOperation() << "ms    " << "(CUDA Measured)" << std::endl;
+        timer().endGpuTimer();
+        std::cout << "   elapsed time: " << timer().getGpuElapsedTimeForPreviousOperation() << "ms    " << "(CUDA Measured)" << std::endl;
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);

@@ -37,8 +37,11 @@ Scene::Scene(string filename) {
 
 void Scene::addGltf(tinygltf::Model& model) {
     const tinygltf::Scene& scene = model.scenes[model.defaultScene];
+    glm::vec3 overall_translation = glm::vec3(0.f, 2.f, 7.f);
+    glm::vec3 overall_scale = glm::vec3(1.f, 1.f, 1.f);
+    glm::vec3 overall_rotation = glm::vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < scene.nodes.size(); i++) {
-        loadNode(model, model.nodes[scene.nodes[i]], glm::mat4(1.0f));
+        loadNode(model, model.nodes[scene.nodes[i]], utilityCore::buildTransformationMatrix(overall_translation, overall_rotation, overall_scale));
     }
     for (int i = 0; i < model.materials.size(); i++) {
         tinygltf::Material& material = model.materials[i];
@@ -62,7 +65,7 @@ void Scene::addGltf(tinygltf::Model& model) {
 void Scene::loadNode(tinygltf::Model& model, tinygltf::Node& node, glm::mat4 prev_transform) {
     glm::mat4 transform = glm::mat4(1.f);
     if (node.matrix.size() == 16) {
-        transform = glm::mat4(1.f);// glm::make_mat4(node.matrix.data());
+        transform = glm::make_mat4(node.matrix.data());
     }
     //cout << transform[0][0] << transform[1][1] << transform[2][2] << transform[1][2] << transform[2][1] << transform[3][3] << transform[3][0] << endl;
     if ((node.mesh >= 0) && (node.mesh < model.meshes.size())) {

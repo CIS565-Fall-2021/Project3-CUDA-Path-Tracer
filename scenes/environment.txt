@@ -30,7 +30,7 @@ EMITTANCE   0
 
 // Diffuse green
 MATERIAL 3
-RGB         .35 .85 .35
+RGB         .35 .75 .35
 SPECEX      0
 SPECRGB     0 0 0
 REFL        0
@@ -48,6 +48,45 @@ REFR        1
 REFRIOR     1.52
 EMITTANCE   0
 
+// Specular red
+MATERIAL 5
+RGB         .98 .78 .08
+SPECEX      0
+SPECRGB     .98 .08 .08
+REFL        1
+REFR        1
+REFRIOR     2.0
+EMITTANCE   0
+
+// Specular green
+MATERIAL 6
+RGB         .68 .98 .08
+SPECEX      0
+SPECRGB     .08 .98 .08
+REFL        1
+REFR        1
+REFRIOR     1.2
+EMITTANCE   0
+
+MATERIAL 7
+RGB         1 0.22 0.09
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   5
+
+// mirror
+MATERIAL 8
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     1
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
@@ -55,16 +94,279 @@ FOVY        45
 ITERATIONS  50000
 DEPTH       8
 FILE        environment
-EYE         0.0 5 10.5
-LOOKAT      0 5 0
+EYE         0.0 2 10.5
+LOOKAT      0 3 5
 UP          0 1 0
 
 
 // Ceiling light
 OBJECT 0
-cube
-material 0
-TRANS       0 20 0
+sphere
+material 7
+TRANS       0 40 0
 ROTAT       0 0 0
-SCALE        6 .3 6
+SCALE        50 30 50
 
+// Floor
+OBJECT 1
+cube
+material 3
+TRANS       0 -0.5 0
+ROTAT       0 0 0
+SCALE       100 .01 100
+
+// Sphere
+OBJECT 2
+sphere
+material 4
+TRANS       -2 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 3
+sphere
+material 4
+TRANS       2 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 4
+sphere
+material 4
+TRANS       2 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 5
+sphere
+material 4
+TRANS       0 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 6
+sphere
+material 8
+TRANS       0 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 7
+sphere
+material 4
+TRANS       0 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 8
+sphere
+material 4
+TRANS       0 1 8
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 9
+sphere
+material 4
+TRANS       -2 1 8
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 10
+sphere
+material 4
+TRANS       2 1 8
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 11
+sphere
+material 4
+TRANS       2 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 12
+sphere
+material 4
+TRANS       -2 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 13
+sphere
+material 4
+TRANS       -2 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 14
+sphere
+material 4
+TRANS       0 1 6
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 15
+sphere
+material 4
+TRANS       -2 1 6
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 16
+sphere
+material 8
+TRANS       2 1 6
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 17
+sphere
+material 4
+TRANS       -4 1 6
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 18
+sphere
+material 4
+TRANS       4 1 6
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 19
+sphere
+material 8
+TRANS       -4 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 20
+sphere
+material 4
+TRANS       4 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 21
+sphere
+material 4
+TRANS       -6 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 22
+sphere
+material 4
+TRANS       6 1 4
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 23
+sphere
+material 4
+TRANS       -4 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 24
+sphere
+material 4
+TRANS       4 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 25
+sphere
+material 4
+TRANS       -6 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 26
+sphere
+material 4
+TRANS       6 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 27
+sphere
+material 4
+TRANS       -4 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 28
+sphere
+material 4
+TRANS       4 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 29
+sphere
+material 8
+TRANS       -6 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 30
+sphere
+material 4
+TRANS       6 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 31
+sphere
+material 4
+TRANS       -8 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 32
+sphere
+material 4
+TRANS       8 1 0
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Back wall
+OBJECT 33
+cube
+material 8
+TRANS       0 5 -1
+ROTAT       0 0 0
+SCALE       100 100 0.1
