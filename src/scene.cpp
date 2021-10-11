@@ -52,6 +52,11 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+            else if (strcmp(line.c_str(), "obj") == 0) {
+
+                cout << "Creating new obj..." << endl;
+                newGeom.type = OBJ;
+            }
         }
 
         //link material
@@ -160,7 +165,7 @@ int Scene::loadMaterial(string materialid) {
         Material newMaterial;
 
         //load static properties
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 10; i++) {
             string line;
             utilityCore::safeGetline(fp_in, line);
             vector<string> tokens = utilityCore::tokenizeString(line);
@@ -180,6 +185,14 @@ int Scene::loadMaterial(string materialid) {
                 newMaterial.indexOfRefraction = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 newMaterial.emittance = atof(tokens[1].c_str());
+            }else if (strcmp(tokens[0].c_str(), "usingProcTex") == 0) {
+                newMaterial.usingProcTex = atof(tokens[1].c_str());
+            }
+            else if (strcmp(tokens[0].c_str(), "isSubSurface") == 0) {
+                newMaterial.isSubSurface = atof(tokens[1].c_str());
+            }
+            else if (strcmp(tokens[0].c_str(), "ProcTexNum") == 0) {
+                newMaterial.ProcTexNum = atof(tokens[1].c_str());
             }
         }
         materials.push_back(newMaterial);
