@@ -47,9 +47,9 @@ SCALE       3 .3 3
 
 // mesh
 OBJECT 1
-../obj/dodecahedron.obj
+../obj/cow.obj
 material 0
-FILENAME ../obj/dodecahedron.obj
+FILENAME ../obj/cow.obj
 //FILENAME ../obj/cube.obj
 TRANS 0 0 0
 ROTAT 0 0 0
