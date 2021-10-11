@@ -41,6 +41,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -76,4 +77,106 @@ void scatterRay(
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+
+    if (m.hasReflective == 0.0f && m.hasRefractive == 0.0f) {
+        glm::vec3 rayDirection = calculateRandomDirectionInHemisphere(normal, rng);
+        float nDotr = glm::abs(glm::dot(normal, rayDirection));
+        float pdf = nDotr / PI;
+
+        glm::vec3 f = m.color / PI;
+        if (pdf == 0.f) {
+            pathSegment.remainingBounces = 0;
+            pathSegment.color = glm::vec3(0.0f, 0.0f, 0.0f);
+        }
+        else {
+            pathSegment.color *= (f * nDotr / pdf);
+            pathSegment.remainingBounces--;
+            pathSegment.ray.direction = rayDirection;
+            pathSegment.ray.origin = intersect + normal * 0.0001f;
+        }
+
+        return;
+    }
+    if(m.hasReflective == 1.0f && m.hasRefractive == 0.0f){
+        glm::vec3 rayDirection = glm::reflect(pathSegment.ray.direction, normal);
+        pathSegment.color *= m.specular.color;
+        pathSegment.remainingBounces--;
+        pathSegment.ray.direction = rayDirection;
+        pathSegment.ray.origin = intersect + normal * 0.0001f;
+
+        return;
+
+    }
+
+    if (m.hasReflective == 1.0f && m.hasRefractive == 1.0f) {
+
+        
+        
+        glm::vec3 refractNormal = normal;
+        float niOvernt;
+
+
+        if (glm::dot(pathSegment.ray.direction, normal) > 0.f) {
+            refractNormal = -1.f * normal;
+            niOvernt = m.indexOfRefraction;
+        }
+        else {
+            niOvernt = 1.f / m.indexOfRefraction;
+            refractNormal = normal;
+
+        }
+
+        float cosine = glm::dot(pathSegment.ray.direction, refractNormal);
+        float discriminant = 1.0f - niOvernt * niOvernt * (1.0f - cosine * cosine);
+        
+
+        if (discriminant > 0) {
+
+            float r0 = (1.0f - niOvernt) / (1.0f + niOvernt);
+            r0 = r0 * r0;
+            float reflectProb = r0 + (1.0f - r0) * powf(1.0f - fmax(0.f, cosine), 5.0f);
+            thrust::uniform_real_distribution<float> u01(0, 1);
+            float random = u01(rng);
+            if ( random > reflectProb /1.5f) {
+
+                glm::vec3 rayDirection = glm::reflect(pathSegment.ray.direction, refractNormal);
+                pathSegment.color *= m.specular.color;
+                pathSegment.remainingBounces--;
+                pathSegment.ray.direction = rayDirection;
+                pathSegment.ray.origin = intersect + refractNormal * 0.01f;
+
+                return;
+            }
+            else {
+                glm::vec3 refractedDir = glm::refract(pathSegment.ray.direction, refractNormal, niOvernt);
+                pathSegment.ray.direction = glm::normalize(refractedDir);
+                pathSegment.remainingBounces--;
+
+                pathSegment.color *= m.specular.color;
+                pathSegment.ray.origin = intersect + refractedDir * 0.01f;
+                return;
+
+            }
+        }
+        else {
+            glm::vec3 rayDirection = glm::reflect(pathSegment.ray.direction, refractNormal);
+            pathSegment.ray.direction = rayDirection;
+            pathSegment.ray.origin = intersect + refractNormal * 0.01f;
+            pathSegment.color = glm::vec3(0.f);
+            pathSegment.remainingBounces--;
+
+            return;
+        }
+        
+    }
+
+    
+    
 }
+
+struct isTerminated {
+    __host__ __device__ bool operator()(const PathSegment& pathSegment) {
+        return pathSegment.remainingBounces > 0;
+    }
+};

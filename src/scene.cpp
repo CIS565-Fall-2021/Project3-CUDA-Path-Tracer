@@ -3,6 +3,8 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -52,6 +54,16 @@ int Scene::loadGeom(string objectid) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
             }
+            else if (strcmp(line.c_str(), "mesh") == 0) {
+                cout << "Creating new mesh..." << endl;
+                newGeom.type = MESH;
+                
+                utilityCore::safeGetline(fp_in, line);
+                if (!line.empty() && fp_in.good()) {
+                    loadMesh(line, newGeom);
+                    computeBounding(newGeom);
+                }
+            }
         }
 
         //link material
@@ -88,6 +100,107 @@ int Scene::loadGeom(string objectid) {
         return 1;
     }
 }
+
+/*
+    tinyobj example code 
+
+
+*/
+int Scene::loadMesh(string filename, Geom& newGeom) {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    std::string warn;
+    std::string err;
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
+        filename.c_str());
+
+    if (!warn.empty()) {
+        std::cout << "WARN: " << warn << std::endl;
+    }
+
+    if (!err.empty()) {
+        std::cerr << "ERR: " << err << std::endl;
+    }
+
+    if (!ret) {
+        printf("Failed to load/parse .obj.\n");
+        return -1;
+    }
+
+    newGeom.triStart = tris.size();
+    
+    // Loop over shapes
+    for (size_t s = 0; s < shapes.size(); s++) {
+        // Loop over faces(polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+            Triangle tri;
+            // Loop over vertices in the face.
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+
+                tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+                // Check if `normal_index` is zero or positive. negative = no normal data
+                
+                tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+                tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+                tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+               
+
+                glm::vec3 verts(vx, vy, vz);
+                glm::vec3 normals(nx, ny, nz);
+
+                tri.verts[v] = verts;
+                tri.normals[v] = normals;
+
+            }
+            tris.push_back(tri);
+
+            index_offset += fv;
+
+        }
+    }
+
+    newGeom.triEnd = tris.size() - 1;
+
+    return 1;
+
+
+}
+
+int Scene::computeBounding(Geom& mesh) {
+    int start = mesh.triStart;
+    int end = mesh.triEnd;
+    glm::vec3 min(FLT_MAX, FLT_MAX, FLT_MAX);
+    glm::vec3 max(FLT_MIN, FLT_MIN, FLT_MIN);
+    for (int idx = start; idx <= end; idx++) {
+        Triangle currTri = tris[idx];
+
+        for (int i = 0; i <= 2; i++) {
+            min.x = currTri.verts[i].x <= min.x ? currTri.verts[i].x : min.x;
+            min.y = currTri.verts[i].y <= min.y ? currTri.verts[i].y : min.y;
+            min.z = currTri.verts[i].z <= min.z ? currTri.verts[i].z : min.z;
+
+            max.x = currTri.verts[i].x >= max.x ? currTri.verts[i].x : max.x;
+            max.y = currTri.verts[i].y >= max.y ? currTri.verts[i].y : max.y;
+            max.z = currTri.verts[i].z >= max.z ? currTri.verts[i].z : max.z;
+
+        }
+    }
+
+    mesh.boundMin = min;
+    mesh.boundMax = max;
+
+    return 1;
+}
+
 
 int Scene::loadCamera() {
     cout << "Loading Camera ..." << endl;

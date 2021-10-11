@@ -48,6 +48,27 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+
+// glass white
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      1
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR     3
+EMITTANCE   0
+
+// Diffuse blue
+MATERIAL 6
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
@@ -116,12 +137,20 @@ TRANS       0 5 5
 ROTAT       0 90 0
 SCALE       .01 10 10
 
-
-// TEAPOT
+// glass ball
 OBJECT 7
-mesh
-../mesh/teapot_s1.obj
-material 4
-TRANS       0 0  0
+sphere
+material 5
+TRANS       1 5  2
 ROTAT       0 0 0
-SCALE       15 15 15
+SCALE       3 3 3
+
+
+//TEAPOT
+OBJECT 8
+box
+../mesh/teapot.obj
+material 6
+TRANS       1 3  -3
+ROTAT       0 0 0
+SCALE       2 2 2

@@ -5,6 +5,7 @@
 
 #include "sceneStructs.h"
 #include "utilities.h"
+#include "scene.h"
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -84,6 +85,7 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
         }
         intersectionPoint = multiplyMV(box.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
         normal = glm::normalize(multiplyMV(box.invTranspose, glm::vec4(tmin_n, 0.0f)));
+        float result = glm::length(r.origin - intersectionPoint);
         return glm::length(r.origin - intersectionPoint);
     }
     return -1;
@@ -141,4 +143,87 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r, Triangle* tris,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+
+    glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    Ray rt;
+    rt.origin = ro;
+    rt.direction = rd;
+
+#if BOUNDINGBOX == 1
+
+    //https://tavianator.com/2011/ray_box.html
+    float invX = 1.0f / rt.direction.x;
+    float invY = 1.0f / rt.direction.y;
+    float invZ = 1.0f / rt.direction.z;
+    
+    float tx1 = (mesh.boundMin.x - rt.origin.x) * invX;
+    float tx2 = (mesh.boundMax.x - rt.origin.x) * invX;
+
+    float tmin = min(tx1, tx2);
+    float tmax = max(tx1, tx2);
+
+    float ty1 = (mesh.boundMin.y - rt.origin.y) * invY;
+    float ty2 = (mesh.boundMax.y - rt.origin.y) * invY;
+
+    tmin = max(tmin, min(ty1, ty2));
+    tmax = min(tmax, max(ty1, ty2));
+
+    float tz1 = (mesh.boundMin.z - rt.origin.z) * invZ;
+    float tz2 = (mesh.boundMax.z - rt.origin.z) * invZ;
+
+    tmin = max(tmin, min(tz1, tz2));
+    tmax = min(tmax, max(tz1, tz2));
+
+    if (tmax < 0 || tmax < tmin) {
+        return -1.0f;
+    }
+#endif
+
+    float mint = FLT_MAX;
+    int minIndex = -1;
+    glm::vec3 minBaricenter;
+    for (int i = mesh.triStart; i <= mesh.triEnd; i++) {
+        Triangle tri = tris[i];
+        glm::vec3 bariCenter;
+
+        if (glm::intersectRayTriangle(ro, rd, tri.verts[0], tri.verts[1], tri.verts[2], bariCenter)) {
+            float currt = bariCenter.z;
+
+
+            if (currt > 0 && currt < mint) {
+                mint = currt;
+                minIndex = i;
+                minBaricenter = bariCenter;
+            }
+        }
+    }
+
+    if (minIndex == -1) {
+        return -1;
+    }
+
+
+    glm::vec3 modelIntersectPoint = getPointOnRay(rt, mint);
+
+    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(modelIntersectPoint, 1.0f));
+
+    /*glm::vec3 modelNormal = minBaricenter[0] * tris[minIndex].normals[0] + minBaricenter[1] * tris[minIndex].normals[1]
+        + (1.0f - minBaricenter[0] - minBaricenter[1]) * tris[minIndex].normals[2];*/
+    //glm::vec3 modelNormal = glm::normalize(glm::cross(tris[minIndex].verts[1] - tris[minIndex].verts[0], tris[minIndex].verts[2] - tris[minIndex].verts[0]));
+    glm::vec3 modelNormal = glm::normalize(glm::cross(tris[minIndex].verts[2] - tris[minIndex].verts[0], tris[minIndex].verts[1] - tris[minIndex].verts[0]));
+    normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(modelNormal, 0.0f)));
+
+    outside = glm::dot(normal, rt.direction) < 0;
+
+    return mint;
+
+
+
 }
