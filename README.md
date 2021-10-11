@@ -69,9 +69,14 @@ In order to smoothen the triangles on round meshes, the intersection normal is c
 ### Procedural Structures
 I have used L System grammar which generates complex patterns for procedural data. An L-system consists of an alphabet of symbols that can be used to make strings, It consist of an axiom: initial configuration, a collection of production rules that expand each symbol into some larger string of symbols and a mechanism for translating the generated strings into geometric structures.
 
+![Performance  Analysis](img/ProceduralShapes/1.png)
+
+![Performance  Analysis](img/ProceduralShapes/tree.png)
+
 ### Procedural Textures
 I have used a simple sinusoidal and cosine functions as well combination of different noise functions like Perlin, FBM and Worley to generate procedural textures. A spherical bi linear function which transforms positional coordinates to UV coordinates is used in turn with noise functions to apply these textures accross wide variety of mesh data. 
 
+![Performance  Analysis](img/ProceduralTextures/1.png)
 
 # Performance Analysis
 
