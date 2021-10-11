@@ -74,8 +74,8 @@ FOVY        45
 ITERATIONS  5000
 DEPTH       8
 FILE        cornell
-EYE         0 1 10.5
-LOOKAT      0 5 0
+EYE         0 6 10.5
+LOOKAT      0 4 0
 UP          0 1 0
 
 
@@ -83,7 +83,7 @@ UP          0 1 0
 OBJECT 0
 sphere
 material 0
-TRANS       -7 10 -5
+TRANS       -8 14 -5
 ROTAT       -30 0 0
 SCALE       3 3 3
 
@@ -108,17 +108,8 @@ SCALE       100 100 100
 // excalibur
 GLTF 0
 material 0
-TRANS       0 0 2
-ROTAT       0 35 0
-SCALE       1 1 1
-../scenes/fate2/
-scene.gltf
-
-// stone
-GLTF 1
-material 0
-TRANS       0 0 0.5
-ROTAT       90 0 0
-SCALE       0.005 0.005 0.005
-../scenes/stone/
+TRANS       0 3 0
+ROTAT       0 0 0
+SCALE       0.05 0.05 0.05
+../scenes/torii/
 scene.gltf
