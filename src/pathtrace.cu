@@ -22,10 +22,10 @@
 #define ANTI_ALIASING 0
 #define CACHE_BOUNCE 0
 #define SORT_MATERIALS 0
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
 
 #define LENS_RADIUS 0.07
-#define FOCAL_DISTANCE 13
+#define FOCAL_DISTANCE 5
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define checkCUDAError(msg) checkCUDAErrorFn(msg, FILENAME, __LINE__)
