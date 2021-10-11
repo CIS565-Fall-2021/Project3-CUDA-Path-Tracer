@@ -112,7 +112,7 @@ I used 3 arbitrary mesh examples to analyze the peformance benefits of enabling 
 | 12 | 19998 | 50000  |
 
 
-![Performance  Analysis](img/VolumeIntersectionCulling.PNG)
+![Performance  Analysis](img/VolumeIntersectionCulling.png)
 
 Using volume intersection culling for simpler arbitrary meshes with low triangle count such as cube doesn't provide a significant performance improvement. However as the triangle count increases we can see significant improvement which can be attributed to number of triangles to check if bounding volume is hit. Each ray only performs 7 intersection check with 7 sided polygon volume heirarchy as compared to 50000 intersection checks with triangles for XYZ dragon. With BVH we save about 7 seconds in just 10 iterations.
 
