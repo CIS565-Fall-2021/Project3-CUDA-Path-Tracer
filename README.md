@@ -53,10 +53,10 @@ The scene camera can be set to enable Depth of Field effect which utilises focal
 Utilizing anti-aliasing for subpixel sampling brings in smoother geometry edges within the render. It is vital to note that anti-aliasing and first bounce cache don't work together, since the pixel tests will vary per iteration, and ached first bounces from the first iteration won't match the generated ray direction in further iterations. I added the flag for Cache Bounce which toggles off anti-aliasing and setting cache off in turn enables anti-aliasing,
 
 - **With Anti-Aliasing**
-	- ![Performance  Analysis](img/AntiAliasing/aa.png)
+	 ![Performance  Analysis](img/AntiAliasing/aa.png)
 	
-- **Without Anti-Aliasing****
-	- ![Performance  Analysis](img/AntiAliasing/waa.png)
+- **Without Anti-Aliasing**
+	 ![Performance  Analysis](img/AntiAliasing/waa.png)
 
 ### OBJ Loading
 In order to bring the mesh data into C++, I used the tinyobj library. I build the polygon mesh using the position and normal data of the triangles triangles  from the imported data to create the mesh triangles and store triangle information per arbitrary mesh.
@@ -81,7 +81,7 @@ I have used L System grammar which generates complex patterns for procedural dat
 ### Procedural Textures
 I have used a simple sinusoidal and cosine functions as well combination of different noise functions like Perlin, FBM and Worley to generate procedural textures. A spherical bi linear function which transforms positional coordinates to UV coordinates is used in turn with noise functions to apply these textures accross wide variety of mesh data. 
 
-![Performance  Analysis](img/ProceduralTextures/1.png)
+![Performance  Analysis](img/ProceduralTexture/1.png)
 
 # Performance Analysis
 
@@ -90,6 +90,8 @@ I have used a simple sinusoidal and cosine functions as well combination of diff
 ### Stream Compaction 
 
 Stream compaction generally progress the execution by terminating the rays in case they are futile. Less threads  will be made and the execution quickened. The first-bounce cache moreover moves forward 13% execution by caching the primary crossing point of the beam. In expansion, the work puts the active rays closer together in memory, which ought to make getting to faster global memory access rates since they gets to will be continguous, rather than random. Underneath Values of remaining rays in Open and Closed Cornell Box shown in the chart.
+
+![Performance  Analysis](img/Compaction.png)
 
 ### Material Sorting
 In my case the material sorting slows down the execution time of program. I believe this can be attributed to less number of materials in my scene to begin with. The method in theory would sort the rays with similar material object intersections closer as they will have about the same lifetime. Since the scene doesn't have many materials the probablity of rays with same material behaviour being contiguous in memory is already high and sorting them only adds an overhead in this case. If the scene has a large number of materials then i believe the execution times will increase with Material Sorting.    
@@ -108,6 +110,9 @@ I used 3 arbitrary mesh examples to analyze the peformance benefits of enabling 
 | Cube  | Lucy  | XYZ Dragon  | 
 |---|---|---|
 | 12 | 19998 | 50000  |
+
+
+![Performance  Analysis](img/Volume Intersection Culling.png)
 
 Using volume intersection culling for simpler arbitrary meshes with low triangle count such as cube doesn't provide a significant performance improvement. However as the triangle count increases we can see significant improvement which can be attributed to number of triangles to check if bounding volume is hit. Each ray only performs 7 intersection check with 7 sided polygon volume heirarchy as compared to 50000 intersection checks with triangles for XYZ dragon. With BVH we save about 7 seconds in just 10 iterations.
 
