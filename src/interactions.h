@@ -1,6 +1,7 @@
 #pragma once
 
 #include "intersections.h"
+#include <math.h>
 
 // CHECKITOUT
 /**
@@ -71,9 +72,51 @@ void scatterRay(
         PathSegment & pathSegment,
         glm::vec3 intersect,
         glm::vec3 normal,
-        const Material &m,
+        const Material &m, bool outside, float t,
         thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    thrust::uniform_real_distribution<float> u01(0, 1); // For non perfect reflection and diffusion
+    if (m.hasReflective > 0.99f && m.hasRefractive > 0.99f) {
+        float n1 = outside ? 1.f : m.indexOfRefraction;
+        float n2 = outside ? m.indexOfRefraction : 1.f;
+        float r = pow((n1 - n2) / (n1 + n2), 2.0f);
+        float reflectance = r + (1.f - r) * pow(1.f + glm::dot(normal, pathSegment.ray.direction), 5.0f); // + cos instead of - because ray direction is flipped
+        if (u01(rng) < reflectance) {
+            pathSegment.ray.origin = intersect;
+            pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+            pathSegment.color *= m.specular.color;
+        }
+        else {            
+            glm::vec3 refracted = glm::refract(pathSegment.ray.direction, normal, n1 / n2);
+            if (glm::length(refracted) < 0.01f) {
+                pathSegment.ray.origin = intersect;
+                pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+                pathSegment.color *= m.specular.color;
+            }
+            else {
+                if (outside) {
+                    pathSegment.ray.origin = getPointOnRayFurther(pathSegment.ray, t);
+                }
+                else {
+                    pathSegment.ray.origin = intersect;
+                }
+                pathSegment.ray.direction = refracted;
+                pathSegment.color *= m.color;
+            }
+            
+        }
+    } 
+    else if (u01(rng) < m.hasReflective / (m.hasReflective + m.diffusion + 0.0001f)) { // The epsilon is used to deal with division by zero
+        pathSegment.ray.origin = intersect;
+        pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
+        float probability = m.hasReflective / (m.hasReflective + m.diffusion + 0.0001f);
+        pathSegment.color *= m.specular.color;
+    }
+    else {
+        pathSegment.ray.origin = intersect;
+        pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+        pathSegment.color *= m.color;
+    }
 }

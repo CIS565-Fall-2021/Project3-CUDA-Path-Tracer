@@ -25,7 +25,11 @@ __host__ __device__ inline unsigned int utilhash(unsigned int a) {
  * Falls slightly short so that it doesn't intersect the object it's hitting.
  */
 __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
-    return r.origin + (t - .0001f) * glm::normalize(r.direction);
+    return r.origin + (t - .0004f) * glm::normalize(r.direction);
+}
+
+__host__ __device__ glm::vec3 getPointOnRayFurther(Ray r, float t) {
+    return r.origin + (t + .0004f) * glm::normalize(r.direction);
 }
 
 /**
@@ -141,4 +145,9 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+
+__host__ __device__ float triangleIntersectionTest(Mesh& mesh, Ray& ray, glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+    return 0.f;
 }

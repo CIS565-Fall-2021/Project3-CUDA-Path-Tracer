@@ -34,9 +34,10 @@ struct Material {
         float exponent;
         glm::vec3 color;
     } specular;
-    float hasReflective;
-    float hasRefractive;
-    float indexOfRefraction;
+    float diffusion = 0.f;
+    float hasReflective = 0.f;
+    float hasRefractive = 0.f;
+    float indexOfRefraction = 1.f;
     float emittance;
 };
 
@@ -72,5 +73,34 @@ struct PathSegment {
 struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
+  glm::vec3 intersectionPoint;
   int materialId;
+  bool outside;
+};
+
+struct SICmp {
+    __host__ __device__ bool operator()(const ShadeableIntersection& p1, const ShadeableIntersection& p2) {
+        return p1.materialId < p2.materialId;
+    }
+};
+
+struct Triangle {
+    glm::vec3 vertex1;
+    glm::vec3 vertex2;
+    glm::vec3 vertex3;
+    glm::vec3 normal;
+};
+
+struct Mesh {
+    int materialid;
+    int indexStart;
+    int indexEnd;
+    glm::vec3 maxXYZ = glm::vec3(-1e38f, -1e38f, -1e38f);
+    glm::vec3 minXYZ = glm::vec3(1e38f, 1e38f, 1e38f);
+    glm::vec3 translation;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+    glm::mat4 transform;
+    glm::mat4 inverseTransform;
+    glm::mat4 invTranspose;
 };

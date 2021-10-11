@@ -3,6 +3,9 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -28,6 +31,106 @@ Scene::Scene(string filename) {
                 loadCamera();
                 cout << " " << endl;
             }
+        }
+    }
+}
+
+void Scene::addGltf(tinygltf::Model& model) {
+    const tinygltf::Scene& scene = model.scenes[model.defaultScene];
+    glm::vec3 overall_translation = glm::vec3(0.f, 2.f, 7.f);
+    glm::vec3 overall_scale = glm::vec3(1.f, 1.f, 1.f);
+    glm::vec3 overall_rotation = glm::vec3(0.f, 0.f, 0.f);
+    for (int i = 0; i < scene.nodes.size(); i++) {
+        loadNode(model, model.nodes[scene.nodes[i]], utilityCore::buildTransformationMatrix(overall_translation, overall_rotation, overall_scale));
+    }
+    for (int i = 0; i < model.materials.size(); i++) {
+        tinygltf::Material& material = model.materials[i];
+        Material newMaterial;
+        glm::vec3 light = glm::vec3(material.emissiveFactor[0], material.emissiveFactor[1], material.emissiveFactor[2]);
+        if (glm::length(light) > 0.01f) {
+            newMaterial.color = light;
+            newMaterial.emittance = glm::length(light);
+        }
+        else {
+            newMaterial.color = glm::vec3(material.pbrMetallicRoughness.baseColorFactor[0],
+                material.pbrMetallicRoughness.baseColorFactor[1], material.pbrMetallicRoughness.baseColorFactor[2]);
+            newMaterial.diffusion = material.pbrMetallicRoughness.roughnessFactor;
+            newMaterial.hasReflective = material.pbrMetallicRoughness.metallicFactor;
+        }
+
+        materials.push_back(newMaterial);
+    }
+}
+
+void Scene::loadNode(tinygltf::Model& model, tinygltf::Node& node, glm::mat4 prev_transform) {
+    glm::mat4 transform = glm::mat4(1.f);
+    if (node.matrix.size() == 16) {
+        transform = glm::make_mat4(node.matrix.data());
+    }
+    //cout << transform[0][0] << transform[1][1] << transform[2][2] << transform[1][2] << transform[2][1] << transform[3][3] << transform[3][0] << endl;
+    if ((node.mesh >= 0) && (node.mesh < model.meshes.size())) {
+        loadMesh(model, model.meshes[node.mesh], prev_transform * transform);
+    }
+
+    for (size_t i = 0; i < node.children.size(); i++) {
+        assert((node.children[i] >= 0) && (node.children[i] < model.nodes.size()));
+        loadNode(model, model.nodes[node.children[i]], prev_transform * transform);
+    }
+}
+
+void Scene::loadMesh(tinygltf::Model& model, tinygltf::Mesh& mesh, glm::mat4& transform) {
+    
+    //int triangleCount = 0;
+    for (size_t i = 0; i < mesh.primitives.size(); ++i) {
+        Mesh newMesh;
+        const tinygltf::Primitive& primitive = mesh.primitives[i];
+        const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
+        newMesh.indexStart = triangleCount;
+        newMesh.indexEnd = triangleCount + indexAccessor.count / 3;
+        triangleCount = newMesh.indexEnd;
+        newMesh.materialid = primitive.material + materials.size();
+        newMesh.transform = transform;
+        newMesh.inverseTransform = glm::inverse(transform);
+        newMesh.invTranspose = glm::inverseTranspose(transform);
+        const tinygltf::BufferView& bufferview = model.bufferViews[indexAccessor.bufferView];
+        const tinygltf::Buffer& buffer = model.buffers[bufferview.buffer]; 
+        const short* indices = reinterpret_cast<const short*>(&buffer.data[bufferview.byteOffset + indexAccessor.byteOffset]);
+        const float* positions = NULL;
+        const float* normals = NULL;
+        for (auto& attrib : primitive.attributes) {
+            const tinygltf::Accessor accessor = model.accessors[attrib.second];
+            if (attrib.first.compare("POSITION") == 0) {
+                const tinygltf::BufferView& positionBufferView = model.bufferViews[accessor.bufferView];
+                const tinygltf::Buffer& positionBuffer = model.buffers[positionBufferView.buffer];
+                positions = reinterpret_cast<const float*>(&positionBuffer.data[positionBufferView.byteOffset + accessor.byteOffset]);
+                newMesh.maxXYZ = glm::vec3(accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2]);
+                newMesh.minXYZ = glm::vec3(accessor.minValues[0], accessor.minValues[1], accessor.minValues[2]);
+            }
+            if (attrib.first.compare("NORMAL") == 0) {
+                const tinygltf::BufferView& normalBufferView = model.bufferViews[accessor.bufferView];
+                const tinygltf::Buffer& normalBuffer = model.buffers[normalBufferView.buffer];
+                normals = reinterpret_cast<const float*>(&normalBuffer.data[normalBufferView.byteOffset + accessor.byteOffset]);
+            }
+        }
+        meshes.push_back(newMesh);
+        for (size_t j = 0; j < indexAccessor.count / 3; j++) {
+            Triangle newTriangle;
+            short  v1 = indices[3 * j];
+            short  v2 = indices[3 * j + 1];
+            short  v3 = indices[3 * j + 2];
+            if (positions != NULL) {
+                newTriangle.vertex1 = glm::vec3(positions[3 * v1], positions[3 * v1 + 1], positions[3 * v1 + 2]);
+                newTriangle.vertex2 = glm::vec3(positions[3 * v2], positions[3 * v2 + 1], positions[3 * v2 + 2]);
+                newTriangle.vertex3 = glm::vec3(positions[3 * v3], positions[3 * v3 + 1], positions[3 * v3 + 2]);
+            }
+
+            if (normals != NULL) {
+                newTriangle.normal = glm::vec3(normals[3 * v1], normals[3 * v1 + 1], normals[3 * v1 + 2]);
+                newTriangle.normal += glm::vec3(normals[3 * v2], normals[3 * v2 + 1], normals[3 * v2 + 2]);
+                newTriangle.normal += glm::vec3(normals[3 * v3], normals[3 * v3 + 1], normals[3 * v3 + 2]);
+                newTriangle.normal /= 3;
+            }
+            triangles.push_back(newTriangle);
         }
     }
 }
