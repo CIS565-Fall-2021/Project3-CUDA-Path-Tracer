@@ -31,12 +31,16 @@ Path tracing is a computer graphics Monte Carlo method of rendering images of th
 
 ### Materials
 Material shading is split into different BSDF evaluation functions based on material type. This project supported materials include **diffuse**, **reflective** and **refractive** (fresnel dielectric). Diffuse material scattering is computed by using cosine-weighted samples within a hemisphere. Reflective materials reflect the light ray about the surface nornmal and refractive materials refracts the ray through the material according to Snell's law of refraction and with added fresnel computation for better real life depiction. 
-Here's an image sonsisting of tbove three materials.
+Here's an image consisting of the three materials with **diffuse** on the left, **refractive** in middle and **reflective** on the right.
 
 
 ![Performance  Analysis](img/Basic/Material.png)
 
 Below, a compound reflective and refractive impact is executed through a Fresnel fabric, which reflects light beams that are more digression to its surface. This makes a light rays passing through the object refracted, whereas rays brushing the sides of the fabric are reflected. Rather than specifically calculating the Fresnel component, I assess it utilizing Schlick's guess.
+Here's an image consisting of the three refractive materials.
+- Left: Refractive index: 1.2
+- Middle:  Refractive index: 2.5 
+- Right : Probabilistic Reflective and Refractive Material: Refractive index: 1.2
 
 ![Performance  Analysis](img/Basic/Refractive.png)
 
