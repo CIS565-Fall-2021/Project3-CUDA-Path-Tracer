@@ -44,7 +44,7 @@ Below, a compound reflective and refractive impact is executed through a Fresnel
 The scene camera can be set to enable Depth of Field effect which utilises focal distance and lens radius parameters to change the depth of this effect. Geometries located at the focal distance within the lens radius stay in focus while other geometry around the scene will be distorted.
 
 - **Focal Distance: 10**
-	- ![Performance  Analysis](img/DOF/focall0.png)
+	- ![Performance  Analysis](img/DOF/focal10.png)
 	
 - **Focal Distance: 20**
 	- ![Performance  Analysis](img/DOF/focal20.png)
