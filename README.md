@@ -52,6 +52,11 @@ The scene camera can be set to enable Depth of Field effect which utilises focal
 ### Stochastic Anti-Aliasing
 Utilizing anti-aliasing for subpixel sampling brings in smoother geometry edges within the render. It is vital to note that anti-aliasing and first bounce cache don't work together, since the pixel tests will vary per iteration, and ached first bounces from the first iteration won't match the generated ray direction in further iterations. I added the flag for Cache Bounce which toggles off anti-aliasing and setting cache off in turn enables anti-aliasing,
 
+- **With Anti-Aliasing**
+	- ![Performance  Analysis](img/AntiAliasing/aa.png)
+	
+- **Without Anti-Aliasing****
+	- ![Performance  Analysis](img/AntiAliasing/waa.png)
 
 ### OBJ Loading
 In order to bring the mesh data into C++, I used the tinyobj library. I build the polygon mesh using the position and normal data of the triangles triangles  from the imported data to create the mesh triangles and store triangle information per arbitrary mesh.
