@@ -11,7 +11,10 @@ CUDA Path Tracer
 
 ## Reverse Light Ray Bouncy Thing
 
-< this is where the good rendered images will go >
+| | | 
+| ----------- | -----------| 
+| ![](img/header1.png)      | ![](img/header2.png)   |
+| | |
 
 This project represents the concept of a _path tracer_ along with various improvements 
 to demonstrate viable use cases for this type of software. A path tracer conceptually 
