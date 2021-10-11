@@ -142,3 +142,141 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+/**
+ * Test intersection between a ray and a transformed mesh.
+ *
+ * @param intersectionPoint  Output parameter for point of intersection.
+ * @param normal             Output parameter for surface normal.
+ * @param outside            Output param for whether the ray came from outside.
+ * @return                   Ray parameter `t` value. -1 if no intersection.
+ */
+__host__ __device__ float meshIntersectionTest(Geom mesh, Triangle *triangles, int numTriangles, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+
+    glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    Ray rt;
+    rt.origin = ro;
+    rt.direction = rd;
+    float tmin = FLT_MAX;
+    int currIndex = 0;
+
+    for (int i = 0; i < numTriangles; i++) {
+        Triangle tri = triangles[i];
+        glm::vec3 baryPos; // will hold the intersection point in barycentric coordinates
+        if (glm::intersectRayTriangle(rt.origin, rt.direction, tri.verts[0], tri.verts[1], tri.verts[2], baryPos)) {
+            float t = baryPos.z;
+            if (t > 0.0f && t < tmin) {
+                tmin = t;
+                currIndex = i;
+            }
+        }
+    }
+
+    // the closest triangle
+    glm::vec3 objspaceIntersection = getPointOnRay(rt, tmin);
+    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(objspaceIntersection, 1.0f));
+    glm::vec3 surfaceNormal = glm::normalize(glm::cross(
+        triangles[currIndex].normals[0] - triangles[currIndex].normals[2],
+        triangles[currIndex].normals[0] - triangles[currIndex].normals[1]));
+    normal = glm::normalize(multiplyMV(mesh.transform, glm::vec4(surfaceNormal, 0.0f)));
+
+    if (glm::dot(rt.origin, normal) < 0) {
+        outside = true;
+    }
+    else {
+        outside = false;
+        normal *= -1.0f;
+    }
+    return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ bool boundingBoxCheck(Geom box, Ray r, glm::vec3 bottomLeft, glm::vec3 topRight) {
+    Ray q;
+    q.origin = multiplyMV(box.inverseTransform, glm::vec4(r.origin, 1.0f));
+    q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    float tmin = -1e38f;
+    float tmax = 1e38f;
+    glm::vec3 tmin_n;
+    glm::vec3 tmax_n;
+    for (int xyz = 0; xyz < 3; ++xyz) {
+        float qdxyz = q.direction[xyz];
+        /*if (glm::abs(qdxyz) > 0.00001f)*/ {
+            float t1 = (bottomLeft[xyz] - q.origin[xyz]) / qdxyz;
+            float t2 = (topRight[xyz] - q.origin[xyz]) / qdxyz;
+            float ta = glm::min(t1, t2);
+            float tb = glm::max(t1, t2);
+            glm::vec3 n;
+            n[xyz] = t2 < t1 ? +1 : -1;
+            if (ta > 0 && ta > tmin) {
+                tmin = ta;
+                tmin_n = n;
+            }
+            if (tb < tmax) {
+                tmax = tb;
+                tmax_n = n;
+            }
+        }
+    }
+
+    return tmax >= tmin && tmax > 0 ? true : false;
+}
+
+__host__ __device__ float octreeIntersectionTest(OctreeNode &currNode, Geom mesh, Triangle* triangles, int numTriangles, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside, bool& isLeaf) {
+
+    if (currNode.start == currNode.end) return -1; // this node doesn't enclose any triangles
+    isLeaf = currNode.children[0] == -1;
+
+    Geom bound;
+    bound.type = CUBE;
+    bound.transform = mesh.transform;
+    bound.inverseTransform = mesh.inverseTransform;
+    bound.invTranspose = mesh.invTranspose;
+
+    float t_min = FLT_MAX;
+
+    if (!boundingBoxCheck(bound, r, currNode.bottomLeft, currNode.topRight)) {
+        return -1;
+    }
+
+    glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(r.origin, 1.0f));
+    glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+    Ray rt;
+    rt.origin = ro;
+    rt.direction = rd;
+    float tmin = FLT_MAX;
+    int currIndex = 0;
+
+    for (int i = currNode.start; i < currNode.end; i++) {
+        Triangle tri = triangles[i];
+        glm::vec3 baryPos;
+        if (glm::intersectRayTriangle(rt.origin, rt.direction, tri.verts[0], tri.verts[1], tri.verts[2], baryPos)) {
+            float t = baryPos.z;
+            if (t > 0.0f && t < tmin) {
+                tmin = t;
+                currIndex = i;
+            }
+        }
+    }
+
+    glm::vec3 objspaceIntersection = getPointOnRay(rt, tmin);
+    intersectionPoint = multiplyMV(mesh.transform, glm::vec4(objspaceIntersection, 1.0f));
+    glm::vec3 surfaceNormal = glm::normalize(glm::cross(
+        triangles[currIndex].normals[0] - triangles[currIndex].normals[2],
+        triangles[currIndex].normals[0] - triangles[currIndex].normals[1]));
+    normal = glm::normalize(multiplyMV(mesh.transform, glm::vec4(surfaceNormal, 0.0f)));
+
+    if (glm::dot(rt.origin, normal) < 0) {
+        outside = true;
+    }
+    else {
+        outside = false;
+        normal *= -1.0f;
+    }
+    return glm::length(r.origin - intersectionPoint);
+}
