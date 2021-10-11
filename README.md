@@ -46,6 +46,8 @@ Diffusion allows the illumination of rough objects like walls. Reflection simula
 
 Refraction simulates the effects of translucent materials such as glass. Light will bend when it enters and exits these materials. When light enters from a medium with high index of refraction to a medium of low index of refraction, beyond a certain angle light will have total internal reflection instead of refraction. I implemented refraction with support for total internal reflection. Adding this feature will slow down the kernel because of the additional calculations for refraction angle, reflectance coefficient etc. This feature can take advantage of the parallel processing of GPU since the rays are independent. 
 
+The top image is before refraction is applied. The bottom one is after.
+
 
 ![BeforeRefraction](img/beforeRefraction.png)
 ![AfterRefraction](img/afterRefraction.png)
@@ -53,6 +55,8 @@ Refraction simulates the effects of translucent materials such as glass. Light w
 **Anti-aliasing**
 
 Aliasing is the problem of artefacts on images as a result of discretization of pixels. This can be mitigated by taking more than one sample per pixel from regions around the center of the pixel. By performing stochastic sampled anti-aliasing, we are use a higher number of iterations to produce a sharper image. Stochastic sampled anti-aliasing definitely benefits from being implemented on the GPU because the rays generated for each pixel are always independent. This might be further optimized by launching more threads to per pixel. The exact effect cannot be known unless it is tried out. This depends on whether launching extra threads will help mask memory latency by doing more computations. Below is the comparison for 2000 iterations. 
+
+The top image is before anti-aliasing is applied. The bottom one is after.
 
 ![BeforeAA](img/beforeAA.JPG)
 ![AfterAA](img/afterAA.JPG)
@@ -62,13 +66,15 @@ Aliasing is the problem of artefacts on images as a result of discretization of 
 
 Depth of field creates the thin lens effect of a real life camera as opposed to a pinhole camera. Objects in focus will be sharp while objects out of focus will be blurry. Depth of field significantly increases the number of iterations required to render an image since we need to shoot rays from not just a pinhole but rather the whole area of the circular lens. Depth of field definitely benefits from being implemented on the GPU because the rays generated are always independent. This might be further optimized by launching more threads to handle rays generated from different camera origins. The exact effect cannot be known unless it is tried out. This depends on whether launching extra threads will help mask memory latency by doing more computations. 
 
+The top image is before depth of field is applied. The bottom one is after.
+
 ![Before](img/beforeDof.png)
 ![After](img/afterDof.png)
 
 **Meshloading**
 
 Meshloading enables the loading of any scenes recorded in the gltf format. Gltf is a compact format designed for scene tranmission. I used the tinygltf library to help load the scene. However, significant effort is still required to parse the scene struct for use with my path tracer. I also referenced https://github.com/syoyo/tinygltf/issues/71 for examples on parsing the format. Meshloading will signifcantly slow down the path tracer becaues the mesh involves a high number of triangles and the data structure is not optimized for a high number of geometries. This functionality can only be implemented on the CPU since it involves IO. This can be further optimized by using a hierarchical spatial data structure such as octree. I ran out of time so I did not implement this optimization. I implemented bounding volume intersection culling. For bounding volume intersection culling, I used a sphere to bound the object rather than a cube, since it is easier and faster.
-The tradeoff is the volume contained by the cube is larger.
+The tradeoff is the volume contained by the cube is larger. I did a performance analysis to show the benefit of culling.
 
 ![mesh](img/meshloading.png)
 
@@ -76,7 +82,7 @@ The tradeoff is the volume contained by the cube is larger.
 
 **First Bounce Caching**
 
-If the rays are generated deterministically, then the first itersection of the rays with the objects in the scene will always be the same. Instead of recalculating this first intersection at every iteration, we can cache this first intersection to speed up the path tracing process. However, there will be diminishing return as the number of bounces for each iteration increases. First bounce caching is also not needed if there is any randomness in the ray generation process.
+If the rays are generated deterministically, then the first itersection of the rays with the objects in the scene will always be the same. Instead of recalculating this first intersection at every iteration, we can cache this first intersection to speed up the path tracing process. However, there will be diminishing return as the number of bounces for each iteration increases. First bounce caching is also not needed if there is any randomness in the ray generation process. The graph below is the performance analysis.
 
 ![cachingAnalysis](img/cachingAnalysis.png)
 
