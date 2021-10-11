@@ -72,69 +72,6 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
   return thrust::default_random_engine(h);
 }
 
-// TODO: remove before submission
-//__device__
-//struct device_vector
-//{
-//    __device__
-//    device_vector()
-//    {
-//        data = (int*)malloc(1 * sizeof(int));
-//    }
-//
-//    __device__
-//    ~device_vector()
-//    {
-//       free(data);
-//    }
-//
-//    __device__
-//    device_vector(size_t n)
-//    {
-//        data = (int*)malloc(n * sizeof(int));
-//    }
-//
-//    __device__
-//    void push_back(int& item)
-//    {
-//        if (inx == size - 1)
-//        {
-//            int* temp = (int*)malloc(size * 2 * sizeof(int));
-//            for (size_t i = 0; i < size; i++)
-//                temp[i] = data[i];
-//            free(data);
-//            data = temp;
-//            size *= 2;
-//        }
-//        else
-//        {
-//            data[inx++] = item;
-//        }
-//    }
-//
-//    __device__
-//    int pop_back()
-//    {
-//        int item = data[inx];
-//        if (inx-- == size / 2)
-//        {
-//            int* temp = (int*)malloc((size / 2) * sizeof(int));
-//            for (size_t i = 0; i < size; i++)
-//                temp[i] = data[i];
-//            free(data);
-//            data = temp;
-//            size /= 2;
-//        }
-//        return item;
-//    }
-//
-//    int* data;
-//    size_t size;
-//    size_t inx;
-//};
-
-
-
 //Kernel that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
       int iter, glm::vec3* image) {
@@ -161,7 +98,6 @@ __global__ void sendImageToPBO(uchar4* pbo, glm::ivec2 resolution,
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
-static Triangle* dev_primitives = NULL;
 static BVHTree* dev_bvhTrees = NULL;
 static BVHNode* dev_bvhNodes = NULL;
 static Material * dev_materials = NULL;
@@ -185,9 +121,6 @@ void pathtraceInit(Scene *scene) {
 
   cudaMalloc(&dev_geoms, scene->geoms.size() * sizeof(Geom));
   cudaMemcpy(dev_geoms, scene->geoms.data(), scene->geoms.size() * sizeof(Geom), cudaMemcpyHostToDevice);
-
-  cudaMalloc(&dev_primitives, scene->primitives.size() * sizeof(Triangle));
-  cudaMemcpy(dev_primitives, scene->primitives.data(), scene->primitives.size() * sizeof(Triangle), cudaMemcpyHostToDevice);
 
   cudaMalloc(&dev_bvhTrees, scene->bvhTrees.size() * sizeof(BVHTree));
   cudaMemcpy(dev_bvhTrees, scene->bvhTrees.data(), scene->bvhTrees.size() * sizeof(BVHTree), cudaMemcpyHostToDevice);
@@ -215,7 +148,6 @@ void pathtraceFree() {
   cudaFree(dev_paths);
   cudaFree(dev_bvhNodes);
   cudaFree(dev_bvhTrees);
-  cudaFree(dev_primitives);
   cudaFree(dev_geoms);
   cudaFree(dev_materials);
   cudaFree(dev_intersections);
@@ -279,7 +211,6 @@ __global__ void computeIntersections(
   , int num_paths
   , PathSegment * pathSegments
   , Geom * geoms
-    , Triangle* primitives
   , int geoms_size
   , BVHTree* bvhTrees
   , int bvhTrees_size
@@ -336,17 +267,19 @@ __global__ void computeIntersections(
           }
       }
 
+      int nodeInx = 0;
+      int nodesToVisit[BVHSearchSize];
       // iterate through all bvhTrees
       for (int i = 0; i < bvhTrees_size; i++)
       {
           BVHTree& bvhTree = bvhTrees[i];
 
+          nodeInx = 0;
+          nodesToVisit[nodeInx] = bvhTree.bvhNodes;
+
           float intersection = 0.0f;
           glm::vec3 intersectionPoint;
 
-          int nodeInx = 0;
-          int nodesToVisit[BVHSearchSize]; 
-          nodesToVisit[nodeInx] = bvhTree.bvhNodes;
           while (nodeInx >= 0)
           {
               BVHNode& bvhNode = bvhNodes[nodesToVisit[nodeInx--]];
@@ -607,7 +540,6 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
       num_paths, 
       dev_paths, 
       dev_geoms, 
-      dev_primitives,
       hst_scene->geoms.size(),
       dev_bvhTrees,
       hst_scene->bvhTrees.size(),

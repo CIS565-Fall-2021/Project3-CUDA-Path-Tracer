@@ -114,12 +114,12 @@ bool Scene::LoadObj(string filename, Transform& transform, int materialId, bool 
 
     if (bvh)
     {
-        bvhTrees.push_back(BVHTree(0, transform, materialId));
+        bvhTrees.push_back(BVHTree(bvhNodes.size(), transform, materialId));
         bvhTrees.back().build(
             &bvhNodes, 
             &triangles, 
             triangleStartIndex,
-            triangleStartIndex + triangles.size() - 1);
+            triangles.size() - 1);
     }
     else
     {

@@ -52,6 +52,8 @@ int main(int argc, char** argv) {
     // Load scene file
     scene = new Scene(sceneFile);
 
+    // NOTE: Loading the cornell-stripped.txt scene is a great starting point for loading new objs
+    // 
     // Load OBJs 
 
     // load cube
@@ -68,11 +70,24 @@ int main(int argc, char** argv) {
     transform.translate = glm::vec3(0.5, 0, 2);
     scene->LoadObj("../objs/bunny.obj", transform, 6, true);*/
 
-    //Transform transform;
-    //transform.rotate = glm::vec3(0);
-    //transform.scale = glm::vec3(30.f);
-    //transform.translate = glm::vec3(0);
-    //scene->LoadObj("../objs/stanford_dragon.obj", transform, 1, true);
+    Transform transform;
+    transform.rotate = glm::vec3(0);
+    transform.scale = glm::vec3(20.f);
+    transform.translate = glm::vec3(-2, 0, 2);
+    scene->LoadObj("../objs/bunny.obj", transform, 6, true);
+
+    Transform transform2;
+    transform2.rotate = glm::vec3(0);
+    transform2.scale = glm::vec3(20.f);
+    transform2.translate = glm::vec3(2, 0, 2);
+    scene->LoadObj("../objs/bunny.obj", transform2, 6, true);
+
+
+ /*   Transform transform;
+    transform.rotate = glm::vec3(0);
+    transform.scale = glm::vec3(30.f);
+    transform.translate = glm::vec3(0);
+    scene->LoadObj("../objs/stanford_dragon.obj", transform, 1, true);*/
 
 
     // Set up camera stuff from loaded path tracer settings
