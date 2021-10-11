@@ -27,7 +27,7 @@ Path tracing is a computer graphics Monte Carlo method of rendering images of th
 - Camera depth of field
 - Procedural Structure
 - Procedural texture
-- Subsurface Scattering
+- Subsurface Scattering (In Progress)
 
 ### Materials
 Material shading is split into different BSDF evaluation functions based on material type. This project supported materials include **diffuse**, **reflective** and **refractive** (fresnel dielectric). Diffuse material scattering is computed by using cosine-weighted samples within a hemisphere. Reflective materials reflect the light ray about the surface nornmal and refractive materials refracts the ray through the material according to Snell's law of refraction and with added fresnel computation for better real life depiction. 
@@ -91,7 +91,7 @@ I have used a simple sinusoidal and cosine functions as well combination of diff
 
 Stream compaction generally progress the execution by terminating the rays in case they are futile. Less threads  will be made and the execution quickened. The first-bounce cache moreover moves forward 13% execution by caching the primary crossing point of the beam. In expansion, the work puts the active rays closer together in memory, which ought to make getting to faster global memory access rates since they gets to will be continguous, rather than random. Underneath Values of remaining rays in Open and Closed Cornell Box shown in the chart.
 
-![Performance  Analysis](img/Compaction.png)
+![Performance  Analysis](img/Compaction.PNG)
 
 ### Material Sorting
 In my case the material sorting slows down the execution time of program. I believe this can be attributed to less number of materials in my scene to begin with. The method in theory would sort the rays with similar material object intersections closer as they will have about the same lifetime. Since the scene doesn't have many materials the probablity of rays with same material behaviour being contiguous in memory is already high and sorting them only adds an overhead in this case. If the scene has a large number of materials then i believe the execution times will increase with Material Sorting.    
@@ -112,7 +112,7 @@ I used 3 arbitrary mesh examples to analyze the peformance benefits of enabling 
 | 12 | 19998 | 50000  |
 
 
-![Performance  Analysis](img/Volume Intersection Culling.png)
+![Performance  Analysis](img/VolumeIntersectionCulling.PNG)
 
 Using volume intersection culling for simpler arbitrary meshes with low triangle count such as cube doesn't provide a significant performance improvement. However as the triangle count increases we can see significant improvement which can be attributed to number of triangles to check if bounding volume is hit. Each ray only performs 7 intersection check with 7 sided polygon volume heirarchy as compared to 50000 intersection checks with triangles for XYZ dragon. With BVH we save about 7 seconds in just 10 iterations.
 
