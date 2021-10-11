@@ -36,7 +36,7 @@ Here's an image consisting of the three materials with **diffuse** on the left, 
 
 ![Performance  Analysis](img/Basic/Material.png)
 
-Below, a compound reflective and refractive impact is executed through a Fresnel fabric, which reflects light beams that are more digression to its surface. This makes a light rays passing through the object refracted, whereas rays brushing the sides of the fabric are reflected. Rather than specifically calculating the Fresnel component, I assess it utilizing Schlick's guess.
+Below, a compound reflective and refractive impact is executed through a Fresnel fabric, which reflects light beams that are more digression to its surface. This makes a light rays passing through the object refracted, whereas rays brushing the sides of the fabric are reflected. Rather than specifically calculating the Fresnel component, I assess it utilizing Schlick's approximation.
 Here's an image consisting of the three refractive materials.
 - Left: Refractive index: 1.2
 - Middle:  Refractive index: 2.5 
