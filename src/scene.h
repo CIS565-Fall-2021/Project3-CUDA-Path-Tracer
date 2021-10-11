@@ -15,10 +15,16 @@ private:
     ifstream fp_in;
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
+    int loadObjFile();
     int loadCamera();
 public:
     Scene(string filename);
     ~Scene();
+   
+    std::vector<TriangleGeom> triangles;
+
+    glm::vec3 triangle_bound_min;
+    glm::vec3 triangle_bound_max;
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
