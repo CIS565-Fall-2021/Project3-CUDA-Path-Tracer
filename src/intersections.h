@@ -5,6 +5,7 @@
 
 #include "sceneStructs.h"
 #include "utilities.h"
+#include "options.h"
 
 /**
  * Handy-dandy hash function that provides seeds for random number generation.
@@ -33,6 +34,78 @@ __host__ __device__ glm::vec3 getPointOnRay(Ray r, float t) {
  */
 __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
     return glm::vec3(m * v);
+}
+
+__host__ __device__ float triIntersectionTest2(Triangle tri, Ray r,
+                                              glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+
+
+//  auto v0 = tri.verts[0];
+//  auto v1 = tri.verts[1];
+//  auto v2 = tri.verts[2];
+//  auto v0v1 = v1 - v0;
+//  auto v0v2 = v2 - v0;
+
+// 0 1 2
+
+  auto intersected = glm::intersectRayTriangle(r.origin, r.direction, tri.verts[0], tri.verts[1], tri.verts[2], intersectionPoint);
+  normal = glm::normalize(glm::cross(tri.verts[1]-tri.verts[0], tri.verts[2]-tri.verts[0]));
+  //normal = tri.norms[0];
+
+//  if(!intersected){
+//    intersected = glm::intersectRayTriangle(r.origin, r.direction, tri.verts[0], tri.verts[2], tri.verts[1], intersectionPoint);
+//
+//  }
+
+
+  if(!intersected){
+    return -1;
+  }
+
+
+
+
+  return glm::distance(r.origin, intersectionPoint);
+
+
+
+}
+
+__host__ __device__ float triIntersectionTest(Triangle tri, Ray r,
+                                              glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+  // thanks to: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
+
+  float t, u, v;
+  auto v0 = tri.verts[0];
+  auto v1 = tri.verts[1];
+  auto v2 = tri.verts[2];
+  auto v0v1 = v1 - v0;
+  auto v0v2 = v2 - v0;
+  auto pvec = glm::cross(r.direction, v0v2);
+  float det = glm::dot(v0v1, pvec);
+  #if TRIANGLE_BACK_FACE_CULLING
+    // if the determinant is negative the triangle is backfacing
+      // if the determinant is close to 0, the ray misses the triangle
+      if (det < EPSILON) return false;
+  #else
+    // ray and triangle are parallel if det is close to 0
+    if (glm::abs(det) < EPSILON) return -1;
+  #endif
+  float invDet = 1.0f / det;
+
+  auto tvec = r.origin - v0;
+  u = glm::dot(tvec, pvec) * invDet;
+  if (u < 0 || u > 1) return -1;
+
+  auto qvec = glm::cross(tvec, v0v1);
+  v = glm::dot(r.direction, qvec) * invDet;
+  if (v < 0 || u + v > 1) return -1;
+
+  t = glm::dot(v0v2, qvec) * invDet;
+  intersectionPoint = r.origin + (t* r.direction);
+  normal = glm::normalize(glm::cross(v0v1, v0v2));
+
+  return t;
 }
 
 // CHECKITOUT

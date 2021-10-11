@@ -1,6 +1,8 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include <glm/gtx/string_cast.hpp>
+
 
 static std::string startTimeString;
 
@@ -26,11 +28,17 @@ int iteration;
 int width;
 int height;
 
+
+
+
+
+
 //-------------------------------
 //-------------MAIN--------------
 //-------------------------------
 
 int main(int argc, char** argv) {
+
     startTimeString = currentTimeString();
 
     if (argc < 2) {
@@ -98,7 +106,7 @@ void saveImage() {
     //img.saveHDR(filename);  // Save a Radiance HDR file
 }
 
-void runCuda() {
+void runCuda(int frame) {
     if (camchanged) {
         iteration = 0;
         Camera &cam = renderState->camera;
@@ -112,11 +120,13 @@ void runCuda() {
         glm::vec3 r = glm::cross(v, u);
         cam.up = glm::cross(r, v);
         cam.right = r;
-
+//
         cam.position = cameraPosition;
         cameraPosition += cam.lookAt;
         cam.position = cameraPosition;
         camchanged = false;
+
+
       }
 
     // Map OpenGL buffer object for writing from CUDA on a single GPU
@@ -125,7 +135,20 @@ void runCuda() {
     if (iteration == 0) {
         pathtraceFree();
         pathtraceInit(scene);
+        std::cout << "CAM: pos " << glm::to_string(scene->state.camera.position) << " lookat " << glm::to_string(scene->state.camera.lookAt) << " up " << glm::to_string(scene->state.camera.up) << '\n';
+
+//      uchar4 *pbo_dptr = NULL;
+//      iteration++;
+//      cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
+//
+//      // execute the kernel
+//      int frame = 0;
+//      pathtrace(pbo_dptr, frame, iteration);
+//
+//      // unmap buffer object
+//      cudaGLUnmapBufferObject(pbo);
     }
+
 
     if (iteration < renderState->iterations) {
         uchar4 *pbo_dptr = NULL;
@@ -133,7 +156,7 @@ void runCuda() {
         cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
         // execute the kernel
-        int frame = 0;
+
         pathtrace(pbo_dptr, frame, iteration);
 
         // unmap buffer object
@@ -182,7 +205,7 @@ void mousePositionCallback(GLFWwindow* window, double xpos, double ypos) {
     camchanged = true;
   }
   else if (rightMousePressed) {
-    zoom += (ypos - lastY) / height;
+    zoom += ((ypos - lastY) / height) * 5;
     zoom = std::fmax(0.1f, zoom);
     camchanged = true;
   }

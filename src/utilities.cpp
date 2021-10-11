@@ -11,6 +11,14 @@
 
 #include "utilities.h"
 
+std::string utilityCore::dirnameOf(const std::string& fname)
+{
+  size_t pos = fname.find_last_of("\\/");
+  return (std::string::npos == pos)
+         ? ""
+         : fname.substr(0, pos);
+}
+
 float utilityCore::clamp(float f, float min, float max) {
     if (f < min) {
         return min;

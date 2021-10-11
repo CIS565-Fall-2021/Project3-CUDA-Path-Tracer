@@ -1,0 +1,26 @@
+set(headers
+        BufferUtils.h
+        Camera.h
+        Device.h
+        Instance.h
+        Model.h
+        QueueFlags.h
+        Renderer.h
+        Scene.h
+        SwapChain.h
+        Vertex.h
+        Window.h
+        )
+
+set(sources
+        BufferUtils.cpp
+        Camera.cpp
+        Device.cpp
+        Instance.cpp
+        Model.cpp
+        Renderer.cpp
+        Scene.cpp
+        ShaderModule.cpp
+        SwapChain.cpp
+        Window.cpp
+        )

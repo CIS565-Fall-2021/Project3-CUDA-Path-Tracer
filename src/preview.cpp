@@ -169,9 +169,11 @@ bool init() {
 }
 
 void mainLoop() {
+    int frame = 0;
     while (!glfwWindowShouldClose(window)) {
+        frame++;
         glfwPollEvents();
-        runCuda();
+        runCuda(frame);
 
         string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations";
         glfwSetWindowTitle(window, title.c_str());
@@ -184,6 +186,10 @@ void mainLoop() {
         // VAO, shader program, and texture already bound
         glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
         glfwSwapBuffers(window);
+
+        if(frame > 2147453647){
+          frame = 0;
+        }
     }
     glfwDestroyWindow(window);
     glfwTerminate();
