@@ -56,8 +56,8 @@ For the depth of field we want to be able to shift the focus of our camera so th
 ### Direct Lighting
 To get a direct lighting effect in our images we want to make the last bounce of each ray hit a light source. We do this by randomly selecting a point on a randomly selected light and setting the direction of the ray to that point. The first image is without direct lighting, and the second one we can see is overall brighter with the direct lighting enabled.
 
-![](img/no_dof.png)
-![](img/direct_lighting.png)
+![](img/no_direct_lighting_cube.png)
+![](img/direct_light_cube.png)
 
 ### Bloopers
 A bit too much depth of field
