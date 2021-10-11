@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
     scene = new Scene(sceneFile);
 
 #if USE_MESH_LOADING
-    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/wahoo.obj";
+    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/A_Wing_e6_landed_whole_closed.obj";
     for (int i = 0; i < scene->geoms.size(); i++) {
         if (scene->geoms[i].type == GeomType::OBJ) {
             LoadOBJ(objPath, scene->geoms[i]);

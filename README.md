@@ -10,6 +10,7 @@ Project 3 CUSA Path Tracer
 		* Windows 10
 		* NVIDIA GeForce GTX 1080 Ti. 
 	* Submitted on: 10/09/2021
+	* Used 3 Late Days
 
 ## Introduction 
 The objective of this project was to implement a naive core path tracer that took a simplistic approach to rendering scenes. 
@@ -33,15 +34,46 @@ The [core features](https://github.com/CIS565-Fall-2021/Project3-CUDA-Path-Trace
 * First Iteration Caching (Performance Improvement)
 * Ray Stream Compaction (Performance Improvement) 
 * Material Sorting (Performance Improvement) 
-All features and performance improvements may be toggled by `#define`s found in `src/sceneStructs/h`
+All features and performance improvements may be toggled by `#define`s found in `src/sceneStructs.h`
+<p align="center">
+  <img src="img/cornellReflective.png" alt="drawing" width="500" />
+</p>
 
 ### Naive BSDF Path Tracer
+Bidirectional scattering distribution function (BSDF) is a combination of bidirectional reflectance distribution function (BRDF) and bidirectional transmittance distribution function (BTDF). Given any material, as defined as a component of reflectance and refractance, rays should demonstrate a combination of reflecting, refracting, and diffusing behavior. In `scenes/`, materials are defined such that: 
+<p align="center">
+  REFL + REFR <= 1
+</p>
+As a result, the range `[0,1]` can be broken into two components such that:
+<p align="center">
+  REFL + REFR + DIFFUSION == 1
+</p>
+
+* Cornell with reflective sphere:
+<p align="center">
+  <img src="img/cornellReflective.png" alt="drawing" width="500" />
+</p>
+* Cornell with refractive sphere:
+<p align="center">
+  <img src="img/cornellRefractive.png" alt="drawing" width="500" />
+</p>
+* Cornell with diffusive sphere:
+<p align="center">
+  <img src="img/cornellDiffuse.png" alt="drawing" width="500" />
+</p>
+* Cornell with all three properties: 
+<p align="center">
+  <img src="img/cornellBalanced.png" alt="drawing" width="500" />
+</p>
 
 ### First Iteration Caching
+Iterations allow a more precise, represetative image of the scene by repeatedly shooting rays into the scene. Without antialiasing, every first bounce (ray from image plane to scene) between all iterations should be identical. As a result, we should be able to cache the results of the first bounce of the first iteration and use this data in subsequent iterations without re-calculating the first bounce. 
 
 ### Ray Stream Compaction 
+Each ray is terminated when it either hits a light source or is not obstructed. Between each depth, where depth is defined as each batch of single bounces, in each iteration, we can cull a number of rays that have should be terminated by performing stream compaction. Consequently, fewer rays (and threads) must be launched in subsequent depths to optimize on memory and computation. 
 
 ### Material Sorting
+Like stream compaction, each ray stores the type of material it was obstructed by. Between each depth, we sort rays by their material type. The intention is to minimize branch divergence in subsequent depths. Rays where are obstructed by similar surface materials are more likely to demonstrate similar behavior and require relatively comparable computations times. This allows the GPU to terminate entire warps who are processing rays against similar surfaces more quickly and with fewer stalls. 
 
 ## Additional Features
 The [unique features](https://github.com/CIS565-Fall-2021/Project3-CUDA-Path-Tracer/blob/main/INSTRUCTION.md#part-2---make-your-pathtracer-unique) include: 
@@ -51,7 +83,10 @@ The [unique features](https://github.com/CIS565-Fall-2021/Project3-CUDA-Path-Tra
 * [Refraction using Schlick's Approximation](https://raytracing.github.io/books/RayTracingInOneWeekend.html#dielectrics) (Feature Implementation)
 
 ### Mesh Loading using tinyOBJ
-This feature allows you to import unique .OBJ mesh into the path tracer. 
+This feature allows you to import unique .OBJ mesh into the path tracer. Much of the code was refactored from CIS560's' rasterizer. As an object is loaded, we generate an buffer of tuples of vertex position and normal. OBJ files follow a format such that each three groups of data represent a face of a triangle on the mesh. Once this data is loaded into the GPU, the GPU checks for intersections of rays against these triangle meshes. 
+<p align="center">
+  <img src="img/cornellWahoo.png" alt="drawing" width="500" />
+</p>
 
 #### Bounding Box
 Each mesh is a complex arrangement of numerous triangular faces with unique vertices and normals. The naive implementation would check every ray projected into the scene against every triangular surface of every mesh. This is clearly computationally expensive and time consuming. The first step to optimize this would be to restrict the volume of each mesh into a bounding box. That is, a mesh will only be checked against a ray for intersection if the ray will enter the bounding box of the mesh. The current implementation is minimally effective in that it is a single volume bounding box around the entire mesh. 
@@ -61,6 +96,35 @@ Anti-aliasing is a common feature that slightly distorts how a scene is rendered
 <p align="center">
   <img src="img/d.png" alt="https://raytracing.github.io/images/fig-1.07-pixel-samples.jpg" width="500" />
 </p>
+#### Anti-Aliasing full images
+With anti-aliasing: 
+<p align="center">
+  <img src="img/cornellAAY.png" alt="drawing" width="500" />
+</p>
+Without anti-aliasing: 
+<p align="center">
+  <img src="img/cornellAAN.png" alt="drawing" width="500" />
+</p>
+#### Anti-Aliasing zoomed images
+With anti-aliasing: 
+<p align="center">
+  <img src="img/cornellAAYFull.png" alt="drawing" width="500" />
+</p>
+Without anti-aliasing: 
+<p align="center">
+  <img src="img/cornellAANFull.png" alt="drawing" width="500" />
+</p>
 
 ### Refraction using Schlick's Approximation 
 If we looked at a refractive material surface such as a plane of glass or clear plastic from a steep angle, the material ceases to demonstrate refractive properties and would show reflective properties instead. The current implementation mimics this behavior using Schlick's approximation in cases where the incident angle between the surface and the ray is sufficiently shallow, and snell's law in cases where the incident angle between the surface and the ray is sufficiently large. 
+
+With Schlick's Approximation: 
+<p align="center">
+  <img src="img/glassWallSchlickY.png" alt="drawing" width="500" />
+</p>
+Without Schlick's Approximation: 
+<p align="center">
+  <img src="img/glassWallSchlickN.png" alt="drawing" width="500" />
+</p>
+
+## Performance Analysis

@@ -10,10 +10,10 @@
 #define DOF_APERATURE       1.0f
 #define DOF_FOCUSDIST       2.0f
 #define USE_DOF             0
-#define USE_BOUNDING_BOX    1
-#define USE_MESH_LOADING    1
+#define USE_BOUNDING_BOX    0
+#define USE_MESH_LOADING    0
 #define ANTIALIASING        0
-#define SCHLICK             1
+#define SCHLICK             0
 #define USE_CACHE           0
 #define USE_SORT            0
 #define USE_PARTITION       0
