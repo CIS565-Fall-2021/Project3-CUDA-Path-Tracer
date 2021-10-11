@@ -13,8 +13,8 @@ CUDA Path Tracer
 * Basic pathtracer
 * Refractive, Reflective, and Diffused surfaces
 * Anti-Aliasing
-* OBJ Loading (work in progress)
-* Depth of Field (work in progress)
+* OBJ Loading
+* Depth of Field
 
 This pathtracer utilized [Physically Based Rendering](https://pbr-book.org/) for reference
 
@@ -35,20 +35,29 @@ Refractive: The refractive material was implemented using Schlick's approximatio
 ### Anti-Aliasing
 In the first photo we can see the step-like edge of the sphere, but in the second one where anti-aliasing has been implemented it appears more smooth. This was implemented by slightly jittering the ray origin when calculating the direction. This provides the slight blur that we see around the edges of the sphere.
 
-![](img/no_anti_aliasing.png) ![](img/better_anti_aliasing.png)
+<img width="300" src="img/no_anti_aliasing.png">
+<img width="300" src="img/better_anti_aliasing.png">
+
 
 ### OBJ Loading
-My OBJ loader is still a work in progress, but I was able to load a cube obj and have it appear in this simple example as an emmissive surface (light source). When dealing
-with more complicated surfaces there are issues with the way the shapes appear. I believe this is due to the way the triangles are being loaded, but I am not entirely sure how to fix it yet. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to implement this.
+The OBJ loader allows for .obj files to be uploaded to the pathtracer. It utilizes a Triangle geom type and reads the OBJ file to determine where the triangles and points on the triangles should exist. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to implement this.
 
-![](img/sphere.2021-10-10_03-14-14z.57samp.png)
+![](img/dodecahedron.png)
 
 ### Depth of Field
-For the depth of field we want to be able to shift the focus of our camera so that only certain parts of the image appear in focus. My implementation for this is not without flaws, but we can see how some areas are blurred. There is a slight distortion of the shapes that I am still working on fixing.
+For the depth of field we want to be able to shift the focus of our camera so that only certain parts of the image appear in focus. The first photo has no depth of field effect for reference. In the second photo we can see that the front sphere looks blurred due to the larger focal distance (13). With a lower value for the focal distance (8) the back sphere/background gets blurred.
 
-![](img/dof_1.png)
-![](img/cornell.2021-10-07_14-47-26z.2215samp.png)
+![](img/no_dof.png)
+![](img/dof_2.png)
+![](img/dof_4.png)
 
-A bit too far:
+
+### Bloopers
+A bit too much depth of field
 
 ![](img/cornell.2021-10-07_14-28-06z.344samp.png)
+
+
+Cube OBJs is just a triangle?
+
+![](img/sphere.2021-10-10_02-54-37z.165samp.png)
