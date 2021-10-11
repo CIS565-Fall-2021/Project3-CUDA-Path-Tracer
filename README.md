@@ -8,10 +8,12 @@ CUDA Path Tracer
 * Tested on: Windows 10, i7-9750H @ 2.26GHz, 16GB, GTX 1660ti 6GB (Personal Computer).
 *GPU Compute Capability: 7.5
 
-![Performance  Analysis](img/wahoo.png)
+![Performance  Analysis](img/Mesh/xyzdragon.png))
 
 ## Project Description
+
 Path tracing is a computer graphics Monte Carlo method of rendering images of three-dimensional scenes such that the global illumination is faithful to reality. 
+![Performance  Analysis](img/Mesh/wahoo.png)
 
 ### Features
 - Shading Kernel with BSDF Evaluation
@@ -49,6 +51,12 @@ In order to bring the mesh data into C++, I used the tinyobj library. I build th
 
 In order to smoothen the triangles on round meshes, the intersection normal is computed from the barycentric interpolation of the 3 normals from the triangle vertices
 
+### Procedural Structures
+I have used L System grammar which generates complex patterns for procedural data. An L-system consists of an alphabet of symbols that can be used to make strings, It consist of an axiom: initial configuration, a collection of production rules that expand each symbol into some larger string of symbols and a mechanism for translating the generated strings into geometric structures.
+
+### Procedural Textures
+I have used a simple sinusoidal and cosine functions as well combination of different noise functions like Perlin, FBM and Worley to generate procedural textures. A spherical bi linear function which transforms positional coordinates to UV coordinates is used in turn with noise functions to apply these textures accross wide variety of mesh data. 
+
 
 # Performance Analysis
 
@@ -56,34 +64,7 @@ In order to smoothen the triangles on round meshes, the intersection normal is c
 
 ### Stream Compaction 
 
-Stream compaction generally progress the execution by terminating the rays in case they are futile. Less threads  will be made and the execution quickened. The first-bounce cache moreover moves forward 13% execution by caching the primary crossing point of the beam. In expansion, the work puts the active rays closer together in memory, which ought to make getting to faster global memory access rates since they gets to will be continguous, rather than random. Underneath Values of remaining rays in Open and Closed Cornell Box.
-
-Open Box
--	Remaining Rays
-	-	640000
-522846
-363661
-285058
-233617
-195501
-165195
-140456
-0
-
-
-Closed Box
--	Remaining Rays
-	-640000
-628992
-618683
-608142
-597827
-587715
-577778
-567933
-0
-
-<br>
+Stream compaction generally progress the execution by terminating the rays in case they are futile. Less threads  will be made and the execution quickened. The first-bounce cache moreover moves forward 13% execution by caching the primary crossing point of the beam. In expansion, the work puts the active rays closer together in memory, which ought to make getting to faster global memory access rates since they gets to will be continguous, rather than random. Underneath Values of remaining rays in Open and Closed Cornell Box shown in the chart.
 
 ### Material Sorting
 In my case the material sorting slows down the execution time of program. I believe this can be attributed to less number of materials in my scene to begin with. The method in theory would sort the rays with similar material object intersections closer as they will have about the same lifetime. Since the scene doesn't have many materials the probablity of rays with same material behaviour being contiguous in memory is already high and sorting them only adds an overhead in this case. If the scene has a large number of materials then i believe the execution times will increase with Material Sorting.    
@@ -92,11 +73,17 @@ In my case the material sorting slows down the execution time of program. I beli
 Since the first bounce intersections stays the same if the camera doesn't change, A cache can be implemented to save the intersection of the first bounce in the first iteration and the results can be directly used in later iterations. Since for antialiasing each iteration first bounce is different caching cant be done.
 I have recorded an average of the exection time of my program for 3000 iterations below, with and without caching the first bounce. From the data we can depict an improvement of of 90ms in execution times.   
 
+| Without Cache   |  With Cache  |
+|---|---|
+|  	2min 4.03s |  2min 3.08s |
 
-Without Cache 
--	2min 4.03s
-<br>
+### Volume Intersection Culling
+I used 3 arbitrary mesh examples to analyze the peformance benefits of enabling volume intersection culling for complex meshes. The table below shows the mesh examples used for this analysis and how many triangles they contain.
 
-With Cache 
--	2min 3.08s
+| Cube  | Lucy  | XYZ Dragon  | 
+|---|---|---|
+| 12 | 19998 | 50000  |
 
+Using volume intersection culling for simpler arbitrary meshes with low triangle count such as cube doesn't provide a significant performance improvement. However as the triangle count increases we can see significant improvement which can be attributed to number of triangles to check if bounding volume is hit. Each ray only performs 7 intersection check with 7 sided polygon volume heirarchy as compared to 50000 intersection checks with triangles for XYZ dragon. With BVH we save about 7 seconds in just 10 iterations.
+
+### Bloopers
