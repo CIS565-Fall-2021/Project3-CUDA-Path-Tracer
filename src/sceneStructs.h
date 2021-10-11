@@ -10,17 +10,19 @@
 enum GeomType {
     SPHERE,
     CUBE,
-    MESH,
+    TRIANGLE,
 };
 
-//Triangle for mesh loading
+struct Point {
+    glm::vec3 pos;
+    glm::vec3 nor;
+    glm::vec2 uv;
+};
+
 struct Triangle {
-    glm::vec3 p1;
-    glm::vec3 p2;
-    glm::vec3 p3;
-    glm::vec3 n1;
-    glm::vec3 n2;
-    glm::vec3 n3;
+    Point pt1;
+    Point pt2;
+    Point pt3;
 };
 
 struct Ray {
@@ -37,19 +39,7 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
-    struct {
-        float minX;
-        float minY;
-        float minZ;
-        float maxX;
-        float maxY;
-        float maxZ;
-        glm::mat4 transform;
-        glm::mat4 inverseTransform;
-        glm::mat4 invTranspose;
-    } boundingBox;
-    Triangle* triangles;
-    int numTriangles;
+    Triangle triangle;
 };
 
 struct Material {
