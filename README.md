@@ -8,12 +8,11 @@ CUDA Path Tracer
 * Tested on: Windows 10, i7-9750H @ 2.26GHz, 16GB, GTX 1660ti 6GB (Personal Computer).
 *GPU Compute Capability: 7.5
 
-![Performance  Analysis](img/Mesh/xyzdragon.png))
+![Performance  Analysis](img/Mesh/xyzdragon.png)
 
 ## Project Description
 
 Path tracing is a computer graphics Monte Carlo method of rendering images of three-dimensional scenes such that the global illumination is faithful to reality. 
-![Performance  Analysis](img/Mesh/wahoo.png)
 
 ### Features
 - Shading Kernel with BSDF Evaluation
@@ -35,10 +34,20 @@ Material shading is split into different BSDF evaluation functions based on mate
 Here's an image sonsisting of tbove three materials.
 
 
+![Performance  Analysis](img/Basic/Material.png)
+
 Below, a compound reflective and refractive impact is executed through a Fresnel fabric, which reflects light beams that are more digression to its surface. This makes a light rays passing through the object refracted, whereas rays brushing the sides of the fabric are reflected. Rather than specifically calculating the Fresnel component, I assess it utilizing Schlick's guess.
+
+![Performance  Analysis](img/Basic/Refractive.png)
 
 ### Depth Of Field
 The scene camera can be set to enable Depth of Field effect which utilises focal distance and lens radius parameters to change the depth of this effect. Geometries located at the focal distance within the lens radius stay in focus while other geometry around the scene will be distorted.
+
+- **Focal Distance: 10**
+	- ![Performance  Analysis](img/DOF/focal0.png)
+	
+- **Focal Distance: 20**
+	- ![Performance  Analysis](img/DOF/foca20.png)
 
 ### Stochastic Anti-Aliasing
 Utilizing anti-aliasing for subpixel sampling brings in smoother geometry edges within the render. It is vital to note that anti-aliasing and first bounce cache don't work together, since the pixel tests will vary per iteration, and ached first bounces from the first iteration won't match the generated ray direction in further iterations. I added the flag for Cache Bounce which toggles off anti-aliasing and setting cache off in turn enables anti-aliasing,
@@ -49,7 +58,13 @@ In order to bring the mesh data into C++, I used the tinyobj library. I build th
 
 7 planar Bounding volume intersection culling as proposed by Kay and Kajiya in accelerated structeres, is applied at the ray-geometry intersection test to reduce the number of rays that have to be checked against the entire mesh by first checking rays against a volume that completely bounds the mesh. This feature is implemented as toggleable for performance analysis purposes. Pressing the 'B' key while running the GPU renderer will enable this feature.
 
-In order to smoothen the triangles on round meshes, the intersection normal is computed from the barycentric interpolation of the 3 normals from the triangle vertices
+In order to smoothen the triangles on round meshes, the intersection normal is computed from the barycentric interpolation of the 3 normals from the triangle vertices.
+
+- **Lucy**
+	- ![Performance  Analysis](img/Mesh/Lucy.png)
+	
+- **Wahoo**
+	- ![Performance  Analysis](img/Mesh/wahoo.png)
 
 ### Procedural Structures
 I have used L System grammar which generates complex patterns for procedural data. An L-system consists of an alphabet of symbols that can be used to make strings, It consist of an axiom: initial configuration, a collection of production rules that expand each symbol into some larger string of symbols and a mechanism for translating the generated strings into geometric structures.
