@@ -20,7 +20,7 @@
 
 #define ERRORCHECK 1
 #define ANTI_ALIASING 0
-#define CACHE_BOUNCE 0
+#define CACHE_BOUNCE 1
 #define SORT_MATERIALS 0
 #define DEPTH_OF_FIELD 0
 #define DIRECT_LIGHTING 0
