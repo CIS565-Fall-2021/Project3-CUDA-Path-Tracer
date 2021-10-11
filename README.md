@@ -277,4 +277,8 @@ This feature can be enabled by toggling this macro defined in `src/pathtrace.cu`
 ## Reference
 
 * Physically Based Rendering, Second Edition: From Theory To Implementation. Pharr, Matt and Humphreys, Greg. 2010.
-* Ray Tracing: The Next Week, Peter Shirley, https://raytracing.github.io/books/RayTracingTheNextWeek.html#imagetexturemapping/storingtextureimagedata
+* Ray Tracing: The Next Week, Peter Shirley, https://raytracing.github.io/books/RayTracingTheNextWeek.html#imagetexturemapping/storingtextureimagedata.
+* tinyObj, third party code, https://github.com/tinyobjloader/tinyobjloader.
+* Robo_OBJ_pose4, Artem Shupa-Dubrova, free model from https://sketchfab.com/3d-models/robo-obj-pose4-uaeYu2fwakD1e1bWp5Cxu3XAqrt.
+* Models and textures from homework of CIS460, https://www.cis.upenn.edu/~cis460/21fa/index.html.
+* Special thanks to Ling Xie, who helped me a lot in this project, his website https://jack12xl.netlify.app.
