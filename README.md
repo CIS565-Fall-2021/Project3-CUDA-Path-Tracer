@@ -44,10 +44,10 @@ Below, a compound reflective and refractive impact is executed through a Fresnel
 The scene camera can be set to enable Depth of Field effect which utilises focal distance and lens radius parameters to change the depth of this effect. Geometries located at the focal distance within the lens radius stay in focus while other geometry around the scene will be distorted.
 
 - **Focal Distance: 10**
-	- ![Performance  Analysis](img/DOF/focal0.png)
+	- ![Performance  Analysis](img/DOF/focall0.png)
 	
 - **Focal Distance: 20**
-	- ![Performance  Analysis](img/DOF/foca20.png)
+	- ![Performance  Analysis](img/DOF/focal20.png)
 
 ### Stochastic Anti-Aliasing
 Utilizing anti-aliasing for subpixel sampling brings in smoother geometry edges within the render. It is vital to note that anti-aliasing and first bounce cache don't work together, since the pixel tests will vary per iteration, and ached first bounces from the first iteration won't match the generated ray direction in further iterations. I added the flag for Cache Bounce which toggles off anti-aliasing and setting cache off in turn enables anti-aliasing,
