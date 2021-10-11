@@ -17,8 +17,9 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
-    void Scene::loadNode(tinygltf::Model& model, tinygltf::Node& node);
-    void Scene::loadMesh(tinygltf::Model& model, tinygltf::Mesh& mesh);
+    int triangleCount = 0;
+    void Scene::loadNode(tinygltf::Model& model, tinygltf::Node& node, glm::mat4 prev_transform);
+    void Scene::loadMesh(tinygltf::Model& model, tinygltf::Mesh& mesh, glm::mat4& transform);
 public:
     Scene(string filename);
     void Scene::addGltf(tinygltf::Model& model);

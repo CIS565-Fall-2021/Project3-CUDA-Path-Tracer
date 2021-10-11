@@ -3,6 +3,7 @@
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 
 
@@ -37,30 +38,46 @@ Scene::Scene(string filename) {
 void Scene::addGltf(tinygltf::Model& model) {
     const tinygltf::Scene& scene = model.scenes[model.defaultScene];
     for (int i = 0; i < scene.nodes.size(); i++) {
-        loadNode(model, model.nodes[scene.nodes[i]]);
+        loadNode(model, model.nodes[scene.nodes[i]], glm::mat4(1.0f));
     }
     for (int i = 0; i < model.materials.size(); i++) {
+        tinygltf::Material& material = model.materials[i];
         Material newMaterial;
-        newMaterial.color = glm::vec3(model.materials[i].pbrMetallicRoughness.baseColorFactor[0],
-            model.materials[i].pbrMetallicRoughness.baseColorFactor[1], model.materials[i].pbrMetallicRoughness.baseColorFactor[2]);
+        glm::vec3 light = glm::vec3(material.emissiveFactor[0], material.emissiveFactor[1], material.emissiveFactor[2]);
+        if (glm::length(light) > 0.01f) {
+            newMaterial.color = light;
+            newMaterial.emittance = glm::length(light);
+        }
+        else {
+            newMaterial.color = glm::vec3(material.pbrMetallicRoughness.baseColorFactor[0],
+                material.pbrMetallicRoughness.baseColorFactor[1], material.pbrMetallicRoughness.baseColorFactor[2]);
+            newMaterial.diffusion = material.pbrMetallicRoughness.roughnessFactor;
+            newMaterial.hasReflective = material.pbrMetallicRoughness.metallicFactor;
+        }
+
         materials.push_back(newMaterial);
     }
 }
 
-void Scene::loadNode(tinygltf::Model& model, tinygltf::Node& node) {
+void Scene::loadNode(tinygltf::Model& model, tinygltf::Node& node, glm::mat4 prev_transform) {
+    glm::mat4 transform = glm::mat4(1.f);
+    if (node.matrix.size() == 16) {
+        transform = glm::mat4(1.f);// glm::make_mat4(node.matrix.data());
+    }
+    //cout << transform[0][0] << transform[1][1] << transform[2][2] << transform[1][2] << transform[2][1] << transform[3][3] << transform[3][0] << endl;
     if ((node.mesh >= 0) && (node.mesh < model.meshes.size())) {
-        loadMesh(model, model.meshes[node.mesh]);
+        loadMesh(model, model.meshes[node.mesh], prev_transform * transform);
     }
 
     for (size_t i = 0; i < node.children.size(); i++) {
         assert((node.children[i] >= 0) && (node.children[i] < model.nodes.size()));
-        loadNode(model, model.nodes[node.children[i]]);
+        loadNode(model, model.nodes[node.children[i]], prev_transform * transform);
     }
 }
 
-void Scene::loadMesh(tinygltf::Model& model, tinygltf::Mesh& mesh) {
+void Scene::loadMesh(tinygltf::Model& model, tinygltf::Mesh& mesh, glm::mat4& transform) {
     
-    int triangleCount = 0;
+    //int triangleCount = 0;
     for (size_t i = 0; i < mesh.primitives.size(); ++i) {
         Mesh newMesh;
         const tinygltf::Primitive& primitive = mesh.primitives[i];
@@ -69,6 +86,9 @@ void Scene::loadMesh(tinygltf::Model& model, tinygltf::Mesh& mesh) {
         newMesh.indexEnd = triangleCount + indexAccessor.count / 3;
         triangleCount = newMesh.indexEnd;
         newMesh.materialid = primitive.material + materials.size();
+        newMesh.transform = transform;
+        newMesh.inverseTransform = glm::inverse(transform);
+        newMesh.invTranspose = glm::inverseTranspose(transform);
         const tinygltf::BufferView& bufferview = model.bufferViews[indexAccessor.bufferView];
         const tinygltf::Buffer& buffer = model.buffers[bufferview.buffer]; 
         const short* indices = reinterpret_cast<const short*>(&buffer.data[bufferview.byteOffset + indexAccessor.byteOffset]);

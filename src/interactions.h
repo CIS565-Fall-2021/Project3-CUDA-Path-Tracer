@@ -108,7 +108,7 @@ void scatterRay(
             
         }
     } 
-    else if (m.hasReflective > 0.99f) {
+    else if (u01(rng) < m.hasReflective / (m.hasReflective + m.diffusion + 0.0001f)) { // The epsilon is used to deal with division by zero
         pathSegment.ray.origin = intersect;
         pathSegment.ray.direction = glm::reflect(pathSegment.ray.direction, normal);
         pathSegment.color *= m.specular.color;

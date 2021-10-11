@@ -278,25 +278,32 @@ __global__ void computeIntersections(
         }
         for (int i = 0; i < meshes_size; i++) {
             Mesh& mesh = meshes[i];
-            glm::vec3 center = (mesh.maxXYZ + mesh.minXYZ) / 2.f;
-            float radiusSquared = glm::length2(mesh.maxXYZ - mesh.minXYZ);
+            glm::vec3 transform_max = multiplyMV(mesh.transform, glm::vec4(mesh.maxXYZ, 1.f));
+            glm::vec3 transform_min = multiplyMV(mesh.transform, glm::vec4(mesh.minXYZ, 1.f));
+            glm::vec3 center = (transform_max + transform_min) / 2.f;
+            float radiusSquared = glm::length2(transform_max - transform_min);
             if (!boundingVolumeCulling || glm::intersectRaySphere(pathSegment.ray.origin, pathSegment.ray.direction, center, radiusSquared, t)) {
                 for (int j = mesh.indexStart; j < mesh.indexEnd; j++) {
                     Triangle& triangle = triangles[j];
-                    temp_outside = glm::dot(pathSegment.ray.direction, triangle.normal) <= 0;
-                    if (glm::intersectRayTriangle(pathSegment.ray.origin, glm::normalize(pathSegment.ray.direction), triangle.vertex1, 
+                    glm::vec3 ro = multiplyMV(mesh.inverseTransform, glm::vec4(pathSegment.ray.origin, 1.0f));
+                    glm::vec3 rd = glm::normalize(multiplyMV(mesh.inverseTransform, glm::vec4(pathSegment.ray.direction, 0.0f)));
+                    Ray rt;
+                    rt.origin = ro;
+                    rt.direction = rd;
+                    //temp_outside = glm::dot(pathSegment.ray.direction, triangle.normal) <= 0;
+                    temp_outside = glm::dot(rd, triangle.normal) <= 0;
+                    if (glm::intersectRayTriangle(ro, rd, triangle.vertex1, 
                                     triangle.vertex2, triangle.vertex3, tmp_intersect)) {
                         t = tmp_intersect[2];
-                        tmp_intersect = tmp_intersect[0] * triangle.vertex1 + tmp_intersect[1] * triangle.vertex2 + (1 - tmp_intersect[0] - tmp_intersect[1]) * triangle.vertex3;
-                        //t = glm::length(tmp_intersect - pathSegment.ray.origin);
-                        tmp_intersect = getPointOnRay(pathSegment.ray, t);
-                        glm::vec3 v1 = triangle.vertex1;
-                        glm::vec3 v2 = triangle.vertex2;
-                        glm::vec3 v3 = triangle.vertex3;
+                        //tmp_intersect = tmp_intersect[0] * triangle.vertex1 + tmp_intersect[1] * triangle.vertex2 + (1 - tmp_intersect[0] - tmp_intersect[1]) * triangle.vertex3;
+                        tmp_intersect = getPointOnRay(rt, t);
+                        tmp_intersect = multiplyMV(mesh.transform, glm::vec4(tmp_intersect, 1.0f));
+                        glm::vec3 triangle_normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(triangle.normal, 0.f)));
+                        t = glm::length(tmp_intersect - pathSegment.ray.origin);
                         if (t_min > t && (t > 0.001f || temp_outside)) {
                             t_min = t;
                             intersect_point = tmp_intersect;
-                            normal = temp_outside ? triangle.normal : - triangle.normal;
+                            normal = temp_outside ? triangle_normal : -triangle_normal;
                             hit_geom_index = -1;
                             hit_mesh_index = i;
                             outside = temp_outside;

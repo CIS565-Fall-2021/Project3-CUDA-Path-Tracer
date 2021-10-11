@@ -49,5 +49,12 @@ I tested for the existence of total internal reflection.
 ![After](img/afterDof.png)
 
 
+**Mesh Loading**
+Referenced https://github.com/syoyo/tinygltf/issues/71
+
+roughness factor is reflection?
+cite tesla cybertruck
+
+
 
 
