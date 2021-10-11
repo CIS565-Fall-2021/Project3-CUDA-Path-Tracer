@@ -44,10 +44,10 @@ Below, a compound reflective and refractive impact is executed through a Fresnel
 The scene camera can be set to enable Depth of Field effect which utilises focal distance and lens radius parameters to change the depth of this effect. Geometries located at the focal distance within the lens radius stay in focus while other geometry around the scene will be distorted.
 
 - **Focal Distance: 10**
-	- ![Performance  Analysis](img/DOF/focal10.png)
+	 ![Performance  Analysis](img/DOF/focal10.png)
 	
 - **Focal Distance: 20**
-	- ![Performance  Analysis](img/DOF/focal20.png)
+	 ![Performance  Analysis](img/DOF/focal20.png)
 
 ### Stochastic Anti-Aliasing
 Utilizing anti-aliasing for subpixel sampling brings in smoother geometry edges within the render. It is vital to note that anti-aliasing and first bounce cache don't work together, since the pixel tests will vary per iteration, and ached first bounces from the first iteration won't match the generated ray direction in further iterations. I added the flag for Cache Bounce which toggles off anti-aliasing and setting cache off in turn enables anti-aliasing,
@@ -66,10 +66,10 @@ In order to bring the mesh data into C++, I used the tinyobj library. I build th
 In order to smoothen the triangles on round meshes, the intersection normal is computed from the barycentric interpolation of the 3 normals from the triangle vertices.
 
 - **Lucy**
-	- ![Performance  Analysis](img/Mesh/Lucy.png)
+	![Performance  Analysis](img/Mesh/Lucy.png)
 	
 - **Wahoo**
-	- ![Performance  Analysis](img/Mesh/wahoo.png)
+	![Performance  Analysis](img/Mesh/wahoo.png)
 
 ### Procedural Structures
 I have used L System grammar which generates complex patterns for procedural data. An L-system consists of an alphabet of symbols that can be used to make strings, It consist of an axiom: initial configuration, a collection of production rules that expand each symbol into some larger string of symbols and a mechanism for translating the generated strings into geometric structures.
@@ -117,3 +117,6 @@ I used 3 arbitrary mesh examples to analyze the peformance benefits of enabling 
 Using volume intersection culling for simpler arbitrary meshes with low triangle count such as cube doesn't provide a significant performance improvement. However as the triangle count increases we can see significant improvement which can be attributed to number of triangles to check if bounding volume is hit. Each ray only performs 7 intersection check with 7 sided polygon volume heirarchy as compared to 50000 intersection checks with triangles for XYZ dragon. With BVH we save about 7 seconds in just 10 iterations.
 
 ### Bloopers
+![Performance  Analysis](img/Bloopers/1.png)
+![Performance  Analysis](img/Bloopers/2.png)
+![Performance  Analysis](img/Bloopers/3.png)
