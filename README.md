@@ -10,6 +10,46 @@ CUDA Path Tracer
 
 ![Performance  Analysis](img/wahoo.png)
 
+## Project Description
+Path tracing is a computer graphics Monte Carlo method of rendering images of three-dimensional scenes such that the global illumination is faithful to reality. 
+
+### Features
+- Shading Kernel with BSDF Evaluation
+- Uniform diffuse
+- Perfect specular reflective (mirror)
+- specular refractive (Fresnel dielectric)
+- Path Continuation/Termination with Stream Compaction
+- Toggleable Sorting of ray Paths by material type
+- Toggleable first bounce intersection cache to be used by subsequent iterations
+- Anti-aliasing rays with sub-pixel samples
+- Arbitrary OBJ Mesh Loading with toggleable 7 Plane Bounding Volume intersection culling
+- Camera depth of field
+- Procedural Structure
+- Procedural texture
+- Subsurface Scattering
+
+### Materials
+Material shading is split into different BSDF evaluation functions based on material type. This project supported materials include **diffuse**, **reflective** and **refractive** (fresnel dielectric). Diffuse material scattering is computed by using cosine-weighted samples within a hemisphere. Reflective materials reflect the light ray about the surface nornmal and refractive materials refracts the ray through the material according to Snell's law of refraction and with added fresnel computation for better real life depiction. 
+Here's an image sonsisting of tbove three materials.
+
+
+Below, a compound reflective and refractive impact is executed through a Fresnel fabric, which reflects light beams that are more digression to its surface. This makes a light rays passing through the object refracted, whereas rays brushing the sides of the fabric are reflected. Rather than specifically calculating the Fresnel component, I assess it utilizing Schlick's guess.
+
+### Depth Of Field
+The scene camera can be set to enable Depth of Field effect which utilises focal distance and lens radius parameters to change the depth of this effect. Geometries located at the focal distance within the lens radius stay in focus while other geometry around the scene will be distorted.
+
+### Stochastic Anti-Aliasing
+Utilizing anti-aliasing for subpixel sampling brings in smoother geometry edges within the render. It is vital to note that anti-aliasing and first bounce cache don't work together, since the pixel tests will vary per iteration, and ached first bounces from the first iteration won't match the generated ray direction in further iterations. I added the flag for Cache Bounce which toggles off anti-aliasing and setting cache off in turn enables anti-aliasing,
+
+
+### OBJ Loading
+In order to bring the mesh data into C++, I used the tinyobj library. I build the polygon mesh using the position and normal data of the triangles triangles  from the imported data to create the mesh triangles and store triangle information per arbitrary mesh.
+
+7 planar Bounding volume intersection culling as proposed by Kay and Kajiya in accelerated structeres, is applied at the ray-geometry intersection test to reduce the number of rays that have to be checked against the entire mesh by first checking rays against a volume that completely bounds the mesh. This feature is implemented as toggleable for performance analysis purposes. Pressing the 'B' key while running the GPU renderer will enable this feature.
+
+In order to smoothen the triangles on round meshes, the intersection normal is computed from the barycentric interpolation of the 3 normals from the triangle vertices
+
+
 # Performance Analysis
 
 ## Optimisations
