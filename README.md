@@ -13,7 +13,9 @@ This is a GPU Path Tracer implemented in C++/CUDA with fundamental concepts from
 It allows loading GLTF files for meshes and their associated materials and textures.
 
 ## Screenshots
-(COMING SOON)
+Duck            |  Damaged Helmet  | Flight Helmet
+:-------------------------:|:-------------------------:|:-----------:
+![](img/duck.png)   |  ![](img/damagedhelmet.png) |  ![](img/flighthelmet.png)
 
 ## Basic Features
 
@@ -76,7 +78,7 @@ Test Scene       |  Time to each iteration
 In order to render more complex scenes, the system needs to support loading arbitrary mesh robustly.
 As long as the system is sufficiently robust (e.g. able to handle multiple hierarchies), the complexity can be defined by the file format itself thus making the scene more visually interesting. **GLTF** was chosen as the scene description format as it is much more powerful than OBJ, and the fact that I have never worked with GLTF before and thought it would be a good opportunity to understand the specification.
 
-To support GLTF mesh loading, I used tinygltf to load in the GLTF file and parsed the data into custom `struct` data defined in `sceneStruct.cpp`. This step is necessary since the tinygltf classes are not GPU-compatible.
+To support GLTF mesh loading, I used [tinygltf](https://github.com/syoyo/tinygltf) to load in the GLTF file and parsed the data into custom `struct` data defined in `sceneStruct.cpp`. This step is necessary since the tinygltf classes are not GPU-compatible.
 Additionally, in order to not have to deal with passing nested Struct Arrays to the GPU, each mesh vertex data is flattened into its own giant buffer containing the data for **all** meshes. 
 The actual Mesh struct would only store the index offset for each data. This is similar to how GLTF/OpenGL defines VBOs, therefore there is opportunity to make the GLTF to GPU translation more direct.
 
@@ -143,4 +145,9 @@ This suggests that using baked texture is most practically faster as the access 
 whereas procedural texture is heavily dependent on the efficiency of the algorithm.
 
 ## References
-https://www.khronos.org/files/gltf20-reference-guide.pdf
+* https://www.khronos.org/files/gltf20-reference-guide.pdf
+* https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#texture-object-api
+* https://pbr-book.org/3ed-2018/Texture/Solid_and_Procedural_Texturing
+* https://learnopengl.com/Advanced-Lighting/Normal-Mapping 
+* https://developer.nvidia.com/gpugems/gpugems3/part-iii-rendering/chapter-20-gpu-based-importance-sampling 
+* https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf

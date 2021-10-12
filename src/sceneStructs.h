@@ -112,6 +112,8 @@ struct PbrMetallicRoughness {
 };
 
 struct Material {
+    int tex_offset = 0;
+
     glm::vec3 color;
     struct {
         float exponent;

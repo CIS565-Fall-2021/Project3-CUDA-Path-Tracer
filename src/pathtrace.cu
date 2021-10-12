@@ -19,7 +19,7 @@
 #include "intersections.h"
 #include "interactions.h"
 
-#define TIMING 1
+#define TIMING 0
 #define ERRORCHECK 1
 #define CACHE_FIRST_BOUNCE 1
 #define RAY_SORTING 1

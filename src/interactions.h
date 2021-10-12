@@ -159,7 +159,7 @@ void scatterRay(
  
     // Get Albedo
     int txId = -1;
-    txId = m.pbrMetallicRoughness.baseColorTexture.index;
+    txId = m.tex_offset + m.pbrMetallicRoughness.baseColorTexture.index;
     if (txId < 0) {
       albedo = m.pbrMetallicRoughness.baseColorFactor;
     }
@@ -169,7 +169,7 @@ void scatterRay(
     }
 
     // Get Metallic and Roughness Parameters
-    txId = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
+    txId = m.tex_offset + m.pbrMetallicRoughness.metallicRoughnessTexture.index;
     if (txId < 0) {
       pM = m.pbrMetallicRoughness.metallicFactor;
       pR = m.pbrMetallicRoughness.roughnessFactor;
@@ -181,7 +181,7 @@ void scatterRay(
     }
 
     // Apply normal map if any
-    txId = m.normalTexture.index;
+    txId = m.tex_offset + m.normalTexture.index;
     if (txId >= 0) {
       glm::vec3 n = sampleTexture(textures[txId], i.uv);
       n = glm::normalize(n * 2.f - 1.f);

@@ -58,30 +58,30 @@ Scene::Scene(string filename) {
     std::uniform_real_distribution<float> u01(0.f, 1.f);
     std::uniform_real_distribution<float> u11(-1.f, 1.f);
 
-    for (int i = 0; i < 500; i++) {
+    //for (int i = 0; i < 500; i++) {
 
-      Material newMat;
-      newMat.pbrMetallicRoughness.baseColorFactor = Color(u01(eng), u01(eng), u01(eng));
-      newMat.pbrMetallicRoughness.metallicFactor = 0.f;
-      materials.push_back(newMat);
+    //  Material newMat;
+    //  newMat.pbrMetallicRoughness.baseColorFactor = Color(u01(eng), u01(eng), u01(eng));
+    //  newMat.pbrMetallicRoughness.metallicFactor = 0.f;
+    //  materials.push_back(newMat);
 
-    }
+    //}
 
-    for (int i = 0; i < 2000; i++) {
-      Geom newGeom;
-      newGeom.type = SPHERE;
-      newGeom.materialid = rand() % 500 + 5;
-      newGeom.translation = glm::vec3(5.f*u11(eng), 3.f*u11(eng)+3.f, 5.f*u11(eng));
-      newGeom.rotation = glm::vec3(0.f);
-      newGeom.scale = glm::vec3(0.1f);
+    //for (int i = 0; i < 2000; i++) {
+    //  Geom newGeom;
+    //  newGeom.type = SPHERE;
+    //  newGeom.materialid = rand() % 500 + 5;
+    //  newGeom.translation = glm::vec3(5.f*u11(eng), 3.f*u11(eng)+3.f, 5.f*u11(eng));
+    //  newGeom.rotation = glm::vec3(0.f);
+    //  newGeom.scale = glm::vec3(0.1f);
 
-      //load tranformations
-      newGeom.transform = utilityCore::buildTransformationMatrix(
-        newGeom.translation, newGeom.rotation, newGeom.scale);
-      newGeom.inverseTransform = glm::inverse(newGeom.transform);
-      newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
-      geoms.push_back(newGeom);
-    }
+    //  //load tranformations
+    //  newGeom.transform = utilityCore::buildTransformationMatrix(
+    //    newGeom.translation, newGeom.rotation, newGeom.scale);
+    //  newGeom.inverseTransform = glm::inverse(newGeom.transform);
+    //  newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+    //  geoms.push_back(newGeom);
+    //}
 }
 
 int Scene::loadGeom(string objectid) {
@@ -259,6 +259,8 @@ int Scene::loadGLTFNode(const std::vector<tinygltf::Node>& nodes,
   }
   xform = xform * pXform;
 
+  int meshOffset = meshes.size();
+
   for (const int child : node.children) {
     if (!isLoaded[child]) {
       loadGLTFNode(nodes, nodes[child], xform, isLoaded);
@@ -271,7 +273,7 @@ int Scene::loadGLTFNode(const std::vector<tinygltf::Node>& nodes,
 
   Geom newGeom;
   newGeom.type = MESH;
-  newGeom.meshid = node.mesh;
+  newGeom.meshid = meshes.size() + node.mesh;
   newGeom.materialid = 1;
   newGeom.transform = xform;
   newGeom.inverseTransform = glm::inverse(newGeom.transform);
@@ -341,15 +343,19 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
   delete[] isLoaded;
 
   //// Load all materials
+  int tex_offset = textures.size();
   int mat_offset = materials.size();
   for (const tinygltf::Material& gltfMat : model.materials) {
     Material newMat;
+    newMat.tex_offset = tex_offset;
     newMat.pbrMetallicRoughness.baseColorTexture = gltfMat.pbrMetallicRoughness.baseColorTexture;
     newMat.pbrMetallicRoughness.baseColorFactor = glm::make_vec3(gltfMat.pbrMetallicRoughness.baseColorFactor.data());
     newMat.pbrMetallicRoughness.metallicRoughnessTexture = gltfMat.pbrMetallicRoughness.metallicRoughnessTexture;
     newMat.pbrMetallicRoughness.metallicFactor = gltfMat.pbrMetallicRoughness.metallicFactor;
     newMat.pbrMetallicRoughness.roughnessFactor = gltfMat.pbrMetallicRoughness.roughnessFactor;
     newMat.normalTexture = gltfMat.normalTexture;
+    //newMat.emissiveFactor = glm::make_vec3(gltfMat.emissiveFactor.data());
+    //newMat.emissiveTexture = gltfMat.emissiveTexture;
     materials.push_back(newMat);
   }
 
