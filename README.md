@@ -25,7 +25,7 @@ There are three different types of materials that I implemented.
 ![](img/materials.png)
 
 ### Anti-Aliasing
-In the left photo we can see the step-like edge of the sphere, but in the right one where anti-aliasing has been implemented it appears more smooth. This was implemented by slightly jittering the ray origin when calculating the direction. This provides the slight blur that we see around the edges of the sphere.
+In the left photo we can see the step-like edge of the sphere, but in the right one where anti-aliasing has been implemented it appears more smooth. This was implemented by slightly jittering the ray origin when calculating the direction. This provides the slight blur that we see around the edges of the box.
 ![](img/anti_aliasing_cover_2-01.png)
 
 
