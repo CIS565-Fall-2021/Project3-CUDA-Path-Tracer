@@ -7,9 +7,24 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
+#define DOF_APERATURE       1.0f
+#define DOF_FOCUSDIST       2.0f
+#define USE_DOF             0
+#define USE_BOUNDING_BOX    0
+#define USE_MESH_LOADING    0
+#define ANTIALIASING        1
+#define SCHLICK             1
+#define USE_CACHE           0
+#define USE_SORT            1
+#define USE_PARTITION       1
+#define USE_REMOVE_IF       0
+#define PRINT               0
+#define ERRORCHECK          0
+
 enum GeomType {
     SPHERE,
     CUBE,
+    OBJ,
 };
 
 struct Ray {
@@ -26,6 +41,14 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+    int  triCount = 0; 
+    glm::vec4* host_VecNorArr; 
+    glm::vec4* dev_VecNorArr;
+
+    glm::mat4 bbInverseTransform;
+    glm::vec3 bbScale;
+    
 };
 
 struct Material {
@@ -49,6 +72,10 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+
+    float aperture;
+    float focusDist; 
+
 };
 
 struct RenderState {

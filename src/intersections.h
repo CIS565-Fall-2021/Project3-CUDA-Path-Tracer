@@ -46,10 +46,16 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v) {
  * @return                   Ray parameter `t` value. -1 if no intersection.
  */
 __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
-        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside) {
+        glm::vec3 &intersectionPoint, glm::vec3 &normal, bool &outside, bool forBB) {
     Ray q;
-    q.origin    =                multiplyMV(box.inverseTransform, glm::vec4(r.origin   , 1.0f));
-    q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    if (forBB) {
+        q.origin = multiplyMV(box.bbInverseTransform, glm::vec4(r.origin, 1.0f));
+        q.direction = glm::normalize(multiplyMV(box.bbInverseTransform, glm::vec4(r.direction, 0.0f)));
+    }
+    else {
+        q.origin = multiplyMV(box.inverseTransform, glm::vec4(r.origin, 1.0f));
+        q.direction = glm::normalize(multiplyMV(box.inverseTransform, glm::vec4(r.direction, 0.0f)));
+    }
 
     float tmin = -1e38f;
     float tmax = 1e38f;
@@ -57,21 +63,19 @@ __host__ __device__ float boxIntersectionTest(Geom box, Ray r,
     glm::vec3 tmax_n;
     for (int xyz = 0; xyz < 3; ++xyz) {
         float qdxyz = q.direction[xyz];
-        /*if (glm::abs(qdxyz) > 0.00001f)*/ {
-            float t1 = (-0.5f - q.origin[xyz]) / qdxyz;
-            float t2 = (+0.5f - q.origin[xyz]) / qdxyz;
-            float ta = glm::min(t1, t2);
-            float tb = glm::max(t1, t2);
-            glm::vec3 n;
-            n[xyz] = t2 < t1 ? +1 : -1;
-            if (ta > 0 && ta > tmin) {
-                tmin = ta;
-                tmin_n = n;
-            }
-            if (tb < tmax) {
-                tmax = tb;
-                tmax_n = n;
-            }
+        float t1 = (-0.5f - q.origin[xyz]) / qdxyz;
+        float t2 = (+0.5f - q.origin[xyz]) / qdxyz;
+        float ta = glm::min(t1, t2);
+        float tb = glm::max(t1, t2);
+        glm::vec3 n;
+        n[xyz] = t2 < t1 ? +1 : -1;
+        if (ta > 0 && ta > tmin) {
+            tmin = ta;
+            tmin_n = n;
+        }
+        if (tb < tmax) {
+            tmax = tb;
+            tmax_n = n;
         }
     }
 
@@ -141,4 +145,39 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
     }
 
     return glm::length(r.origin - intersectionPoint);
+}
+
+__host__ __device__ float OBJIntersectionTest(Geom& objGeom, Ray r,
+    glm::vec3& intersectionPoint, glm::vec3& normal, bool& outside) {
+
+#if USE_BOUNDING_BOX 
+    if (boxIntersectionTest(objGeom, r, intersectionPoint, normal, outside, true) < 0) {
+        return -1.f;
+    }
+#endif // USE_BOUNDING_BOX 
+
+
+    for (int i = 0; i < objGeom.triCount; i++)
+    {
+        glm::vec3 vert0 = glm::vec3(objGeom.transform * objGeom.dev_VecNorArr[6 * i + 0]);
+        glm::vec3 vert1 = glm::vec3(objGeom.transform * objGeom.dev_VecNorArr[6 * i + 2]);
+        glm::vec3 vert2 = glm::vec3(objGeom.transform * objGeom.dev_VecNorArr[6 * i + 4]);
+
+        glm::vec3 baryPosition;
+        bool foundIntersect = glm::intersectRayTriangle(r.origin, r.direction, vert0, vert1, vert2, baryPosition);
+
+        if (foundIntersect)
+        {
+            glm::vec4 n1 = objGeom.dev_VecNorArr[6 * i + 1];
+            glm::vec4 n2 = objGeom.dev_VecNorArr[6 * i + 3];
+            glm::vec4 n3 = objGeom.dev_VecNorArr[6 * i + 5];
+            intersectionPoint = getPointOnRay(r, baryPosition[2]);
+            normal = glm::vec3(
+                    baryPosition[0] * n1 +
+                    baryPosition[1] * n2 +
+                    (1 - baryPosition[0] - baryPosition[1]) * n3);
+            return glm::length(r.origin - intersectionPoint);
+        }
+    }
+    return -1;
 }

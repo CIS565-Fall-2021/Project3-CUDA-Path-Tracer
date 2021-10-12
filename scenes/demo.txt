@@ -1,0 +1,528 @@
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Light White
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   7
+
+// Reflective 
+MATERIAL 1
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 2
+RGB         0.35 0.85 0.85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 3
+RGB         0.85 0.35 0.85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 4
+RGB         0.85 0.85 0.35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 5
+RGB         0.35 0.85 0.35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 6
+RGB         0.35 0.35 0.85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Refractive 
+MATERIAL 7
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        1
+REFRIOR     1.5
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 8
+RGB         0.98 0.98 0.98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 9
+RGB         0.43 0.34 0.24
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Diffuse 
+MATERIAL 10
+RGB         0.5 0.5 0.5
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Light White
+MATERIAL 11
+RGB         1 0.1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   7
+
+// Light White
+MATERIAL 12
+RGB         1 0.1 0.1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   7
+
+// Light White
+MATERIAL 13
+RGB         0.1 0.1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   7
+
+// Light White
+MATERIAL 14
+RGB         0.1 1 0.1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   7
+
+// Diffuse Reflective
+MATERIAL 15
+RGB         0.35 0.75 0.35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0.4
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Camera
+CAMERA
+RES         800 800
+FOVY        45
+ITERATIONS  1500
+DEPTH       12
+FILE        cornell
+EYE         0 30 70
+LOOKAT      0 30 0
+UP          0 1 0
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Ceiling light
+OBJECT 0
+cube
+material 11
+TRANS       -20 80 0
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 1
+cube
+material 11
+TRANS       20 80 0
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 2
+cube
+material 0
+TRANS       0 80 0
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 3
+cube
+material 12
+TRANS       -20 80 -20
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 4
+cube
+material 13
+TRANS       20 80 -20
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 5
+cube
+material 14
+TRANS       0 80 -20
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 6
+cube
+material 13
+TRANS       -20 80 20
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 7
+cube
+material 12
+TRANS       20 80 20
+ROTAT       0 0 0
+SCALE       10 1 10
+
+// Ceiling light
+OBJECT 8
+cube
+material 14
+TRANS       0 80 20
+ROTAT       0 0 0
+SCALE       10 1 10
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Cube 
+OBJECT 8
+cube
+material 7
+TRANS       -12 38.960193405 0
+ROTAT       4 60 53
+SCALE       3.375 3.375 3.375
+
+// Cube 
+OBJECT 9
+cube
+material 1
+TRANS       -12 32.9939799387 0
+ROTAT       42 25 28
+SCALE       5.0625 5.0625 5.0625
+
+// Cube 
+OBJECT 10
+cube
+material 7
+TRANS       -12 24.0446597393 0
+ROTAT       19 63 72
+SCALE       7.59375 7.59375 7.59375
+
+// Cube 
+OBJECT 11
+cube
+material 7
+TRANS       -12 15.0953395399 0
+ROTAT       32 0 58
+SCALE       5.0625 5.0625 5.0625
+
+// Cube 
+OBJECT 12
+cube
+material 7
+TRANS       -12 9.12912607362 0
+ROTAT       80 14 27
+SCALE       3.375 3.375 3.375
+
+// Cube 
+OBJECT 13
+cube
+material 1
+TRANS       -12 5.15165042945 0
+ROTAT       67 69 47
+SCALE       2.25 2.25 2.25
+
+// Cube 
+OBJECT 14
+cube
+material 7
+TRANS       -12 2.5 0
+ROTAT       73 3 57
+SCALE       1.5 1.5 1.5
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Cube 
+OBJECT 15
+cube
+material 1
+TRANS       12 47.6954830935 0
+ROTAT       65 29 48
+SCALE       3.375 3.375 3.375
+
+// Cube 
+OBJECT 16
+cube
+material 1
+TRANS       12 41.7292696272 0
+ROTAT       44 16 24
+SCALE       5.0625 5.0625 5.0625
+
+// Cube 
+OBJECT 17
+cube
+material 7
+TRANS       12 35.7630561609 0
+ROTAT       34 41 88
+SCALE       3.375 3.375 3.375
+
+// Cube 
+OBJECT 18
+cube
+material 7
+TRANS       12 31.7855805167 0
+ROTAT       52 59 49
+SCALE       2.25 2.25 2.25
+
+// Cube 
+OBJECT 19
+cube
+material 7
+TRANS       12 29.1339300873 0
+ROTAT       84 70 54
+SCALE       1.5 1.5 1.5
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Cube 
+OBJECT 20
+cube
+material 7
+TRANS       0 43.3278382492 12
+ROTAT       18 21 68
+SCALE       7.529536 7.529536 7.529536
+
+// Cube 
+OBJECT 21
+cube
+material 7
+TRANS       0 35.6914949854 12
+ROTAT       71 41 16
+SCALE       5.37824 5.37824 5.37824
+
+// Cube 
+OBJECT 22
+cube
+material 7
+TRANS       0 30.2369640827 12
+ROTAT       36 20 1
+SCALE       3.8416 3.8416 3.8416
+
+// Cube 
+OBJECT 23
+cube
+material 1
+TRANS       0 26.3408705807 12
+ROTAT       87 76 24
+SCALE       2.744 2.744 2.744
+
+// Cube 
+OBJECT 24
+cube
+material 1
+TRANS       0 23.5579466507 12
+ROTAT       34 54 6
+SCALE       1.96 1.96 1.96
+
+// Cube 
+OBJECT 25
+cube
+material 7
+TRANS       0 21.5701438436 12
+ROTAT       62 74 44
+SCALE       1.4 1.4 1.4
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Cube 
+OBJECT 26
+cube
+material 7
+TRANS       0 43.3278382492 -12
+ROTAT       55 26 0
+SCALE       7.529536 7.529536 7.529536
+
+// Cube 
+OBJECT 27
+cube
+material 1
+TRANS       0 35.6914949854 -12
+ROTAT       29 75 49
+SCALE       5.37824 5.37824 5.37824
+
+// Cube 
+OBJECT 28
+cube
+material 7
+TRANS       0 30.2369640827 -12
+ROTAT       13 40 53
+SCALE       3.8416 3.8416 3.8416
+
+// Cube 
+OBJECT 29
+cube
+material 7
+TRANS       0 26.3408705807 -12
+ROTAT       82 83 8
+SCALE       2.744 2.744 2.744
+
+// Cube 
+OBJECT 30
+cube
+material 7
+TRANS       0 23.5579466507 -12
+ROTAT       39 88 60
+SCALE       1.96 1.96 1.96
+
+// Cube 
+OBJECT 31
+cube
+material 1
+TRANS       0 21.5701438436 -12
+ROTAT       4 15 84
+SCALE       1.4 1.4 1.4
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// Cube 
+OBJECT 32
+cube
+material 9
+TRANS       0 53.3278382492 0
+ROTAT       0 0 20
+SCALE       27 1.3 3
+
+// Cube 
+OBJECT 33
+cube
+material 9
+TRANS       0 54.5278382492 0
+ROTAT       0 0 20
+SCALE       3 1.3 27
+
+// Cube 
+OBJECT 34
+cube
+material 8
+TRANS       -12 27.9139191246 0
+ROTAT       0 0 0
+SCALE       0.5 45.8278382492 0.5
+
+// Cube 
+OBJECT 35
+cube
+material 8
+TRANS       12 45.2308841683 0
+ROTAT       0 0 0
+SCALE       0.5 28.1939081619 0.5
+
+// Cube 
+OBJECT 36
+cube
+material 8
+TRANS       0 38.2308841683 12
+ROTAT       0 0 0
+SCALE       0.5 35.1939081619 0.5
+
+// Cube 
+OBJECT 37
+cube
+material 8
+TRANS       0 38.2308841683 -12
+ROTAT       0 0 0
+SCALE       0.5 35.1939081619 0.5
+
+
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+// World
+OBJECT 38
+cube
+material 15
+TRANS       0 -10 0
+ROTAT       0 0 0
+SCALE       200 200 200
