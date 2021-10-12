@@ -45,11 +45,10 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
-// adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.htm  
 __host__ __device__
 float reflectance(float cosine, float ref_idx) {
-    // Use Schlick's approximation for reflectance.
-    auto r0 = (1 - ref_idx) / (1 + ref_idx);
+    // Schlick's approximation
+    float r0 = (1 - ref_idx) / (1 + ref_idx); // air's index of refraction is 1
     r0 = r0 * r0;
     return r0 + (1 - r0) * pow((1 - cosine), 5);
 }
@@ -119,7 +118,7 @@ void scatterRay(
         else if (m.hasRefractive > 0.0)
         {
             // refractive
-            // adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.htm 
+            // adapted from https://raytracing.github.io/books/RayTracingInOneWeekend.html 
 
             // Flip the refraction ratio depending if we are entering the object or leaving it
             float refractionRatio = !pathSegment.insideObject ? (1.0 / m.indexOfRefraction) : m.indexOfRefraction; 
@@ -143,8 +142,7 @@ void scatterRay(
             }
 
             pathSegment.ray.direction = direction;
-            pathSegment.ray.origin += direction * 0.01f;
-        }
+            pathSegment.ray.origin += direction * 0.01f;         }
         else
         {
             // diffuse

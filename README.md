@@ -33,7 +33,7 @@ This technique has been widely used, mostly in the CPU, in many industries, most
 
 In this project, we attempt to create a path tracer utilizing the GPU, giving us much faster rendering speeds. As we start with a very basic implementation, there are many avenues of improvement in our path tracer, and this readme will go over some of those strategies used to make such improvements. We will first start of with the core features before diving deeper in how we made this path tracer unique! 
 
-<img src="images/recording.gif" style="zoom:50%;" />
+<img src="images/cornell-filled.gif" style="zoom:50%;" />
 
 ## Features
 
@@ -78,6 +78,12 @@ It is commonly stated that, unlike rasterization, ray tracing gives us antialias
 
 
 
+This came "for free" because the only thing that had to be changed was the direction in which we shoot rays from each pixel. Since changing this only equates to generating a random number when creating rays, there is no noticeable performance impacts to antialiasing. You can't, however, cache the first bounce. The is the same for when ray tracing on the CPU. 
+
+Additionally, as opposed to picking a random offset from the pixel center to antialias, one can use other types of techniques that don't rely on a random generated number (think stratified sampling). This may be more efficient as it will reduce the number of arithmetic operations.
+
+
+
 ### Refraction
 
 The objects you import in a ray tracer may vary in material. An object's material is, in essence, determines how a ray bounces off of or into the object. One cool phenomenon is the way that light refracts when it interacts with water, glass, and other dielectrics. The tricky part to getting this to look right is to formulate how the light will reflect or refract based on the varying angles of the camera and the index of refraction of the material. Once accomplished, you get interesting looking results as shown below.
@@ -96,6 +102,10 @@ Note that the time for our ray to traverse our scene grows linearly with the num
 
 <img src="images\stanford-bunny-glass.png" height="400px"/>
 
+
+
+For my implementation, I only extract the triangles from a mesh, and no other information like material/texture. Furthermore, I store each triangle as a set of three vertices per triangle. This is quite inefficient and could be optimized. But, for the sake of loading objs for this project, it was sufficient. 
+
 ## Performance Improvements
 
 ### Hierarchical Data Structure
@@ -110,11 +120,17 @@ Each primitive is contained in a leaf node, defined with a bounding box that con
 
 For the image above, a ray first checks if it hits A (via a ray-box intersection test). If it does, it then checks if it hits B and C. And so forth, until it reaches the end and it is left with a set of primitives to check (via a ray-triangle intersection test for this implementation). This simple breadth-first search is implemented on the device (GPU) using a stack of fixed size to keep track of the nodes that need to be traversed. This stack is of size 20, which, on average, should support 2^20 or about 1 million triangles. It can be easily modified to store more.
 
-To test the performance our data structure, we load a [Stanford Bunny](http://graphics.stanford.edu/data/3Dscanrep/) of 4968 and 69451 triangles, and a Stanford Dragon of 871,414 triangles, into a cornell box to see the time it takes to render. 
+To test the performance our data structure, we load a [Stanford Bunny](http://graphics.stanford.edu/data/3Dscanrep/) of 4968 and 69451 triangles, and a Stanford Dragon of 871,414 triangles, into a cornell box to see the time it takes to render. We then compare the difference in time as a function of the number of triangles.
 
-**TODO: Make into a graph**
+<img src="img\bvh-perf-graph.png" width="500px" />
+
+
 
 <img src="img\bvh-perf-table.png" height="250px" />
+
+This implementation of BVH is very similar to what one would do when making a path tracer on the CPU. The entire BVH was constructed on the CPU, and when passed to the GPU, the traversal is done iteratively. Additionally, by design, one already gets significant performance increase by implementing BVH. However, this implementation is by no means fully optimized.:
+
+For instance, we can use simultaneous traversal (as explained here: https://developer.nvidia.com/blog/thinking-parallel-part-ii-tree-traversal-gpu/), in which we can group nearby BVHs together so that we don't "repeat ourselves" when searching for nodes that our rays hit. This would involve adding an extra step, however, because we now need to check if two nodes from different BVH trees "overlap".
 
 ## Additional Performance Analysis
 
@@ -126,11 +142,33 @@ Using std::chrono, the number of seconds it took to render 5000 iterations of th
 
 
 
+### Stream Compaction
+
+<img src="img/stream-compaction.png" height="400px" />
+
+As mentioned in the beginning, we use stream compaction to remove rays that have terminated, freeing up threads. This leads to noticeable differences as the scene becomes more and more complex. For instance, the filled cornell box with the bunny and the dragon took **49ms** per iteration with stream compaction as opposed to **61ms** without it. 
+
+For closed scenes, stream compaction won't help us because rays keep bouncing until they reach their final depth or terminate at a light. For the closed scene above, at the given camera location the time for one iteration was **83ms** and when open at **60ms**. 
+
+For my implementation of stream compaction, I may not me removing rays that have hit the light due to forgetting to set the values to 0, but we should still see a benefit in closed scene for lights that have already hit the lightsource, but not as much improvement in open scenes.
+
 ## Submission
 
 ### CMake
 
 I have updated the CMakeLists.txt to include a new cpp (src/bvhtree.cpp) and added a directory with the tinyobj import (add_subdirectory + adding tinyobj in the target link libraries).
+
+
+
+### Acknowledgements
+
+Special thanks to the following materials:
+
+- https://github.com/tinyobjloader/tinyobjloader
+
+- https://raytracing.github.io/books/RayTracingTheNextWeek.html 
+- https://pbr-book.org/
+- http://graphics.stanford.edu/data/3Dscanrep/ 
 
 
 

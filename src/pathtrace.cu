@@ -602,8 +602,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
   thrust_path_end = thrust::remove_if(thrust_path_start, thrust_path_end, is_nonzero());
 
   dev_paths = thrust::raw_pointer_cast(thrust_path_start);
-  dev_path_end = thrust::raw_pointer_cast(thrust_path_end);   
+  dev_path_end = thrust::raw_pointer_cast(thrust_path_end);
   num_paths = dev_path_end - dev_paths;
+
+  std::cout << "num_paths: " << num_paths << std::endl;
 
   iterationComplete = (++depth >= traceDepth); // TODO: should be based off stream compaction results.
 }

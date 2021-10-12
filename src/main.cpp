@@ -56,6 +56,12 @@ int main(int argc, char** argv) {
     // 
     // Load OBJs 
 
+    //Transform transform;
+    //transform.rotate = glm::vec3(0, 90, 0);
+    //transform.scale = glm::vec3(20.f);
+    //transform.translate = glm::vec3(3, 4, -3);
+    //scene->LoadObj("../objs/bunny.obj", transform, 2, true);
+
     // final.txt
     /*Transform transform;
     transform.rotate = glm::vec3(0, 90, 0);
@@ -75,6 +81,11 @@ int main(int argc, char** argv) {
     transform.scale = glm::vec3(15.f);
     transform.translate = glm::vec3(2.5, -1, 4);
     scene->LoadObj("../objs/dragon_low_poly.obj", transform, 3, true);
+    Transform transform2;
+    transform2.rotate = glm::vec3(10, 10, -10);
+    transform2.scale = glm::vec3(15.f);
+    transform2.translate = glm::vec3(0, 5, 2);
+    scene->LoadObj("../objs/bunny.obj", transform2, 6, true);
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;
