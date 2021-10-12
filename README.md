@@ -12,6 +12,10 @@ Project 3 CUSA Path Tracer
 	* Submitted on: 10/09/2021
 	* Used 3 Late Days
 
+<p align="center">
+  <img src="img/demo.png" alt="drawing" width="500" />
+</p>
+
 ## Introduction 
 The objective of this project was to implement a naive core path tracer that took a simplistic approach to rendering scenes. 
 <p align="center">
@@ -128,3 +132,63 @@ Without Schlick's Approximation:
 </p>
 
 ## Performance Analysis
+There are four features intended to optimize the path tracer:
+* First Iteration Caching
+* Ray Stream Compaction
+* Material Sorting
+* Bounding Box
+
+### Ray Stream Compaction 
+Benchmark: `scene/cornell.txt`
+This section intends to measure the isolated rate of culling rays via stream compaction. More threads culled is correlated with improved performance. All renders begin with 640,000 rays. The values in the charts and number of rays remaining after each iteration. 
+
+Lower is better: 
+<p align="center">
+  <img src="img/openvclose.png" alt="drawing" width="500" />
+</p>
+
+#### Open Scene
+| Iteration | 1        | 2        | 3        | 4        | 5        | 6        | 7        | 8        |
+|-----------|----------|----------|----------|----------|----------|----------|----------|----------|
+| Depth 1   | 618771   |          |          |          |          |          |          |          |
+| Depth 2   | 618771   | 450015   |          |          |          |          |          |          |
+| Depth 3   | 618771   | 450015   | 348852   |          |          |          |          |          |
+| Depth 4   | 618771   | 450015   | 348852   | 279639   |          |          |          |          |
+| Depth 5   | 618771   | 450015   | 348852   | 279639   | 228985   |          |          |          |
+| Depth 6   | 618771   | 450015   | 348852   | 279639   | 228985   | 189313   |          |          |
+| Depth 7   | 618771   | 450015   | 348852   | 279639   | 228985   | 189313   | 157422   |          |
+| Depth 8   | 618771   | 450015   | 348852   | 279639   | 228985   | 189313   | 157422   | 131689   |
+
+#### Closed Scene
+| Iteration | 1        | 2        | 3        | 4        | 5        | 6        | 7        | 8        |
+|-----------|----------|----------|----------|----------|----------|----------|----------|----------|
+| Depth 1   | 605474   |          |          |          |          |          |          |          |
+| Depth 2   | 605474   | 587380   |          |          |          |          |          |          |
+| Depth 3   | 605474   | 587380   | 570202   |          |          |          |          |          |
+| Depth 4   | 605474   | 587380   | 570202   | 554235   |          |          |          |          |
+| Depth 5   | 605474   | 587380   | 570202   | 554235   | 538737   |          |          |          |
+| Depth 6   | 605474   | 587380   | 570202   | 554235   | 538737   | 523410   |          |          |
+| Depth 7   | 605474   | 587380   | 570202   | 554235   | 538737   | 523410   | 509205   |          |
+| Depth 8   | 605474   | 587380   | 570202   | 554235   | 538737   | 523410   | 509205   | 495054   |
+
+### Comparisons 
+Benchmark: `scene/cornellOBJ.txt`
+This section intends to measure the efficacy of each optimization in isolation and finally all together. Effectiveness is measured in runtime. Lower runtime is better. Runtime is determined by the total clocktime for the path tracer to complete 100 iterations under the following condition: 
+* No optimization
+* With first iteration caching
+* With ray stream compaction
+* With material sorting
+* With bounding box
+* With first iteration caching, ray stream compaction, material sorting, and bounding box
+
+|				   | Time (s) |
+|------------------|----------|
+| No Optimization  | 778      |
+| 1st Iter Cache   | 624      |
+| Ray Compaction   | 228      |
+| Material Sorting | 770      |
+| Bounding Box	   | 704      |
+| All Optimization | 209      | 
+<p align="center">
+  <img src="img/timeComparison.png" alt="drawing" width="500" />
+</p>
