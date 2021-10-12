@@ -19,7 +19,7 @@
 #include "interactions.h"
 
 #define ERRORCHECK 1
-#define ANTI_ALIASING 1
+#define ANTI_ALIASING 0
 #define CACHE_BOUNCE 0
 #define SORT_MATERIALS 0
 #define DEPTH_OF_FIELD 0
