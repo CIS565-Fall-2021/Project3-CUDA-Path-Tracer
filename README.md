@@ -13,7 +13,7 @@ Project 3 CUSA Path Tracer
 	* Used 3 Late Days
 
 <p align="center">
-  <img src="img/demo.png" alt="drawing" width="500" />
+  <img src="img/demo.PNG" alt="drawing" width="500" />
 </p>
 
 ## Introduction 
@@ -144,7 +144,7 @@ This section intends to measure the isolated rate of culling rays via stream com
 
 Lower is better: 
 <p align="center">
-  <img src="img/openvclose.png" alt="drawing" width="500" />
+  <img src="img/openvclose.PNG" alt="drawing" width="500" />
 </p>
 
 #### Open Scene
@@ -190,5 +190,5 @@ This section intends to measure the efficacy of each optimization in isolation a
 | Bounding Box	   | 704      |
 | All Optimization | 209      | 
 <p align="center">
-  <img src="img/timeComparison.png" alt="drawing" width="500" />
+  <img src="img/timeComparison.PNG" alt="drawing" width="500" />
 </p>
