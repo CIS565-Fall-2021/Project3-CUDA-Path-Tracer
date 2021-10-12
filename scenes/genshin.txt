@@ -6,7 +6,7 @@ SPECRGB     0 0 0
 REFL        0
 REFR        0
 REFRIOR     0
-EMITTANCE   1
+EMITTANCE   15
 
 // Diffuse white
 MATERIAL 1
@@ -58,15 +58,6 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-MATERIAL 6
-RGB         .53 .81 .92
-SPECEX      0
-SPECRGB     0 0 0
-REFL        0
-REFR        0
-REFRIOR     0
-EMITTANCE   0
-
 // Camera
 CAMERA
 RES         800 800
@@ -83,9 +74,9 @@ UP          0 1 0
 OBJECT 0
 sphere
 material 0
-TRANS       -8 14 -5
+TRANS       -5 20 10
 ROTAT       -30 0 0
-SCALE       3 3 3
+SCALE       4 4 4
 
 // Floor
 OBJECT 1
@@ -93,7 +84,7 @@ cube
 material 4
 TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       100 0.1 100
+SCALE       1000 0.1 1000
 
 // Skybox
 OBJECT 2
@@ -101,7 +92,7 @@ sphere
 material 1
 TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       100 100 100
+SCALE       1000 1000 1000
 
 
 

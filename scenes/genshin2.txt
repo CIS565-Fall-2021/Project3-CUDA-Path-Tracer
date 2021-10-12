@@ -74,19 +74,17 @@ FOVY        45
 ITERATIONS  5000
 DEPTH       8
 FILE        cornell
-EYE         0 6 12.5
+EYE         0 6 14.5
 LOOKAT      0 7 0
 UP          0 1 0
 
 
-// Moon
-// Ceiling light
 OBJECT 0
 sphere
 material 0
-TRANS       0 25 0
+TRANS       0 20 5
 ROTAT       0 0 0
-SCALE       6 .3 6
+SCALE       4 4 4
 
 // Floor
 OBJECT 1
@@ -94,47 +92,15 @@ cube
 material 4
 TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       100 0.1 100
+SCALE       1000 0.1 1000
 
-// Ceiling
+// Skybox
 OBJECT 2
-cube
+sphere
 material 1
-TRANS       0 100 0
-ROTAT       0 0 90
-SCALE       .01 100 100
-
-// Back wall
-OBJECT 3
-cube
-material 1
-TRANS       0 50 -50
-ROTAT       0 90 0
-SCALE       .01 100 100
-
-// Left wall
-OBJECT 4
-cube
-material 1
-TRANS       -50 50 0
+TRANS       0 0 0
 ROTAT       0 0 0
-SCALE       .01 100 100
-
-// Right wall
-OBJECT 5
-cube
-material 1
-TRANS       50 50 0
-ROTAT       0 0 0
-SCALE       .01 100 100
-
-// front wall
-OBJECT 6
-cube
-material 1
-TRANS       0 50 50
-ROTAT       0 90 0
-SCALE       .01 100 100
+SCALE       1000 1000 1000
 
 
 // excalibur
@@ -147,7 +113,7 @@ SCALE       1 1 1
 scene.gltf
 
 // excalibur
-GLTF 0
+GLTF 1
 material 0
 TRANS       -0.5 3 0
 ROTAT       0 -30 0
