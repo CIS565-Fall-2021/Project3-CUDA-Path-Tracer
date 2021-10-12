@@ -103,7 +103,7 @@ Just the base color      |  With more effects
 Nowadays, many people use metallic/roughness and Albedo instead of diffuse/specular.
 I found a mesh (and its accompanying textures) that used this information so I had to 
 figure out how to adapt to this. Due to vastly different behaviors between dielectrics
-and conductors, metallicity the concept is treated almost as a boolean value, with gradations
+and conductors, metallicity the concept is treated almost as a Boolean value, with gradations
 encoding how to attenuate the metallic behavior. Physically based rendering tries to use 
 more physics to enable more realistic rendering. Light is split into refractive and reflective
 components and metals will absorb the refractive component whilst dielectrics will scatter both, 
@@ -191,11 +191,14 @@ Bug | Cause
 ## Further Work
 * Heavily optimize the performance with a special focus on reducing branch divergence  
 * Refactoring the code to be more structured and less haphazard
-* Changing the option toggles from `#define` macros to booleans so changing does not require 
+* Changing the option toggles from `#define` macros to Booleans so changing does not require 
 lengthy recompilation  
 * Dive deeper into PBR to make everything look cooler like making the coppery parts shinier in a realistic way that is not just sidestepping the material behaviors 
-* Learn about the disney BSDF and the GGX equation
+* Learn about the Disney BSDF and the GGX equation
 * How to interpolate normals from a tangent space normal map  
+    * Refactor with separate position, normal, uv, index, etc. buffers rather than cramming everything into triangle
+    * use gltf to load instead of obj
+    * mikktspace algorithm
 * Support for multiple mesh importing
 
 ## Other
@@ -205,6 +208,7 @@ lengthy recompilation
 * UT Austin's CS384 slides on normal mapping tangent that explained the theory on how to convert from tangent space normals to object space and https://stackoverflow.com/questions/5255806/how-to-calculate-tangent-and-binormal for explaining the calculations in a way that did not seem like abuse of matrix notation  
 * https://wallpaperaccess.com/star-wars-hyperspace for the cool hyperspace wallpaper  
 * Adobe's articles on the PBR Metallic/Roughness workflow that explained the theory behind it  
+* reddit user u/cowpowered for tips on performing normal interpolation when working with normal maps and tbns
 
 
 
@@ -219,4 +223,4 @@ lengthy recompilation
 
 
 <!-- 
-illegal array idxs in gpu kernel -->
+illegal array indices in gpu kernel -->
