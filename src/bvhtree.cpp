@@ -11,37 +11,6 @@ struct TriangleStruct
     {}
 };
 
-//glm::vec3 getCenter(Triangle& triangle, int axis)
-//{
-//    glm::vec3 v = glm::vec3(0);
-//
-//    if (axis == 0)
-//    {
-//        for (auto& vertex : triangle)
-//        {
-//            v += glm::vec3(vertex.x, 0, 0);
-//        }
-//        return v / 3.f;
-//    }
-//    else if (axis == 1)
-//    {
-//        for (auto& vertex : triangle)
-//        {
-//            v += glm::vec3(0,vertex.y, 0);
-//        }
-//        return v / 3.f;
-//    }
-//    else if (axis == 2)
-//    {
-//        for (auto& vertex : triangle)
-//        {
-//            v += glm::vec3(0,0,vertex.z);
-//        }
-//        return v / 3.f;
-//    }
-//    return v;
-//}
-
 float getMin(Triangle& triangle, int axis)
 {
     return std::min(triangle[0][axis], std::min(triangle[1][axis], triangle[2][axis]));
@@ -101,7 +70,7 @@ void buildTree(
     bvhNodes->at(node).boundingBox.type = GeomType::CUBE;
     bvhNodes->at(node).boundingBox.translation = (maxCorner + minCorner) / 2.f;
     bvhNodes->at(node).boundingBox.scale = (maxCorner - bvhNodes->at(node).boundingBox.translation) / 0.5f;
-    bvhNodes->at(node).boundingBox.scale += 0.01f; // epsilon addition
+    bvhNodes->at(node).boundingBox.scale += 0.1f; // epsilon addition
     bvhNodes->at(node).boundingBox.rotation = glm::vec3(0);
     bvhNodes->at(node).boundingBox.transform = utilityCore::buildTransformationMatrix(
         bvhNodes->at(node).boundingBox.translation, bvhNodes->at(node).boundingBox.rotation, bvhNodes->at(node).boundingBox.scale);

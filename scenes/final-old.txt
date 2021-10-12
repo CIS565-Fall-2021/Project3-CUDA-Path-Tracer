@@ -17,7 +17,7 @@ SPECRGB     0 0 0
 REFL        0
 REFR        0
 REFRIOR     0
-EMITTANCE   10
+EMITTANCE   7
 
 // MATERIALS
 // Diffuse white
@@ -120,31 +120,21 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// Low light
-MATERIAL 11
-RGB         2 2 2
-SPECEX      0
-SPECRGB     0 0 0
-REFL        0
-REFR        0
-REFRIOR     0
-EMITTANCE   2
-
 // OBJECTS
 // left light
 OBJECT 0
 cube
 material 0
-TRANS       -10 15 3
-ROTAT       0 0 0
+TRANS       -5 8 3
+ROTAT       90 0 20
 SCALE       3 .3 3
 
 // right light
 OBJECT 1
 cube
 material 0
-TRANS       10 15 3
-ROTAT       0 0 0
+TRANS       5 8 3
+ROTAT       90 0 -20
 SCALE       3 .3 3
 
 // Back wall
@@ -153,13 +143,13 @@ cube
 material 10
 TRANS       0 5 -5
 ROTAT       0 90 0
-SCALE       .01 15 25
+SCALE       .01 25 25
 
 // shelf long
 OBJECT 3
 cube
 material 9
-TRANS       0 3 -3.75
+TRANS       0 3 -3.5
 ROTAT       0 90 0
 SCALE       3 0.25 10
 
@@ -167,17 +157,17 @@ SCALE       3 0.25 10
 OBJECT 4
 cube
 material 9
-TRANS       -4 7 -3.5
+TRANS       -4 7 -3.75
 ROTAT       0 90 0
-SCALE       2.5 0.25 4.5
+SCALE       2.5 0.25 4
 
 // shelf right
 OBJECT 5
 cube
 material 9
-TRANS       4 7 -3.25
+TRANS       4 7 -3.75
 ROTAT       0 90 0
-SCALE       2.5 0.25 4.5
+SCALE       2.5 0.25 4
 
 // sphere left
 OBJECT 6
@@ -225,30 +215,8 @@ SCALE       3.25 0.25 0.25
 OBJECT 11
 cube
 material 0
-TRANS       0 15 3
-ROTAT       0 0 0
+TRANS       0 8 6
+ROTAT       90 0 0
 SCALE       3 .3 3
 
-// shelf long light
-OBJECT 12
-cube
-material 0
-TRANS       0 2.75 -4.75
-ROTAT       0 0 0
-SCALE       8 0.25 0.25
 
-// shelf left light
-OBJECT 13
-cube
-material 11
-TRANS       -4 6.75 -4.75
-ROTAT       0 0 0
-SCALE       3.25 0.25 0.25
-
-// shelf right light
-OBJECT 14
-cube
-material 11
-TRANS       4 6.75 -4.75
-ROTAT       0 0 0
-SCALE       3.25 0.25 0.25

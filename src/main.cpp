@@ -56,57 +56,25 @@ int main(int argc, char** argv) {
     // 
     // Load OBJs 
 
-    Transform transform;
+    // final.txt
+    /*Transform transform;
     transform.rotate = glm::vec3(0, 90, 0);
     transform.scale = glm::vec3(20.f);
-    transform.translate = glm::vec3(-4, 6.5, -3.5);
-    scene->LoadObj("../objs/bunny.obj", transform, 1, true);
+    transform.translate = glm::vec3(-3.75, 6.4, -3);
+    scene->LoadObj("../objs/bunny.obj", transform, 2, true);
 
     Transform transform2;
-    transform2.rotate = glm::vec3(0, 0, 0);
+    transform2.rotate = glm::vec3(0, 10, 0);
     transform2.scale = glm::vec3(20.f);
-    transform2.translate = glm::vec3(4, 6.5, -3.5);
-    scene->LoadObj("../objs/bunny.obj", transform2, 1, true);
+    transform2.translate = glm::vec3(4, 6.4, -2.5);
+    scene->LoadObj("../objs/bunny.obj", transform2, 5, true);*/
 
-   /* Transform transform2;
-    transform2.rotate = glm::vec3(0, 90, 0);
-    transform2.scale = glm::vec3(20.f);
-    transform2.translate = glm::vec3(3, 4.25, -3.5);
-    scene->LoadObj("../objs/bunny.obj", transform2, 6, true);*/
-
-    //Transform transform;
-    //transform.rotate = glm::vec3(0, 0, 0);
-    //transform.scale = glm::vec3(10.f);
-    //transform.translate = glm::vec3(0, 4.5, -3);
-    //scene->LoadObj("../objs/bunny.obj", transform, 3, true);
-
-    // load cube
-    //Transform transform;
-    //transform.rotate = glm::vec3(0);
-    //transform.scale = glm::vec3(1.f);
-    //transform.translate = glm::vec3(0, 2.5f, 0);
-    //scene->LoadObj("../objs/cube.obj", transform, 2, true);
-
-    // load bunny :3
-    /*Transform transform;
-    transform.rotate = glm::vec3(0);
-    transform.scale = glm::vec3(40.f);
-    transform.translate = glm::vec3(0.5, 0, 2);
-    scene->LoadObj("../objs/bunny.obj", transform, 6, true);*/
-
-    /*Transform transform2;
-    transform2.rotate = glm::vec3(10, 10, -10);
-    transform2.scale = glm::vec3(15.f);
-    transform2.translate = glm::vec3(0, 5, 2);
-    scene->LoadObj("../objs/bunny.obj", transform2, 6, true);
-
-
+    // cornell-filled.txt
     Transform transform;
     transform.rotate = glm::vec3(0, 0, 0);
     transform.scale = glm::vec3(15.f);
     transform.translate = glm::vec3(2.5, -1, 4);
-    scene->LoadObj("../objs/dragon_low_poly.obj", transform, 3, true);*/
-
+    scene->LoadObj("../objs/dragon_low_poly.obj", transform, 3, true);
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;
