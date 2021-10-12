@@ -7,17 +7,28 @@
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
 
-enum GeomType {
+enum GeomType
+{
     SPHERE,
     CUBE,
+    MESH
 };
 
-struct Ray {
+struct Ray
+{
     glm::vec3 origin;
     glm::vec3 direction;
 };
 
-struct Geom {
+struct Triangle
+{
+    glm::vec3 vertices[3];
+    glm::vec3 normals[3];
+    glm::vec2 uvs[3];
+};
+
+struct Geom
+{
     enum GeomType type;
     int materialid;
     glm::vec3 translation;
@@ -26,11 +37,25 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+
+    // for mesh
+    int triStartIdx;
+    int triEndIdx; // exclusive
+    glm::vec3 minBounding;
+    glm::vec3 maxBounding;
 };
 
-struct Material {
+struct Texture{
+    int textureOffset = -1;
+    int imageWidth;
+    int imageHeight;
+};
+
+struct Material
+{
     glm::vec3 color;
-    struct {
+    struct
+    {
         float exponent;
         glm::vec3 color;
     } specular;
@@ -38,9 +63,12 @@ struct Material {
     float hasRefractive;
     float indexOfRefraction;
     float emittance;
+    Texture tex;
+    Texture bump;
 };
 
-struct Camera {
+struct Camera
+{
     glm::ivec2 resolution;
     glm::vec3 position;
     glm::vec3 lookAt;
@@ -51,7 +79,8 @@ struct Camera {
     glm::vec2 pixelLength;
 };
 
-struct RenderState {
+struct RenderState
+{
     Camera camera;
     unsigned int iterations;
     int traceDepth;
@@ -59,7 +88,8 @@ struct RenderState {
     std::string imageName;
 };
 
-struct PathSegment {
+struct PathSegment
+{
     Ray ray;
     glm::vec3 color;
     int pixelIndex;
@@ -69,8 +99,10 @@ struct PathSegment {
 // Use with a corresponding PathSegment to do:
 // 1) color contribution computation
 // 2) BSDF evaluation: generate a new ray
-struct ShadeableIntersection {
-  float t;
-  glm::vec3 surfaceNormal;
-  int materialId;
+struct ShadeableIntersection
+{
+    float t;
+    glm::vec3 surfaceNormal;
+    glm::vec2 uv;
+    int materialId;
 };

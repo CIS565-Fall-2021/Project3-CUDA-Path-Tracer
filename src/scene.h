@@ -16,11 +16,15 @@ private:
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
     int loadCamera();
+    int loadGLTF();
 public:
     Scene(string filename);
     ~Scene();
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;
+    std::vector<Triangle> triangles;
+    std::vector<glm::vec4> textures;
+    int triIdx = 0;
     RenderState state;
 };
