@@ -72,7 +72,7 @@ Feature Implemented:
 |![](img/diffuse.png) |![](img/reflect.png) |
 
 #### Refract
-![](imga/refract.png)
+![](img/refract.png)
 
 |Reflect + Refract | Diffuse + Reflect + Refract |
 |-|-|
