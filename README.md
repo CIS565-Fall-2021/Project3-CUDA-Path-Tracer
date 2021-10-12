@@ -13,6 +13,10 @@ Project 3 CUSA Path Tracer
 	* Used 3 Late Days
 
 <p align="center">
+  <img src="img/demoGreen.png" alt="drawing" width="800" />
+</p>
+
+<p align="center">
   <img src="img/demo.png" alt="drawing" width="800" />
 </p>
 
@@ -192,3 +196,6 @@ This section intends to measure the efficacy of each optimization in isolation a
 <p align="center">
   <img src="img/timeComparison.PNG" alt="drawing" width="500" />
 </p>
+
+#### Error Analysis
+Note that my render times for a simple mesh are extraordinarily high. Therefore, I do not believe my results are even close to representative of correctly implemented optimizations. I believe that I have instantiated, or at least incorrectly launched, my kernels such that OBJ rendering is almost serialized. 

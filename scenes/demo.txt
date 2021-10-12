@@ -152,6 +152,16 @@ REFR        0
 REFRIOR     0
 EMITTANCE   7
 
+// Diffuse Reflective
+MATERIAL 15
+RGB         0.35 0.75 0.35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0.4
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -175,7 +185,7 @@ UP          0 1 0
 OBJECT 0
 cube
 material 11
-TRANS       -20 100 0
+TRANS       -20 80 0
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -183,7 +193,7 @@ SCALE       10 1 10
 OBJECT 1
 cube
 material 11
-TRANS       20 100 0
+TRANS       20 80 0
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -191,7 +201,7 @@ SCALE       10 1 10
 OBJECT 2
 cube
 material 0
-TRANS       0 100 0
+TRANS       0 80 0
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -199,7 +209,7 @@ SCALE       10 1 10
 OBJECT 3
 cube
 material 12
-TRANS       -20 100 -20
+TRANS       -20 80 -20
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -207,7 +217,7 @@ SCALE       10 1 10
 OBJECT 4
 cube
 material 13
-TRANS       20 100 -20
+TRANS       20 80 -20
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -215,7 +225,7 @@ SCALE       10 1 10
 OBJECT 5
 cube
 material 14
-TRANS       0 100 -20
+TRANS       0 80 -20
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -223,7 +233,7 @@ SCALE       10 1 10
 OBJECT 6
 cube
 material 13
-TRANS       -20 100 20
+TRANS       -20 80 20
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -231,7 +241,7 @@ SCALE       10 1 10
 OBJECT 7
 cube
 material 12
-TRANS       20 100 20
+TRANS       20 80 20
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -239,7 +249,7 @@ SCALE       10 1 10
 OBJECT 8
 cube
 material 14
-TRANS       0 100 20
+TRANS       0 80 20
 ROTAT       0 0 0
 SCALE       10 1 10
 
@@ -509,82 +519,10 @@ SCALE       0.5 35.1939081619 0.5
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-// Ceiling light
+// World
 OBJECT 38
 cube
-material 11
-TRANS       -20 -100 0
+material 15
+TRANS       0 -10 0
 ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 39
-cube
-material 11
-TRANS       20 -100 0
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 40
-cube
-material 0
-TRANS       0 -100 0
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 41
-cube
-material 12
-TRANS       -20 -100 -20
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 42
-cube
-material 13
-TRANS       20 -100 -20
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 43
-cube
-material 14
-TRANS       0 -100 -20
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 44
-cube
-material 13
-TRANS       -20 -100 20
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 45
-cube
-material 12
-TRANS       20 -100 20
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// Ceiling light
-OBJECT 46
-cube
-material 14
-TRANS       0 -100 20
-ROTAT       0 0 0
-SCALE       10 1 10
-
-// World
-OBJECT 47
-sphere
-material 10
-TRANS       0 0 0
-ROTAT       0 0 0
-SCALE       250 250 250
+SCALE       200 200 200
