@@ -1,8 +1,12 @@
+#define TINYOBJLOADER_IMPLEMENTATION
 #include <iostream>
 #include "scene.h"
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include "tiny_obj_loader.h"
+
+#define BOUNDING_BOX 0
 
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
@@ -32,6 +36,90 @@ Scene::Scene(string filename) {
     }
 }
 
+//based on example tinyobj code
+int Scene::loadOBJ(string filename, std::vector<Geom>& triangles, int materialID, glm::mat4 transform) {
+    //tiny obj vars
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    bool loaded = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str());
+
+    //warning + error checks
+    if (!(warn.empty())) {
+        std::cout << "TinyObjReader: " << warn << std::endl;
+    }
+
+    if (!(err.empty())) {
+        std::cout << "TinyObjReader: " << err << std::endl;
+    }
+
+    if (!loaded) return -1;
+
+    //shapes loop
+    for (size_t s = 0; s < shapes.size(); s++) {
+        size_t offset = 0;
+        //face loop
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            int fv = shapes[s].mesh.num_face_vertices[f];
+            std::vector<glm::vec3> f_pos;
+            std::vector<glm::vec3> f_nors;
+            std::vector<glm::vec2> f_uvs;
+
+            for (int v = 0; v < fv; v++) {
+                tinyobj::index_t idx = shapes[s].mesh.indices[offset + v];
+                //vertices
+                tinyobj::real_t vtxX = attrib.vertices[3 * (size_t)idx.vertex_index + 0]; //cast to size_t?
+                tinyobj::real_t vtxY = attrib.vertices[3 * (size_t)idx.vertex_index + 1];
+                tinyobj::real_t vtxZ = attrib.vertices[3 * (size_t)idx.vertex_index + 2];
+                f_pos.push_back(glm::vec3(vtxX, vtxY, vtxZ));
+
+                //normals
+                tinyobj::real_t nX = attrib.normals[3 * (size_t)idx.normal_index + 0]; 
+                tinyobj::real_t nY = attrib.normals[3 * (size_t)idx.normal_index + 1];
+                tinyobj::real_t nZ = attrib.normals[3 * (size_t)idx.normal_index + 2];
+                f_nors.push_back(glm::vec3(nX, nY, nZ));
+
+                //uvs (not sure if need these?)
+                tinyobj::real_t tX = attrib.texcoords[3 * (size_t)idx.texcoord_index + 0];
+                tinyobj::real_t tY = attrib.texcoords[3 * (size_t)idx.texcoord_index + 1];
+                f_uvs.push_back(glm::vec2(tX, tY));
+            }
+            offset += fv;
+
+            //form triangles
+            for (int i = 1; i < f_pos.size() - 1; i++) {
+                Geom triangle;
+                triangle.type = TRIANGLE;
+                //pos
+                triangle.triangle.pt1.pos = f_pos[0];
+                triangle.triangle.pt2.pos = f_pos[i];
+                triangle.triangle.pt3.pos = f_pos[i + 1];
+
+                //nor
+                triangle.triangle.pt1.nor = f_nors[0];
+                triangle.triangle.pt2.nor = f_nors[i];
+                triangle.triangle.pt3.nor = f_nors[i + 1];
+
+                //uv
+                triangle.triangle.pt1.uv = f_uvs[0];
+                triangle.triangle.pt2.uv = f_uvs[i];
+                triangle.triangle.pt3.uv = f_uvs[i + 1];
+
+                triangle.transform = transform;
+                triangle.materialid = materialID;
+                triangle.inverseTransform = glm::inverse(transform);
+                triangle.invTranspose = glm::inverseTranspose(transform);
+
+                //add triangle
+                triangles.push_back(triangle);
+            }
+        }
+    }
+    return 1;
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -39,8 +127,16 @@ int Scene::loadGeom(string objectid) {
         return -1;
     } else {
         cout << "Loading Geom " << id << "..." << endl;
+
         Geom newGeom;
         string line;
+        
+        //obj loading vars
+        bool objFlag = false;
+        std::string filename = "";
+        int materialID = 0;
+        std::vector<Geom> triangles;
+        glm::mat4 transform;
 
         //load object type
         utilityCore::safeGetline(fp_in, line);
@@ -51,6 +147,10 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            } else if (strcmp(line.c_str(), ".obj") != NULL) {
+                cout << "Loading OBJ..." << endl;
+                objFlag = true;
+                filename = line;
             }
         }
 
@@ -59,6 +159,7 @@ int Scene::loadGeom(string objectid) {
         if (!line.empty() && fp_in.good()) {
             vector<string> tokens = utilityCore::tokenizeString(line);
             newGeom.materialid = atoi(tokens[1].c_str());
+            materialID = atoi(tokens[1].c_str()); //want to use this material for obj
             cout << "Connecting Geom " << objectid << " to Material " << newGeom.materialid << "..." << endl;
         }
 
@@ -83,8 +184,18 @@ int Scene::loadGeom(string objectid) {
                 newGeom.translation, newGeom.rotation, newGeom.scale);
         newGeom.inverseTransform = glm::inverse(newGeom.transform);
         newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+        transform = newGeom.transform; //want to use this transform for obj
 
-        geoms.push_back(newGeom);
+        if (objFlag) {
+            std::cout << "OBJ LOADING" << std::endl;
+            loadOBJ(filename, triangles, materialID, transform);
+            for (int i = 0; i < triangles.size(); i++) {
+                geoms.push_back(triangles[i]);
+            }
+        }
+        else {
+            geoms.push_back(newGeom);
+        }
         return 1;
     }
 }

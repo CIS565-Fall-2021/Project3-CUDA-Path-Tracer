@@ -1,6 +1,8 @@
 #pragma once
 
 #include "intersections.h"
+#include "glm/glm.hpp"
+#include "glm/gtx/norm.hpp"
 
 // CHECKITOUT
 /**
@@ -66,6 +68,70 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
+
+__host__ __device__
+float schlickEquation(float ior, float n, float cos) {
+    float r0 = (n - ior) / (n + ior);
+    r0 = r0 * r0;
+    return r0 + (1.f - r0) * glm::pow(1.f - cos, 5.f);
+}
+
+//__host__ __device__
+//bool refractHelper(Ray& ray, glm::vec3& normal, glm::vec3& refract, float n) {
+//    /*glm::vec3 normalized = glm::normalize(ray.direction);
+//    float dot = glm::dot(normalized, normal);*/
+//
+//    float d = 1.0 - n * n * (1.0 - dot * dot);
+//    if (d >= 1.f) {
+//        refract = n * (normalized - normal * dot) - normal * glm::sqrt(d);
+//        return true;
+//    }
+//    return false;
+//}
+
+__host__ __device__
+void refractScatter(PathSegment& path, const Material& m, glm::vec3 intersect, glm::vec3 normal, thrust::default_random_engine& rng) {
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float num = u01(rng);
+    float n = 1.f; 
+    float probability;
+    glm::vec3 normal2 = normal;
+    float ior = m.indexOfRefraction;
+    
+    float cos = glm::clamp(glm::dot(path.ray.direction, normal), -1.f, 1.f);
+
+    if (cos >= 0.f) {
+        normal2 = -normal;
+        n = ior;
+        ior = 1.f;
+    }
+    else {
+        cos = glm::abs(cos);
+    }
+
+    glm::vec3 reflect = glm::normalize(glm::reflect(path.ray.direction, normal2));
+    float x = n / ior;
+    float sin = glm::sqrt(glm::max(0.f, 1.f - cos * cos));
+
+    if (x * sin < 1.f) {
+        //schlick equation
+        probability = schlickEquation(ior, n, cos);
+
+        if (num < probability) {
+            path.ray.direction = reflect;
+        }
+        else {
+            path.ray.direction = glm::refract(path.ray.direction, normal2, x);
+        }
+    }
+    else {
+        path.ray.direction = reflect;
+    }
+
+    path.ray.origin = intersect + (path.ray.direction * 0.01f);
+    path.color *= m.specular.color;
+}
+
 __host__ __device__
 void scatterRay(
         PathSegment & pathSegment,
@@ -73,7 +139,24 @@ void scatterRay(
         glm::vec3 normal,
         const Material &m,
         thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+
+        glm::vec3 dir_diffuse = calculateRandomDirectionInHemisphere(normal, rng);
+        glm::vec3 dir_specular = glm::normalize(glm::reflect(pathSegment.ray.direction, normal)); //not sure if have to normalize here
+
+        //specular
+        if (m.hasReflective > 0) {
+            pathSegment.ray.direction = dir_specular;
+            pathSegment.ray.origin = intersect + 0.0001f * normal;
+            pathSegment.color *= m.specular.color;
+        }
+        else if (m.hasRefractive > 0) {
+            //refractive (glass, water, etc)
+            refractScatter(pathSegment, m, intersect, normal, rng);
+        }
+        else {
+            //diffuse
+            pathSegment.ray.direction = dir_diffuse;
+            pathSegment.ray.origin = intersect + 0.0001f * normal;
+            pathSegment.color *= m.color;
+        }
 }
