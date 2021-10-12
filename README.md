@@ -1,7 +1,7 @@
 CUDA Path Tracer
 ================
 
-<img src="images\stanford-bunny-glass.png" height="500px"/>
+<img src="images\final-image.png" height="500px"/>
 
 Implementation of a CUDA-based path tracer capable of rendering globally-illuminated images.
 
@@ -25,9 +25,15 @@ This technique has been widely used, mostly in the CPU, in many industries, most
 
 
 
+<img src="images\cornell-filled-annotated.png" height="500px"/>
+
+
+
 ### What's different?
 
 In this project, we attempt to create a path tracer utilizing the GPU, giving us much faster rendering speeds. As we start with a very basic implementation, there are many avenues of improvement in our path tracer, and this readme will go over some of those strategies used to make such improvements. We will first start of with the core features before diving deeper in how we made this path tracer unique! 
+
+<img src="images/recording.gif" style="zoom:50%;" />
 
 ## Features
 
@@ -76,7 +82,7 @@ It is commonly stated that, unlike rasterization, ray tracing gives us antialias
 
 The objects you import in a ray tracer may vary in material. An object's material is, in essence, determines how a ray bounces off of or into the object. One cool phenomenon is the way that light refracts when it interacts with water, glass, and other dielectrics. The tricky part to getting this to look right is to formulate how the light will reflect or refract based on the varying angles of the camera and the index of refraction of the material. Once accomplished, you get interesting looking results as shown below.
 
-<img src="images\glass-ball.png" height="400px" />
+<img src="images\glass-ball-annotated.png" height="400px" />
 
 Notice the caustic that is created by the lighting interacting with the glass sphere!
 
@@ -88,7 +94,7 @@ So that we can render more than just boxes and spheres, I utilized the tinyOBJ o
 
 Note that the time for our ray to traverse our scene grows linearly with the number of primitives it has. When an object is loaded with a lot of triangles, this quickly becomes a problem. That is why we implement this mesh loading with an hierarchical data structure (see below).
 
-<img src="images\cornell.2021-10-09_03-06-12z.5000samp.png" height="400px"/>
+<img src="images\stanford-bunny-glass.png" height="400px"/>
 
 ## Performance Improvements
 

@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
     Transform transform2;
     transform2.rotate = glm::vec3(0, 10, 0);
-    transform2.scale = glm::vec3(20.f);
+    transform2.scale = glm::veGc3(20.f);
     transform2.translate = glm::vec3(4, 6.4, -2.5);
     scene->LoadObj("../objs/bunny.obj", transform2, 5, true);*/
 

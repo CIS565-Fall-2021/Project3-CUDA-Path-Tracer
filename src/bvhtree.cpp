@@ -70,7 +70,7 @@ void buildTree(
     bvhNodes->at(node).boundingBox.type = GeomType::CUBE;
     bvhNodes->at(node).boundingBox.translation = (maxCorner + minCorner) / 2.f;
     bvhNodes->at(node).boundingBox.scale = (maxCorner - bvhNodes->at(node).boundingBox.translation) / 0.5f;
-    bvhNodes->at(node).boundingBox.scale += 0.1f; // epsilon addition
+    bvhNodes->at(node).boundingBox.scale += 0.001f; // epsilon addition
     bvhNodes->at(node).boundingBox.rotation = glm::vec3(0);
     bvhNodes->at(node).boundingBox.transform = utilityCore::buildTransformationMatrix(
         bvhNodes->at(node).boundingBox.translation, bvhNodes->at(node).boundingBox.rotation, bvhNodes->at(node).boundingBox.scale);
