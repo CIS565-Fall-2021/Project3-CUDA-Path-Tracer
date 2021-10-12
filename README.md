@@ -33,7 +33,7 @@ In the left photo we can see the step-like edge of the sphere, but in the right 
 The OBJ loader allows for .obj files to be uploaded to the pathtracer. It utilizes a Triangle geom type and reads the OBJ file to determine where the triangles and points on the triangles should exist. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to implement this.
 
 ![](img/cornell.2021-10-12_05-09-13z.5000samp.png)
-![](img/cow.png)
+![](img/new_cow.png)
 
 ### Depth of Field
 For the depth of field we want to be able to shift the focus of our camera so that only certain parts of the image appear in focus. The first photo has no depth of field effect for reference. In the second photo we can see that the front sphere looks blurred due to the larger focal distance (13). With a lower value for the focal distance (8) the back sphere/background gets blurred.
@@ -54,6 +54,10 @@ A bit too much depth of field
 ![](img/cornell.2021-10-07_14-28-06z.344samp.png)
 
 
-Cube OBJs is just a triangle?
+Cube OBJ is just a triangle?
 
 ![](img/sphere.2021-10-10_02-54-37z.165samp.png)
+
+Lighting mishap
+
+![](img/dodecahedron_blooper.png)
