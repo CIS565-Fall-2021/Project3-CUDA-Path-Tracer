@@ -488,7 +488,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter) {
     // Shoot ray into scene, bounce between objects, push shading chunks
 
 #if ERRORCHECK & PRINT
-    std::cout << "Iter: " << iter << "\n";
+    std::cout << "Iter: " << iter <<  " num_paths: " << num_paths << "\n";
 #endif // ERRORCHECK & PRINT
 
 

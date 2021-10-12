@@ -115,11 +115,12 @@ int main(int argc, char** argv) {
     scene = new Scene(sceneFile);
 
 #if USE_MESH_LOADING
-    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/A_Wing_e6_landed_whole_closed.obj";
+    const char* objPath = "C:/Users/yangr/OneDrive/Desktop/wahoo.obj";
     for (int i = 0; i < scene->geoms.size(); i++) {
         if (scene->geoms[i].type == GeomType::OBJ) {
             LoadOBJ(objPath, scene->geoms[i]);
 
+#if USE_BOUNDING_BOX
             float minX = std::numeric_limits<float>::max();
             float minY = std::numeric_limits<float>::max();
             float minZ = std::numeric_limits<float>::max();
@@ -141,8 +142,8 @@ int main(int argc, char** argv) {
             scene->geoms[i].bbScale = glm::vec3(glm::abs((maxX - minX) / 2.0f), glm::abs((maxY - minY) / 2.0f), glm::abs((maxZ - minZ) / 2.0f));
             scene->geoms[i].bbInverseTransform = glm::inverse(utilityCore::buildTransformationMatrix(
                 scene->geoms[i].translation, scene->geoms[i].rotation, scene->geoms[i].bbScale));
+#endif // USE_BOUNDING_BOX
         } 
-
     }
 #endif // USE_MESH_LOADING
 
