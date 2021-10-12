@@ -13,7 +13,7 @@ Project 3 CUSA Path Tracer
 	* Used 3 Late Days
 
 <p align="center">
-  <img src="img/demo.PNG" alt="drawing" width="500" />
+  <img src="img/demo.png" alt="drawing" width="800" />
 </p>
 
 ## Introduction 
