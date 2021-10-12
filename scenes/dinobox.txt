@@ -97,27 +97,27 @@ REFRIOR     1
 FRESNELPOW  5
 EMITTANCE   0
 
-////// purple glass
-//MATERIAL 8
-//RGB         .98 .38 .98
-//SPECEX      0
-//SPECRGB     .98 .98 .98
-//REF L        1
-//REFR        1
-//REFRIOR     1.5
-//FRESNELPOW  2.5
-//EMITTANCE   0
-//
-//// dark floor
-//MATERIAL 9
-//RGB         .5 .5 .5
-//SPECEX      0
-//SPECRGB     0 0 0
-//REFL        0
-//REFR        0
-//REFRIOR     1
-//FRESNELPOW  5
-//EMITTANCE   0
+// dark floor
+MATERIAL 8
+RGB         .5 .5 .5
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// dull light
+MATERIAL 9
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   5
 
 // Camera
 CAMERA
@@ -136,7 +136,7 @@ UP          0 1 0
 // Floor
 OBJECT 0
 cube
-material 9
+material 8
 TRANS       0 0 0
 ROTAT       0 0 0
 SCALE       10 .01 10
@@ -221,90 +221,10 @@ TRANS       5 10 -5
 ROTAT       0 0 0
 SCALE       8 8 8
 
-//// Sphere
-//OBJECT 11
-//sphere
-//material 0
-//TRANS       3 8 10.5
-//ROTAT       0 0 0
-//SCALE       1 1 1
-
-//// bunny
-//OBJECT 6
-//C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\bunnyLoPoly.obj
-//material 8
-//TRANS       1 0 -2
-//ROTAT       0 0 0
-//SCALE       1 1 1 
-//
-//// platform
-//OBJECT 7
-//cube
-//material 5
-//TRANS       -3 1.25 -1
-//ROTAT       0 0 0
-//SCALE       3 2.5 7
-//
-////// teapot
-////OBJECT 6
-////C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\teapotTris.obj
-////material 7
-////TRANS       0 0 0
-////ROTAT       0 0 0
-////SCALE       .5 .5 .5 
-//
-//// glass Sphere
-//OBJECT 8
-//sphere
-//material 6
-//TRANS       0 2 -2
-//ROTAT       0 0 0
-//SCALE       3 3 3
-//
-//// grid line
-//OBJECT 8
-//cube
-//material 7
-//TRANS       0 1 -4.5
-//ROTAT       0 0 0
-//SCALE       10 1 0.1
-//
-//// grid line
-//OBJECT 9
-//cube
-//material 7
-//TRANS       0 3 -4.5
-//ROTAT       0 0 0
-//SCALE       10 1 0.1
-//
-//// grid line
-//OBJECT 10
-//cube
-//material 7
-//TRANS       0 5 -4.5
-//ROTAT       0 0 0
-//SCALE       10 1 0.1
-//
-//// grid line
-//OBJECT 11
-//cube
-//material 7
-//TRANS       0 7 -4.5
-//ROTAT       0 0 0
-//SCALE       10 1 0.1
-//
-//// grid line
-//OBJECT 12
-//cube
-//material 7
-//TRANS       0 5 -4.5
-//ROTAT       0 0 0
-//SCALE       1 10 0.1
-//
-//// mirror cube
-//OBJECT 13
-//cube
-//material 4
-//TRANS       0 8 0
-//ROTAT       0 0 45
-//SCALE       3 .1 3
+// Spot light
+OBJECT 11
+cube
+material 0
+TRANS       0 7 9
+ROTAT       0 0 0
+SCALE       .5 5 .1
