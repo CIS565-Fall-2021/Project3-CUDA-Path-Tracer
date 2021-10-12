@@ -7,7 +7,7 @@ CUDA Path Tracer
 *  [LinkedIn](https://www.linkedin.com/in/lindsay-j-smith/), [personal website](https://lindsays-portfolio-d6aa5d.webflow.io/).
 * Tested on: Windows 10, i7-11800H 144Hz 16GB RAM, GeForce RTX 3060 512GB SSD (Personal Laptop)
 
-![](img/dof_none.png)
+![](img/anti_aliasing_cover.png)
 
 ## Features
 * Basic pathtracer
@@ -20,30 +20,19 @@ CUDA Path Tracer
 This pathtracer utilized [Physically Based Rendering](https://pbr-book.org/) for reference
 
 ### Materials
-Diffused: The diffused material randomly selects a direction for the ray to bounce.
+There are three different types of materials that I implemented. 
 
-![](img/diffuse.png)
-
-Specular (Reflective): The specular material reflects the ray across the normal, so there is a set direction that the ray will bounce in every time.
-
-![](img/cornell.2021-10-07_10-31-08z.3067samp.png)
-
-Refractive: The refractive material was implemented using Schlick's approximation for Fresnel effects. 
-
-![](img/clear_glass.png)
-![](img/blue_glass.png)
+![](img/materials.png)
 
 ### Anti-Aliasing
-In the first photo we can see the step-like edge of the sphere, but in the second one where anti-aliasing has been implemented it appears more smooth. This was implemented by slightly jittering the ray origin when calculating the direction. This provides the slight blur that we see around the edges of the sphere.
-
-<img width="300" src="img/no_anti_aliasing.png">
-<img width="300" src="img/better_anti_aliasing.png">
+In the left photo we can see the step-like edge of the sphere, but in the right one where anti-aliasing has been implemented it appears more smooth. This was implemented by slightly jittering the ray origin when calculating the direction. This provides the slight blur that we see around the edges of the sphere.
+![](img/anti_aliasing_cover_2-01.png)
 
 
 ### OBJ Loading
 The OBJ loader allows for .obj files to be uploaded to the pathtracer. It utilizes a Triangle geom type and reads the OBJ file to determine where the triangles and points on the triangles should exist. I used [tinyObj](https://github.com/tinyobjloader/tinyobjloader) to implement this.
 
-![](img/dodecahedron.png)
+![](img/cornell.2021-10-12_05-09-13z.5000samp.png)
 ![](img/cow.png)
 
 ### Depth of Field
