@@ -10,7 +10,8 @@ GLuint displayImage;
 
 GLFWwindow *window;
 
-std::string currentTimeString() {
+std::string currentTimeString()
+{
     time_t now;
     time(&now);
     char buf[sizeof "0000-00-00_00-00-00z"];
@@ -22,30 +23,35 @@ std::string currentTimeString() {
 //----------SETUP STUFF----------
 //-------------------------------
 
-void initTextures() {
+void initTextures()
+{
     glGenTextures(1, &displayImage);
     glBindTexture(GL_TEXTURE_2D, displayImage);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 }
 
-void initVAO(void) {
+void initVAO(void)
+{
     GLfloat vertices[] = {
-        -1.0f, -1.0f,
-        1.0f, -1.0f,
-        1.0f,  1.0f,
-        -1.0f,  1.0f,
+        -1.0f,
+        -1.0f,
+        1.0f,
+        -1.0f,
+        1.0f,
+        1.0f,
+        -1.0f,
+        1.0f,
     };
 
     GLfloat texcoords[] = {
         1.0f, 1.0f,
         0.0f, 1.0f,
         0.0f, 0.0f,
-        1.0f, 0.0f
-    };
+        1.0f, 0.0f};
 
-    GLushort indices[] = { 0, 1, 3, 3, 1, 2 };
+    GLushort indices[] = {0, 1, 3, 3, 1, 2};
 
     GLuint vertexBufferObjID[3];
     glGenBuffers(3, vertexBufferObjID);
@@ -64,21 +70,25 @@ void initVAO(void) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 }
 
-GLuint initShader() {
-    const char *attribLocations[] = { "Position", "Texcoords" };
+GLuint initShader()
+{
+    const char *attribLocations[] = {"Position", "Texcoords"};
     GLuint program = glslUtility::createDefaultProgram(attribLocations, 2);
     GLint location;
 
     //glUseProgram(program);
-    if ((location = glGetUniformLocation(program, "u_image")) != -1) {
+    if ((location = glGetUniformLocation(program, "u_image")) != -1)
+    {
         glUniform1i(location, 0);
     }
 
     return program;
 }
 
-void deletePBO(GLuint* pbo) {
-    if (pbo) {
+void deletePBO(GLuint *pbo)
+{
+    if (pbo)
+    {
         // unregister this buffer object with CUDA
         cudaGLUnregisterBufferObject(*pbo);
 
@@ -89,28 +99,34 @@ void deletePBO(GLuint* pbo) {
     }
 }
 
-void deleteTexture(GLuint* tex) {
+void deleteTexture(GLuint *tex)
+{
     glDeleteTextures(1, tex);
     *tex = (GLuint)NULL;
 }
 
-void cleanupCuda() {
-    if (pbo) {
+void cleanupCuda()
+{
+    if (pbo)
+    {
         deletePBO(&pbo);
     }
-    if (displayImage) {
+    if (displayImage)
+    {
         deleteTexture(&displayImage);
     }
 }
 
-void initCuda() {
+void initCuda()
+{
     cudaGLSetGLDevice(0);
 
     // Clean up on program exit
     atexit(cleanupCuda);
 }
 
-void initPBO() {
+void initPBO()
+{
     // set up vertex data parameter
     int num_texels = width * height;
     int num_values = num_texels * 4;
@@ -125,22 +141,25 @@ void initPBO() {
     // Allocate data for the buffer. 4-channel 8-bit image
     glBufferData(GL_PIXEL_UNPACK_BUFFER, size_tex_data, NULL, GL_DYNAMIC_COPY);
     cudaGLRegisterBufferObject(pbo);
-
 }
 
-void errorCallback(int error, const char* description) {
+void errorCallback(int error, const char *description)
+{
     fprintf(stderr, "%s\n", description);
 }
 
-bool init() {
+bool init()
+{
     glfwSetErrorCallback(errorCallback);
 
-    if (!glfwInit()) {
+    if (!glfwInit())
+    {
         exit(EXIT_FAILURE);
     }
 
     window = glfwCreateWindow(width, height, "CIS 565 Path Tracer", NULL, NULL);
-    if (!window) {
+    if (!window)
+    {
         glfwTerminate();
         return false;
     }
@@ -151,7 +170,8 @@ bool init() {
 
     // Set up GL context
     glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
+    if (glewInit() != GLEW_OK)
+    {
         return false;
     }
 
@@ -168,8 +188,10 @@ bool init() {
     return true;
 }
 
-void mainLoop() {
-    while (!glfwWindowShouldClose(window)) {
+void mainLoop()
+{
+    while (!glfwWindowShouldClose(window))
+    {
         glfwPollEvents();
         runCuda();
 
@@ -182,7 +204,7 @@ void mainLoop() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         // VAO, shader program, and texture already bound
-        glDrawElements(GL_TRIANGLES, 6,  GL_UNSIGNED_SHORT, 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
         glfwSwapBuffers(window);
     }
     glfwDestroyWindow(window);

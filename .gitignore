@@ -23,7 +23,8 @@ build
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
@@ -558,3 +559,10 @@ xcuserdata
 *.xccheckout
 *.moved-aside
 *.xcuserstate
+.vscode/*
+renders/*
+ebon_hawk/*
+scenes/ebon_hawk/*
+old_renders/*
+oldFinalRenders/*
+

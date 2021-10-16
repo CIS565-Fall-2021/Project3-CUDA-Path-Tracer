@@ -1,0 +1,105 @@
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   5
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// Diffuse red
+MATERIAL 2
+RGB         .85 .35 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   2
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   2
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// Diffuse Blue
+MATERIAL 4
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        0
+REFRIOR     1.5
+EMITTANCE   2
+COLORMAP 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// chrome
+MATERIAL 5
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        0
+REFR        1
+REFRIOR     1.5
+EMITTANCE   0
+COLORMAP ../scenes/ebon_hawk/ebonhawk_V_EHawk01_baseColor.png 
+EMITMAP 
+ROUGHMAP 
+NORMALMAP 
+
+// Camera
+CAMERA
+RES         480 480
+FOVY        45
+ITERATIONS  1000
+DEPTH       8
+FILE        cow
+EYE         0.0 5 10.5
+LOOKAT      0 5 0
+UP          0 1 0
+
+// Cow, shiny
+OBJECT 0
+mesh ../scenes/cow.obj
+material 5
+TRANS       0 4 2
+ROTAT       0 -45 0
+SCALE       0.75 0.75 0.75
+
+BACK 0
+IMG ../scenes/ebon_hawk/hyperSquareTex.png
