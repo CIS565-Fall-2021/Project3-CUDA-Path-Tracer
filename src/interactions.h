@@ -2,6 +2,12 @@
 
 #include "intersections.h"
 
+
+__host__ __device__
+thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth) {
+    int h = utilhash((1 << 31) | (depth << 22) | iter) ^ utilhash(index);
+    return thrust::default_random_engine(h);
+}
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -66,14 +72,141 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  *
  * You may need to change the parameter list for your purposes!
  */
-__host__ __device__
-void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
+
+__host__ __device__ void scatterRay(PathSegment & pathSegment,
+									glm::vec3 intersect,
+									glm::vec3 normal,
+									const Material &m,
+									thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+    thrust::uniform_int_distribution<int> u01(0, 1);
+    thrust::uniform_real_distribution<float> uf01(0, 1);
+    if (m.hasReflective && !m.hasRefractive && u01(rng)) {
+        pathSegment.ray.origin = intersect;
+        // Thanks stack exchange: https://math.stackexchange.com/questions/13261/how-to-get-a-reflection-vector
+        // reflectedVector = ray - 2 * normal * dot(ray, normal)
+        pathSegment.ray.direction = pathSegment.ray.direction - 
+            (2.0f * normal * glm::dot(pathSegment.ray.direction, normal));
+    }
+    else if (m.hasRefractive) {
+
+	// calculate angle that the incident ray is bent by according to Snell's law
+	// sin(theta2)/sin(theta1) = ior1/ior2 where theta1 is the angle between the ray
+	// and the surface normal. solving for theta2 (and using dot(ray, normal) = cos(theta)
+	// theta2 = invsin(sqrt(1 - dot(ray, normal)^2) * ior1/ior2)
+	//float sinTheta = sqrt(1 - pow(glm::dot(pathSegment.ray.direction, normal), 2)) / m.indexOfRefraction;
+	//float theta = asin(sinTheta);
+	
+	// Some angles produce total internal refelction. detect/handle that here
+		// update the ray direction using the calculated theta
+		// This method was found via a stack exchange post:
+		// https://stackoverflow.com/questions/5123028/change-of-direction-of-a-vector
+		glm::vec3 c = glm::cross(pathSegment.ray.direction, normal);
+		glm::vec3 f = glm::cross(pathSegment.ray.direction, c);
+
+
+		// calculate the contribution of that ray to the overall light of the point
+		// using Schlick's approximation
+		float R0 = ((1 - m.indexOfRefraction) / (1 + m.indexOfRefraction));
+		R0 *= R0;
+
+
+		// Schlick's approximation has a static value of five where we use FresnelPower here,
+		// allowing for a trade-off between accuracy and aesthetic choices
+        float cosTheta = glm::dot(glm::normalize(pathSegment.ray.direction), glm::normalize(normal));
+        float sinTheta = sqrt(1 - (cosTheta * cosTheta));
+		float FresnelFactor = R0 + (1 - R0) * pow((1 - abs(cosTheta)), m.FresnelPower);
+
+        
+            //pathSegment.color = glm::vec3(FresnelFactor);
+            //pathSegment.remainingBounces = 0;
+
+		if (sinTheta > 1 || uf01(rng) > FresnelFactor) {
+			// update the ray origin. 
+			// offset a little bit in the direction of the ray because hit detection
+			// stops a smidge shy of the surface (and the origin should now be beyond the surface
+			pathSegment.ray.origin = intersect + (pathSegment.ray.direction * 0.0002f);
+			//pathSegment.ray.direction = glm::normalize(cosTheta * pathSegment.ray.direction + sinTheta * f);
+            float eta = glm::dot(pathSegment.ray.direction, normal) > 0 ? m.indexOfRefraction : 1.0f / m.indexOfRefraction;
+            pathSegment.ray.direction = glm::refract(pathSegment.ray.direction, normal, eta);
+
+            //pathSegment.color = pathSegment.ray.direction;
+            //pathSegment.remainingBounces = 0;
+			// note, whereas for diffuse and only-reflective materieals we scale the color 
+			// contribution of each stochastic path taken, here the likelihoods of each path
+			// are the actual ratio of how much light is either reflected or refracted, so
+			// no scaling is required.
+		}
+		else {
+			pathSegment.ray.origin = intersect;
+			pathSegment.ray.direction = pathSegment.ray.direction - 
+				(2.0f * normal * glm::dot(pathSegment.ray.direction, normal));
+			// see note above about scaling
+		}
+    }
+    else {
+        pathSegment.ray.origin = intersect;
+        pathSegment.ray.direction = calculateRandomDirectionInHemisphere(normal, rng);
+    }
+
+    // ideally at each step we would sample all contributtions to color, 
+    // but we have to split it up by each type of contribute then scale 
+    // according to the frequency of that contribution
+    if (m.hasReflective && !m.hasRefractive) {
+        pathSegment.color *= 2;
+    }
 }
+
+
+// --- Shaders ---
+/*
+
+// allShader has conditionals for all BSDFs. It's inefficient, but it gets us stared 
+__global__ void shadeDiffuse(int iter,
+							 int num_paths,
+							 ShadeableIntersection * shadeableIntersections,
+							 PathSegment * pathSegments,
+							 Material * materials){
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num_paths){
+		ShadeableIntersection intersection = shadeableIntersections[idx];
+        // Set up the RNG
+        thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, pathSegments[idx].remainingBounces);
+        thrust::uniform_real_distribution<float> u01(0, 1);
+
+        Material material = materials[intersection.materialId];
+        glm::vec3 materialColor = material.color;
+
+        pathSegments[idx].color *= materialColor;
+        pathSegments[idx].remainingBounces--;
+        pathSegments[idx].ray.origin =  getPointOnRay(pathSegments[idx].ray, intersection.t);
+        pathSegments[idx].ray.direction = calculateRandomDirectionInHemisphere(intersection.surfaceNormal, rng);
+  }
+}
+
+__global__ void shadeEmitter(int iter,
+                             //int startIndex,
+							 int num_paths,
+							 ShadeableIntersection * shadeableIntersections,
+							 PathSegment * pathSegments,
+							 Material * materials){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_paths){
+        
+        ShadeableIntersection intersection = shadeableIntersections[idx];
+        if (intersection.t > -1.0f) {
+            Material material = materials[intersection.materialId];
+            glm::vec3 materialColor = material.color;
+
+            pathSegments[idx].color *= (materialColor * material.emittance);
+            pathSegments[idx].remainingBounces = 0;
+        }
+        else {
+            pathSegments[idx].color = glm::vec3(0.0f);
+            pathSegments[idx].remainingBounces = 0;
+        }
+    }
+}
+*/

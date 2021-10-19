@@ -1,0 +1,306 @@
+// Scene settings
+SETTINGS
+SORT_MATERIALS 0
+CACHE_BOUNCE 0
+USE_DOF 1
+ANTIALIAS 0
+USE_BBOX 1
+ADAPTIVE_SAMPLING 0
+MIN_SAMPLES 2000
+PIX_VARIANCE 0.2
+
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   8
+
+// Diffuse white
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Diffuse red
+MATERIAL 2
+RGB         .85 .35 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Diffuse green
+MATERIAL 3
+RGB         .35 .85 .35
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Specular white
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Diffuse blue
+MATERIAL 5
+RGB         .35 .35 .85
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// teapot
+MATERIAL 6
+RGB         .7 .4 .9
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// sphere 1
+MATERIAL 7
+RGB         .7 .4 .9
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// sphere 2
+MATERIAL 8
+RGB         .4 .7 .9
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// sphere 3
+MATERIAL 9
+RGB         .9 .4 .7
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// sphere 4
+MATERIAL 10
+RGB         .7 .9 .4
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// sphere 5
+MATERIAL 11
+RGB         .9 .7 .4
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+////// purple glass
+//MATERIAL 8
+//RGB         .98 .38 .98
+//SPECEX      0
+//SPECRGB     .98 .98 .98
+//REF L        1
+//REFR        1
+//REFRIOR     1.5
+//FRESNELPOW  2.5
+//EMITTANCE   0
+//
+//// dark floor
+//MATERIAL 9
+//RGB         .5 .5 .5
+//SPECEX      0
+//SPECRGB     0 0 0
+//REFL        0
+//REFR        0
+//REFRIOR     1
+//FRESNELPOW  5
+//EMITTANCE   0
+
+// Camera
+CAMERA
+RES         1080 720
+FOVY        40
+ITERATIONS  5000
+DEPTH       8
+FILE        cornell
+FOCALDIST	1.9
+APERTURE	0.025
+LENSRAD		1
+EYE         4 7 5
+LOOKAT      -5 4 -10
+UP          0 1 0
+
+// Floor
+OBJECT 0
+cube
+material 1
+TRANS       0 0 0
+ROTAT       0 0 0
+SCALE       10 .01 10
+
+// Ceiling
+OBJECT 1
+cube
+material 1
+TRANS       0 10 0
+ROTAT       0 0 90
+SCALE       .01 10 10
+
+// Back wall
+OBJECT 2
+cube
+material 5
+TRANS       0 5 -5
+ROTAT       0 90 0
+SCALE       .01 10 10
+
+// Left wall
+OBJECT 3
+cube
+material 2
+TRANS       -5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 11
+
+// Right wall
+OBJECT 4
+cube
+material 3
+TRANS       5 5 0
+ROTAT       0 0 0
+SCALE       .01 10 10
+
+// Ceiling light
+OBJECT 5
+cube
+material 0
+TRANS       0 10 0
+ROTAT       0 0 0
+SCALE       4 .1 6
+
+// Spot light
+OBJECT 6
+cube
+material 0
+TRANS       2 3 6
+ROTAT       0 0 0
+SCALE       2 3 .1
+
+// teapot
+OBJECT 7
+C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\teapot.obj
+material 7
+TRANS       2.75 0 3.5
+ROTAT       0 20 0
+SCALE       .1 .1 .1 
+
+// Platform 1
+OBJECT 8
+cube
+material 1
+TRANS       -3.5 1.5 -1
+ROTAT       0 1.5 0
+SCALE       3 3 6
+
+// Platform 2
+OBJECT 9
+cube
+material 1
+TRANS       -5 2.5 -9
+ROTAT       0 1.5 0
+SCALE       8 5 2
+
+// Sphere
+OBJECT 10
+sphere
+material 8
+TRANS       -3.5 5 -3.5
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Sphere
+OBJECT 11
+sphere
+material 9
+TRANS       2.5 2.5 -2.5
+ROTAT       0 0 0
+SCALE       5 5 5
+
+// Sphere
+OBJECT 12
+sphere
+material 10
+TRANS       -2 1.25 3.5
+ROTAT       0 0 0
+SCALE       2.5 2.5 2.5
+
+// Sphere
+OBJECT 13
+sphere
+material 11
+TRANS       1 1 2
+ROTAT       0 0 0
+SCALE       2 2 2
+
+// Sphere
+OBJECT 14
+sphere
+material 11
+TRANS       4 .25 2.5
+ROTAT       0 0 0
+SCALE       .5 .5 .5
+
+// Sphere
+OBJECT 15
+sphere
+material 9
+TRANS       -2.5 4 1.5
+ROTAT       0 0 0
+SCALE       2 2 2

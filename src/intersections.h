@@ -142,3 +142,136 @@ __host__ __device__ float sphereIntersectionTest(Geom sphere, Ray r,
 
     return glm::length(r.origin - intersectionPoint);
 }
+
+// modified from the thrust version to return true for hitting
+// the back of a face
+__host__ __device__ bool intersectRayTriangle
+	(
+		glm::vec3 const & orig, glm::vec3 const & dir,
+		glm::vec3 const & v0, glm::vec3 const & v1, glm::vec3 const & v2,
+		glm::vec3 & baryPosition
+	)
+	{
+		glm::vec3 e1 = v1 - v0;
+		glm::vec3 e2 = v2 - v0;
+
+		glm::vec3 p = glm::cross(dir, e2);
+
+		float a = glm::dot(e1, p);
+
+		float Epsilon = FLT_EPSILON;
+
+        // this part of glm's triangle intersection function rules out
+        // hitting the back of a face. We want to count that as a hit for
+        // refraction and meshes with holes (like the teapot).
+        // using the floating point abs of a doesn't rule out negative
+        // results of the above dot product, and therefore rule in
+        // the back face of polys
+		if(fabs(a) < Epsilon)
+			return false;
+
+		float f = float(1.0f) / a;
+
+		glm::vec3 s = orig - v0;
+		baryPosition.x = f * glm::dot(s, p);
+		if(baryPosition.x < float(0.0f))
+			return false;
+		if(baryPosition.x > float(1.0f))
+			return false;
+
+		glm::vec3 q = glm::cross(s, e1);
+		baryPosition.y = f * glm::dot(dir, q);
+		if(baryPosition.y < float(0.0f))
+			return false;
+		if(baryPosition.y + baryPosition.x > float(1.0f))
+			return false;
+
+		baryPosition.z = f * glm::dot(e2, q);
+
+		return baryPosition.z >= float(0.0f);
+	}
+
+
+__host__ __device__ float meshIntersectionTest(Geom geom, 
+											   Ray r,
+											   glm::vec3 &intersectionPoint, 
+											   glm::vec3 &normal, 
+											   bool &outside,
+                                               Tri * tris,
+                                               int numTris,
+                                               Tri * bboxTris,
+                                               bool useBBox) {
+    Ray q;
+    q.origin =    multiplyMV(geom.inverseTransform, glm::vec4(r.origin, 1.0f));
+    q.direction = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
+
+
+    // --- check for intersections with the mesh's bounding box
+	glm::vec3 baryPos;
+    bool hit = false;
+    Tri tri;
+    if (useBBox) {
+        for (int i = 0; i < 12; i++) {
+            tri = bboxTris[i];
+
+            // don't use glm's intersect RayTriangle,
+            // it doesn't detect back face intersections
+            hit = intersectRayTriangle(q.origin,
+                q.direction,
+                tri.v1,
+                tri.v2,
+                tri.v3,
+                baryPos);
+
+            if (hit) {
+                break;
+            }
+        }
+        if (!hit) {
+            return -1;
+        }
+    }
+
+
+    // --- iterate over the triangles in our mesh looking for intersections
+    float tmin = 1e38f;
+    glm::vec3 tmin_n;
+	float t; 
+    for (int i = 0; i < numTris; i++) {
+        tri = tris[i];
+        glm::vec3 v1 = tri.v1;
+        glm::vec3 v2 = tri.v2;
+        glm::vec3 v3 = tri.v3;
+        hit = false;
+
+        hit = intersectRayTriangle(q.origin,
+									    q.direction,
+									    v1,
+									    v2,
+									    v3,
+									    baryPos);
+
+        //volatile float3 bp = make_float3(baryPos.x, baryPos.y, baryPos.z);
+        if (hit) {
+            // glm::intersect doesn't actually give us all barycentric 
+            // values, only u & v. We can calculate w using these though
+            float w = (1.0f - baryPos.x - baryPos.y);
+            // the third value from glm::intersect is actually the t we're 
+            // looking for though, so that's nice
+            t = baryPos.z;
+
+            if (t < tmin){
+                tmin = t;
+                tmin_n = baryPos.x * tri.n1 + baryPos.y * tri.n2 + w * tri.n3;
+            }
+        }
+    }
+
+    if (tmin < 1e38f) {
+        intersectionPoint = multiplyMV(geom.transform, glm::vec4(getPointOnRay(q, tmin), 1.0f));
+        // transform the normal we found to worldspace, but if it's the back of the poly, just flip the normal
+        normal = glm::normalize(multiplyMV(geom.invTranspose, glm::vec4(tmin_n, 0.0f)) * -1.0f * dot(q.direction, tmin_n));
+        return glm::length(r.origin - intersectionPoint);
+    }
+    return -1;
+}

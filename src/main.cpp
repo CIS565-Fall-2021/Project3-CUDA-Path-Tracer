@@ -38,6 +38,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    glm::vec3 v1 = glm::vec3(4, 2, 8);
+    glm::vec3 v2 = glm::vec3(4, 3, 6);
+    glm::vec3 v3 = glm::min(v1, v2);
+
     const char *sceneFile = argv[1];
 
     // Load scene file
@@ -75,6 +79,27 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+void saveHeatmap() {
+    float samples = iteration;
+    // output image file
+    image img(width, height);
+
+    for (int x = 0; x < width; x++) {
+        for (int y = 0; y < height; y++) {
+            int index = x + (y * width);
+            glm::vec3 pix = glm::vec3(renderState->heatMap[index] * 255.0f /samples);
+            img.setPixel(width - 1 - x, y, glm::vec3(pix) / samples);
+        }
+    }
+
+    std::string filename = renderState->imageName + "HeatMap";
+    std::ostringstream ss;
+    ss << filename << "." << startTimeString << "." << samples << "samp";
+    filename = ss.str();
+
+    img.savePNG(filename);
+}
+
 void saveImage() {
     float samples = iteration;
     // output image file
@@ -93,12 +118,13 @@ void saveImage() {
     ss << filename << "." << startTimeString << "." << samples << "samp";
     filename = ss.str();
 
-    // CHECKITOUT
     img.savePNG(filename);
-    //img.saveHDR(filename);  // Save a Radiance HDR file
+
+    // also save a heatmap of iterations per pixel
+    saveHeatmap();
 }
 
-void runCuda() {
+int runCuda() {
     if (camchanged) {
         iteration = 0;
         Camera &cam = renderState->camera;
@@ -127,23 +153,24 @@ void runCuda() {
         pathtraceInit(scene);
     }
 
-    if (iteration < renderState->iterations) {
-        uchar4 *pbo_dptr = NULL;
-        iteration++;
-        cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
+	uchar4 *pbo_dptr = NULL;
+	iteration++;
+	cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
-        // execute the kernel
-        int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+	// execute the kernel
+	int frame = 0;
+	int rcode = pathtrace(pbo_dptr, frame, iteration);
 
-        // unmap buffer object
-        cudaGLUnmapBufferObject(pbo);
-    } else {
+	// unmap buffer object
+	cudaGLUnmapBufferObject(pbo);
+    
+    if (iteration >= renderState->iterations || rcode) {
         saveImage();
         pathtraceFree();
         cudaDeviceReset();
         exit(EXIT_SUCCESS);
     }
+    return rcode;
 }
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {

@@ -169,9 +169,15 @@ bool init() {
 }
 
 void mainLoop() {
+    int rcode;
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        runCuda();
+        rcode = runCuda();
+        if (rcode) {
+            fprintf(stdout, "pathtracer exited early");
+            break;
+        }
 
         string title = "CIS565 Path Tracer | " + utilityCore::convertIntToString(iteration) + " Iterations";
         glfwSetWindowTitle(window, title.c_str());

@@ -15,7 +15,9 @@ private:
     ifstream fp_in;
     int loadMaterial(string materialid);
     int loadGeom(string objectid);
+    int loadMesh(string filePath, Geom *geom);
     int loadCamera();
+    int loadSceneSettings();
 public:
     Scene(string filename);
     ~Scene();

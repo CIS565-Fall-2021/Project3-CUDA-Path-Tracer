@@ -1,0 +1,214 @@
+// Scene settings
+SETTINGS
+SORT_MATERIALS 0
+CACHE_BOUNCE 1
+USE_DOF 0
+ANTIALIAS 0
+USE_BBOX 1
+ADAPTIVE_SAMPLING 0
+MIN_SAMPLES 2000
+PIX_VARIANCE 0.2
+
+
+// Emissive material (light)
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   20
+
+// floor
+MATERIAL 1
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+FRESNELPOW  5
+EMITTANCE   0
+
+// Grid
+MATERIAL 2
+RGB         .8 .2 .8
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     1
+FRESNELPOW  5
+EMITTANCE   0
+
+// Glass 1
+MATERIAL 3
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR		1.5  
+FRESNELPOW  1
+EMITTANCE   0
+
+// Glass 2
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR		1.5  
+FRESNELPOW  2.5
+EMITTANCE   0
+
+// Glass 3
+MATERIAL 5
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        1
+REFRIOR		1.5  
+FRESNELPOW  5
+EMITTANCE   0
+
+// purple glass
+MATERIAL 4
+RGB         .8 .2 .8
+SPECEX      0
+SPECRGB     .98 .98 .98
+REF L        1
+REFR        1
+REFRIOR     1.5
+FRESNELPOW  2.5
+EMITTANCE   0
+
+// Camera
+CAMERA
+RES         1080 420
+FOVY        10
+ITERATIONS  5000
+DEPTH       16
+FILE        cornell
+FOCALDIST	8
+APERTURE	0.5
+LENSRAD		1
+EYE         0.0 4 30
+LOOKAT      0 4 0
+UP          0 1 0
+
+// Floor
+OBJECT 0
+cube
+material 1
+TRANS       0 0 10
+ROTAT       0 0 0
+SCALE       50 .01 30
+
+// Light
+OBJECT 1
+cube
+material 0
+TRANS       0 9.5 4
+ROTAT       30 0 0
+SCALE       40 .1 1
+
+// grid line
+OBJECT 2
+cube
+material 2
+TRANS       0 1 -5.5
+ROTAT       0 0 0
+SCALE       40 1 0.1
+
+// grid line
+OBJECT 3
+cube
+material 2
+TRANS       0 3 -5.5
+ROTAT       0 0 0
+SCALE       40 1 0.1
+
+// grid line
+OBJECT 4
+cube
+material 2
+TRANS       0 5 -5.5
+ROTAT       0 0 0
+SCALE       40 1 0.1
+
+// grid line
+OBJECT 5
+cube
+material 2
+TRANS       0 7 -5.5
+ROTAT       0 0 0
+SCALE       40 1 0.1
+
+// grid line
+OBJECT 6
+cube
+material 2
+TRANS       0 9 -5.5
+ROTAT       0 0 0
+SCALE       40 1 0.1
+
+// vert grid line
+OBJECT 7
+cube
+material 2
+TRANS       0 5 -5.5
+ROTAT       0 0 0
+SCALE       1 10 0.1
+
+// vert grid line
+OBJECT 8
+cube
+material 2
+TRANS       -10 5 -5.5
+ROTAT       0 0 0
+SCALE       1 10 0.1
+
+// vert grid line
+OBJECT 9
+cube
+material 2
+TRANS       10 5 -5.5
+ROTAT       0 0 0
+SCALE       1 10 0.1
+
+// Sphere
+OBJECT 10
+sphere
+material 3
+TRANS       -9 4 -1
+ROTAT       0 0 0
+SCALE       8 8 8
+
+// Sphere
+OBJECT 11
+sphere
+material 4
+TRANS       0 4 -1
+ROTAT       0 0 0
+SCALE       8 8 8
+
+// Sphere
+OBJECT 12
+sphere
+material 5
+TRANS       9 4 -1
+ROTAT       0 0 0
+SCALE       8 8 8
+
+// Floor
+OBJECT 13
+cube
+material 1
+TRANS       0 9.5 10
+ROTAT       0 0 0
+SCALE       50 .01 30
