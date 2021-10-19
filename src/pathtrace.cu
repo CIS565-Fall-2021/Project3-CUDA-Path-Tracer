@@ -474,12 +474,12 @@ void pathtrace(int frame, int iteration) {
   int depth            = 0;
   int num_active_paths = ANTIALIAS_FACTOR * pixelcount;
 
+  // Empty gbuffer
+  cudaMemset(dev_gBuffer, 0, pixelcount * sizeof(GBufferPixel));
+
   // --- PathSegment Tracing Stage ---
   // Shoot ray into scene, bounce between objects, push shading chunks
   while (num_active_paths > 0) {
-    // Empty gbuffer
-    cudaMemset(dev_gBuffer, 0, pixelcount * sizeof(GBufferPixel));
-
     // clean shading chunks
     cudaMemset(dev_intersections, 0,
                ANTIALIAS_FACTOR * pixelcount * sizeof(ShadeableIntersection));
@@ -528,7 +528,7 @@ void pathtrace(int frame, int iteration) {
     cudaDeviceSynchronize();
 #endif
 
-    if (depth == 0 && iteration == 1) {
+    if (depth == 0) {
       dim3 numBlocksGBuffer = (pixelcount + blockSize1d - 1) / blockSize1d;
       generateGBuffer<<<numBlocksGBuffer, blockSize1d>>>(
           pixelcount, dev_intersections, dev_paths, dev_gBuffer);
