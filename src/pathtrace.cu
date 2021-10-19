@@ -278,7 +278,7 @@ __global__ void generateRayFromCamera(Camera cam,
         float aaShiftx = 0.0f;
         float aaShifty = 0.0f;
         if (antialias) {
-			thrust::uniform_real_distribution<float> u01(-1.0f, 1.0f);
+			thrust::uniform_real_distribution<float> u01(-0.5f, 0.5f);
             aaShiftx = u01(rng);
             aaShifty = u01(rng);
         }

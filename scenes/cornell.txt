@@ -3,7 +3,7 @@ SETTINGS
 SORT_MATERIALS 0
 CACHE_BOUNCE 1
 USE_DOF 0
-ANTIALIAS 1
+ANTIALIAS 0
 USE_BBOX 1
 ADAPTIVE_SAMPLING 0
 MIN_SAMPLES 2000
@@ -100,7 +100,7 @@ EMITTANCE   0
 
 //// purple glass
 MATERIAL 8
-RGB         .8 .2 .8
+RGB         1 .4 1
 SPECEX      0
 SPECRGB     .98 .98 .98
 REF L        1
@@ -114,13 +114,13 @@ CAMERA
 RES         800 600
 FOVY        45
 ITERATIONS  5000
-DEPTH       8
+DEPTH       16
 FILE        cornell
 FOCALDIST	8
 APERTURE	0.5
 LENSRAD		1
-EYE         0.0 9 6
-LOOKAT      0 5 -5.5
+EYE         0.0 5 5
+LOOKAT      0 5 -5
 UP          0 1 0
 
 // Floor
@@ -195,21 +195,21 @@ TRANS       -1 0.05 1
 ROTAT       0 10 0
 SCALE       3 .1 .1
 
-// t-rex
+// mesh sphere
 OBJECT 9
-C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\tyraLoPoly.obj
-material 7
-TRANS       0 0 -2
-ROTAT       0 90 0
-SCALE       -2.25 2.25 2.25 
+C:\Users\elser\class\gpu\pathTracer\Project3-CUDA-Path-Tracer\scenes\sphere.obj
+material 8
+TRANS       -3 5 0
+ROTAT       0 0 0
+SCALE       1.5 1.5 1.5
 
 // Sphere
 OBJECT 10
 sphere
-material 4
-TRANS       5 10 -5
+material 8
+TRANS       3 5 0
 ROTAT       0 0 0
-SCALE       8 8 8
+SCALE       3 3 3
 
 //// bunny
 //OBJECT 6
@@ -217,7 +217,7 @@ SCALE       8 8 8
 //material 8
 //TRANS       1 0 -2
 //ROTAT       0 0 0
-//SCALE       1 1 1 
+//SCALE       2 2 2
 //
 //// platform
 //OBJECT 7
