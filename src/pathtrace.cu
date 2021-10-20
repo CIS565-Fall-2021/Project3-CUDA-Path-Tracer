@@ -130,6 +130,20 @@ static ShadeableIntersection *dev_intersections_cache = NULL;
 static int *dev_materialIDs_cache                     = NULL;
 #endif
 
+// denoising parameters
+static glm::ivec2 *dev_kernelOffset = NULL;
+
+// 5x5 Gaussian kernel for image denoising
+static const std::array<float, KERNEL_SIZE> kernel = {
+    0.003765, 0.015019, 0.023792, 0.015019, 0.003765, 0.015019, 0.059912,
+    0.094907, 0.059912, 0.015019, 0.023792, 0.094907, 0.150342, 0.094907,
+    0.023792, 0.015019, 0.059912, 0.094907, 0.059912, 0.015019, 0.003765,
+    0.015019, 0.023792, 0.015019, 0.003765};
+__constant__ float cdev_kernel[KERNEL_SIZE];
+
+// 5x5 offset for A-trous convolution
+static std::vector<glm::ivec2> kernelOffset;
+
 void pathtraceInit(Scene *scene) {
   hst_scene            = scene;
   const Camera &cam    = hst_scene->state.camera;
@@ -168,6 +182,23 @@ void pathtraceInit(Scene *scene) {
              ANTIALIAS_FACTOR * pixelcount * sizeof(int));
 #endif
 
+  // ----- Denoising variables init -----
+  // construct kernel
+  cudaMemcpyToSymbol(cdev_kernel, kernel.data(), KERNEL_SIZE * sizeof(float));
+  checkCUDAError("cudaMemcpyToSymbol to cdev_kernel failed");
+  // construct convolution offsets
+  for (int i = -KERNEL_WIDTH / 2; i <= KERNEL_WIDTH / 2; ++i) {
+    for (int j = -KERNEL_WIDTH / 2; j <= KERNEL_WIDTH / 2; ++j) {
+      kernelOffset.emplace_back(i, j);
+    }
+  }
+  assert(kernelOffset.size() == KERNEL_SIZE);
+  cudaMalloc((void **)&dev_kernelOffset, KERNEL_SIZE * sizeof(glm::ivec2));
+  checkCUDAError("cudaMalloc dev_kernelOffset failed");
+  cudaMemcpy(dev_kernelOffset, kernelOffset.data(),
+             KERNEL_SIZE * sizeof(glm::ivec2), cudaMemcpyHostToDevice);
+  checkCUDAError("cudaMemcpy to dev_kernelOffset failed");
+
   checkCUDAError("pathtraceInit");
 }
 
@@ -185,6 +216,7 @@ void pathtraceFree() {
   cudaFree(dev_intersections_cache);
   cudaFree(dev_materialIDs_cache);
 #endif
+  cudaFree(dev_kernelOffset);
 
   checkCUDAError("pathtraceFree");
 }

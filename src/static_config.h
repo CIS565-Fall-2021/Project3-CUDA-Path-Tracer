@@ -8,6 +8,8 @@
 // #define DEPTH_OF_FIELD
 #define EPS              0.0001f
 #define ANTIALIAS_FACTOR 1
+#define KERNEL_WIDTH     5
+#define KERNEL_SIZE      KERNEL_WIDTH* KERNEL_WIDTH
 
 namespace static_config {
 
