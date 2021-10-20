@@ -7,7 +7,7 @@
 #define CACHE_INTERSECTIONS
 // #define DEPTH_OF_FIELD
 #define EPS              0.0001f
-#define ANTIALIAS_FACTOR 4
+#define ANTIALIAS_FACTOR 1
 
 namespace static_config {
 
