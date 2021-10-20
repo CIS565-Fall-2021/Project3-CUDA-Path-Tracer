@@ -453,19 +453,21 @@ void pathtrace(int frame, int iteration) {
   //     Currently, intersection distance is recorded as a parametric distance,
   //     t, or a "distance along the ray." t = -1.0 indicates no intersection.
   //     * Color is attenuated (multiplied) by reflections off of any object
-  //   * TODO: Stream compact away all of the terminated paths.
+  //   * Stream compact away all of the terminated paths.
   //     You may use either your implementation or `thrust::remove_if` or its
   //     cousins.
   //     * Note that you can't really use a 2D kernel launch any more - switch
   //       to 1D.
-  //   * TODO: Shade the rays that intersected something or didn't bottom out.
+  //   * Shade the rays that intersected something or didn't bottom out.
   //     That is, color the ray by performing a color computation according
   //     to the shader, then generate a new ray to continue the ray path.
   //     We recommend just updating the ray's PathSegment in place.
   //     Note that this step may come before or after stream compaction,
   //     since some shaders you write may also cause a path to terminate.
-  // * Finally, add this iteration's results to the image. This has been done
-  //   for you.
+  // * Finally:
+  //     * if not denoising, add this iteration's results to the image
+  //     * if denoising, run kernels that take both the raw pathtraced
+  //        result and the gbuffer, and put the result in the "pbo" from opengl
   ///////////////////////////////////////////////////////////////////////////
 
   generateRayFromCamera<<<blocksPerGrid2d, blockSize2d>>>(
