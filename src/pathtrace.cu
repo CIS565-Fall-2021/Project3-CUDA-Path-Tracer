@@ -90,6 +90,29 @@ __global__ void gbufferNormalToPBO(uchar4 *pbo, glm::ivec2 resolution,
   }
 }
 
+// Send Position vector in GBuffer for visualization
+__global__ void gbufferPositionToPBO(uchar4 *pbo, glm::ivec2 resolution,
+                                     GBufferPixel *gBuffer,
+                                     glm::vec3 scene_min_xyz,
+                                     glm::vec3 scene_max_xyz) {
+  int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+  if (x < resolution.x && y < resolution.y) {
+    int index          = x + (y * resolution.x);
+    glm::vec3 position = gBuffer[index].position;
+    float hit          = (float)(gBuffer[index].t > 0);
+
+    pbo[index].w = 0;
+    pbo[index].x = 255.0 * hit * (position.x - scene_min_xyz.x) /
+                   (scene_max_xyz.x - scene_min_xyz.x);
+    pbo[index].y = 255.0 * hit * (position.y - scene_min_xyz.y) /
+                   (scene_max_xyz.y - scene_min_xyz.y);
+    pbo[index].z = 255.0 * hit * (position.z - scene_min_xyz.z) /
+                   (scene_max_xyz.z - scene_min_xyz.z);
+  }
+}
+
 static Scene *hst_scene                         = NULL;
 static glm::vec3 *dev_image                     = NULL;
 static Geom *dev_geoms                          = NULL;
@@ -394,6 +417,8 @@ __global__ void generateGBuffer(int num_paths,
                                 GBufferPixel *gBuffer) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx < num_paths) {
+    gBuffer[idx].position =
+        getPointOnRay(pathSegments[idx].ray, shadeableIntersections[idx].t);
     gBuffer[idx].t      = shadeableIntersections[idx].t;
     gBuffer[idx].normal = shadeableIntersections[idx].surfaceNormal;
   }
@@ -590,7 +615,7 @@ void pathtrace(int frame, int iteration) {
 
 // CHECKITOUT: this kernel "post-processes" the gbuffer/gbuffers into something
 // that you can visualize for debugging.
-void showGBuffer(uchar4 *pbo) {
+void showGBufferNormal(uchar4 *pbo) {
   const Camera &cam = hst_scene->state.camera;
   const dim3 blockSize2d(8, 8);
   const dim3 blocksPerGrid2d(
@@ -601,6 +626,18 @@ void showGBuffer(uchar4 *pbo) {
   // visualization
   gbufferNormalToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution,
                                                        dev_gBuffer);
+}
+
+void showGBufferPosition(uchar4 *pbo) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+
+  gbufferPositionToPBO<<<blocksPerGrid2d, blockSize2d>>>(
+      pbo, cam.resolution, dev_gBuffer, hst_scene->boundary.min_xyz,
+      hst_scene->boundary.max_xyz);
 }
 
 void showImage(uchar4 *pbo, int iter) {

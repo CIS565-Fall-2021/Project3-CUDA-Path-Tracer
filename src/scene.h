@@ -27,4 +27,9 @@ public:
   std::vector<Geom> geoms;
   std::vector<Material> materials;
   RenderState state;
+
+  struct Boundary {
+    glm::vec3 min_xyz;
+    glm::vec3 max_xyz;
+  } boundary;
 };

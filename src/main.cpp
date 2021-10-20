@@ -21,16 +21,17 @@ static double lastY;
 // or look at the diff for commit 1178307347e32da064dce1ef4c217ce0ca6153a8.
 // For all the gory GUI details, look at commit
 // 5feb60366e03687bfc245579523402221950c9c5.
-int ui_iterations       = 0;
-int startupIterations   = 0;
-int lastLoopIterations  = 0;
-bool ui_showGbuffer     = false;
-bool ui_denoise         = false;
-int ui_filterSize       = 80;
-float ui_colorWeight    = 0.45f;
-float ui_normalWeight   = 0.35f;
-float ui_positionWeight = 0.2f;
-bool ui_saveAndExit     = false;
+int ui_iterations            = 0;
+int startupIterations        = 0;
+int lastLoopIterations       = 0;
+bool ui_showGbuffer_normal   = false;
+bool ui_showGbuffer_position = false;
+bool ui_denoise              = false;
+int ui_filterSize            = 80;
+float ui_colorWeight         = 0.45f;
+float ui_normalWeight        = 0.35f;
+float ui_positionWeight      = 0.2f;
+bool ui_saveAndExit          = false;
 
 static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
@@ -168,8 +169,10 @@ void runCuda() {
     pathtrace(frame, iteration);
   }
 
-  if (ui_showGbuffer) {
-    showGBuffer(pbo_dptr);
+  if (ui_showGbuffer_normal) {
+    showGBufferNormal(pbo_dptr);
+  } else if (ui_showGbuffer_position) {
+    showGBufferPosition(pbo_dptr);
   } else {
     showImage(pbo_dptr, iteration);
   }
