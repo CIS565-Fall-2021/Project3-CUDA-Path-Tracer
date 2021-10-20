@@ -26,7 +26,10 @@ endif()
 find_package(CUDA 10 REQUIRED)
 include(${CMAKE_MODULE_PATH}/CUDAComputesList.cmake)
 
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_GENERATE_CODE})
+list(APPEND CUDA_NVCC_FLAGS 
+    ${CUDA_GENERATE_CODE}
+    --expt-relaxed-constexpr
+)
 list(APPEND CUDA_NVCC_FLAGS_DEBUG "-g -G")
 set(CUDA_VERBOSE_BUILD ON)
 
