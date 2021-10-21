@@ -557,18 +557,18 @@ __global__ void atrousDenoiser(glm::vec3 *image_denoised, float *weights,
       int index       = adj_xy.x + (adj_xy.y * resolution.x);
       GBufferPixel gb = gBuffer[index];
 
-      glm::vec3 color   = image[index];
-      float color_dist2 = glm::length2(pix_color - color);
-      float w_color     = min(glm::exp(-color_dist2 / c_phi), 1.0f);
+      glm::vec3 color  = image[index];
+      float color_dist = glm::length(pix_color - color);
+      float w_color = glm::min(glm::exp(-(color_dist) / (c_phi * c_phi)), 1.0f);
 
-      glm::vec3 normal   = gb.normal;
-      float normal_dist2 = max(
-          glm::length2(pix_normal - normal) / (stepwidth * stepwidth), 0.0f);
-      float w_normal = min(glm::exp(-normal_dist2 / n_phi), 1.0f);
+      glm::vec3 normal  = gb.normal;
+      float normal_dist = glm::length(pix_normal - normal);
+      float w_normal =
+          glm::min(glm::exp(-(normal_dist) / (n_phi * n_phi)), 1.0f);
 
-      glm::vec3 pos   = gb.position;
-      float pos_dist2 = glm::length2(pix_pos - pos);
-      float w_pos     = min(glm::exp(-pos_dist2 / p_phi), 1.0f);
+      glm::vec3 pos  = gb.position;
+      float pos_dist = glm::length(pix_pos - pos);
+      float w_pos    = glm::min(glm::exp(-(pos_dist) / (p_phi * p_phi)), 1.0f);
 
       float weight = w_color * w_normal * w_pos;
       sum += color * weight * cdev_kernel[i];
