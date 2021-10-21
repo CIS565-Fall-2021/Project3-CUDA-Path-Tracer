@@ -554,10 +554,10 @@ __global__ void atrousDenoiser(glm::vec3 *image_denoised, float *weights,
       glm::ivec2 adj_xy =
           glm::clamp(glm::ivec2(x, y) + stepwidth * kernel_offset[i],
                      glm::ivec2(0, 0), resolution - glm::ivec2(1, 1));
-      int index       = adj_xy.x + (adj_xy.y * resolution.x);
-      GBufferPixel gb = gBuffer[index];
+      int adj_index   = adj_xy.x + (adj_xy.y * resolution.x);
+      GBufferPixel gb = gBuffer[adj_index];
 
-      glm::vec3 color  = image[index];
+      glm::vec3 color  = image[adj_index];
       float color_dist = glm::length(pix_color - color);
       float w_color = glm::min(glm::exp(-(color_dist) / (c_phi * c_phi)), 1.0f);
 
@@ -749,10 +749,6 @@ void pathtrace(int frame, int iteration) {
   addToImage<<<numBlocksPixels, blockSize1d>>>(pixelcount, dev_image,
                                                dev_image_buffer);
 
-  // Retrieve image from GPU
-  cudaMemcpy(hst_scene->state.image.data(), dev_image,
-             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
-
   checkCUDAError("pathtrace");
 }
 
@@ -833,10 +829,15 @@ void showImage(uchar4 *pbo, int iter) {
   const dim3 blocksPerGrid2d(
       (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
       (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+  const int pixelcount = cam.resolution.x * cam.resolution.y;
 
   // Send results to OpenGL buffer for rendering
   sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter,
                                                    dev_image);
+  // Retrieve image from GPU
+  cudaMemcpy(hst_scene->state.image.data(), dev_image,
+             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+  checkCUDAError("cudaMemcpy from dev_image to scene");
 }
 
 void denoiseImage(int filter_width, float c_phi, float n_phi, float p_phi) {
@@ -870,8 +871,13 @@ void showDenoisedImage(uchar4 *pbo, int iter) {
   const dim3 blocksPerGrid2d(
       (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
       (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+  const int pixelcount = cam.resolution.x * cam.resolution.y;
 
   // Send results to OpenGL buffer for rendering
   sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter,
                                                    dev_image_denoised);
+  // Retrieve image from GPU
+  cudaMemcpy(hst_scene->state.image.data(), dev_image_denoised,
+             pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToHost);
+  checkCUDAError("cudaMemcpy from dev_image_denoised to scene");
 }
