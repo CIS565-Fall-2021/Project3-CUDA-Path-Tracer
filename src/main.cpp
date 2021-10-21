@@ -32,7 +32,6 @@ bool ui_showGbuffer_norWeight   = false;
 bool ui_showGbuffer_colorWeight = false;
 bool ui_denoise                 = false;
 bool ui_showDenoisedImage       = false;
-bool ui_showOriginalImage       = false;
 int ui_filterSize               = 80;
 float ui_colorWeight            = 0.45f;
 float ui_normalWeight           = 0.35f;
@@ -137,9 +136,11 @@ void saveImage() {
     }
   }
 
-  std::string filename = renderState->imageName;
+  std::string filename    = renderState->imageName;
+  std::string postprocess = (ui_showDenoisedImage) ? "denoised" : "original";
   std::ostringstream ss;
-  ss << filename << "." << startTimeString << "." << samples << "samp";
+  ss << filename << "." << startTimeString << "." << samples << "samp"
+     << "." << postprocess;
   filename = ss.str();
 
   // CHECKITOUT
@@ -215,7 +216,7 @@ void runCuda() {
     showGBufferNormalWeights(pbo_dptr);
   } else if (ui_showDenoisedImage) {
     showDenoisedImage(pbo_dptr, iteration);
-  } else if (ui_showOriginalImage) {
+  } else {
     showImage(pbo_dptr, iteration);
   }
 

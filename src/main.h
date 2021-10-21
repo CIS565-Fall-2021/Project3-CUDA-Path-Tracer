@@ -40,7 +40,6 @@ extern bool ui_showGbuffer_norWeight;
 extern bool ui_showGbuffer_colorWeight;
 extern bool ui_denoise;
 extern bool ui_showDenoisedImage;
-extern bool ui_showOriginalImage;
 extern int ui_filterSize;
 extern float ui_colorWeight;
 extern float ui_normalWeight;
