@@ -215,8 +215,14 @@ void drawGui(int windowWidth, int windowHeight) {
 
   ImGui::Separator();
 
+  ImGui::Checkbox("Show Original Image", &ui_showOriginalImage);
+  ImGui::Checkbox("Show Denoised Image", &ui_showDenoisedImage);
   ImGui::Checkbox("Show GBuffer - Normal", &ui_showGbuffer_normal);
   ImGui::Checkbox("Show GBuffer - Position", &ui_showGbuffer_position);
+  ImGui::Checkbox("Show GBuffer - Total Weight", &ui_showGbuffer_weight);
+  ImGui::Checkbox("Show GBuffer - Position Weight", &ui_showGbuffer_posWeight);
+  ImGui::Checkbox("Show GBuffer - Normal Weight", &ui_showGbuffer_norWeight);
+  ImGui::Checkbox("Show GBuffer - Color Weight", &ui_showGbuffer_colorWeight);
 
   ImGui::Separator();
 

@@ -21,17 +21,29 @@ static double lastY;
 // or look at the diff for commit 1178307347e32da064dce1ef4c217ce0ca6153a8.
 // For all the gory GUI details, look at commit
 // 5feb60366e03687bfc245579523402221950c9c5.
-int ui_iterations            = 0;
-int startupIterations        = 0;
-int lastLoopIterations       = 0;
-bool ui_showGbuffer_normal   = false;
-bool ui_showGbuffer_position = false;
-bool ui_denoise              = false;
-int ui_filterSize            = 80;
-float ui_colorWeight         = 0.45f;
-float ui_normalWeight        = 0.35f;
-float ui_positionWeight      = 0.2f;
-bool ui_saveAndExit          = false;
+int ui_iterations               = 0;
+int startupIterations           = 0;
+int lastLoopIterations          = 0;
+bool ui_showGbuffer_normal      = false;
+bool ui_showGbuffer_position    = false;
+bool ui_showGbuffer_weight      = false;
+bool ui_showGbuffer_posWeight   = false;
+bool ui_showGbuffer_norWeight   = false;
+bool ui_showGbuffer_colorWeight = false;
+bool ui_denoise                 = false;
+bool ui_showDenoisedImage       = false;
+bool ui_showOriginalImage       = false;
+int ui_filterSize               = 80;
+float ui_colorWeight            = 0.45f;
+float ui_normalWeight           = 0.35f;
+float ui_positionWeight         = 0.2f;
+int prev_ui_filterSize          = ui_filterSize;
+float prev_ui_colorWeight       = ui_colorWeight;
+float prev_ui_normalWeight      = ui_normalWeight;
+float prev_ui_positionWeight    = ui_positionWeight;
+bool ui_saveAndExit             = false;
+
+bool has_denoised = false;
 
 static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
@@ -47,6 +59,18 @@ int iteration;
 
 int width;
 int height;
+
+bool SyncDenoiseParams() {
+  bool is_changed        = !(prev_ui_colorWeight == ui_colorWeight &&
+                      prev_ui_filterSize == ui_filterSize &&
+                      prev_ui_normalWeight == ui_normalWeight &&
+                      prev_ui_positionWeight == ui_positionWeight);
+  prev_ui_filterSize     = ui_filterSize;
+  prev_ui_colorWeight    = ui_colorWeight;
+  prev_ui_normalWeight   = ui_normalWeight;
+  prev_ui_positionWeight = ui_positionWeight;
+  return is_changed;
+}
 
 //-------------------------------
 //-------------MAIN--------------
@@ -129,6 +153,10 @@ void runCuda() {
     camchanged         = true;
   }
 
+  if (camchanged || SyncDenoiseParams()) {
+    has_denoised = false;
+  }
+
   if (camchanged) {
     iteration        = 0;
     Camera &cam      = renderState->camera;
@@ -167,13 +195,27 @@ void runCuda() {
     // execute the kernel
     int frame = 0;
     pathtrace(frame, iteration);
+  } else if (ui_denoise && !has_denoised) {
+    denoiseImage(ui_filterSize, ui_colorWeight, ui_normalWeight,
+                 ui_positionWeight);
+    has_denoised = true;
   }
 
   if (ui_showGbuffer_normal) {
     showGBufferNormal(pbo_dptr);
   } else if (ui_showGbuffer_position) {
     showGBufferPosition(pbo_dptr);
-  } else {
+  } else if (ui_showGbuffer_weight) {
+    showGBufferWeights(pbo_dptr);
+  } else if (ui_showGbuffer_posWeight) {
+    showGBufferPositionWeights(pbo_dptr);
+  } else if (ui_showGbuffer_colorWeight) {
+    showGBufferColorWeights(pbo_dptr);
+  } else if (ui_showGbuffer_norWeight) {
+    showGBufferNormalWeights(pbo_dptr);
+  } else if (ui_showDenoisedImage) {
+    showDenoisedImage(pbo_dptr, iteration);
+  } else if (ui_showOriginalImage) {
     showImage(pbo_dptr, iteration);
   }
 

@@ -113,6 +113,23 @@ __global__ void gbufferPositionToPBO(uchar4 *pbo, glm::ivec2 resolution,
   }
 }
 
+// Send denoised weights for visualization
+__global__ void gbufferWeightToPBO(uchar4 *pbo, glm::ivec2 resolution,
+                                   float *weights) {
+  int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+  if (x < resolution.x && y < resolution.y) {
+    int index    = x + (y * resolution.x);
+    float weight = weights[index];
+
+    pbo[index].w = 0;
+    pbo[index].x = 255.0 * weight;
+    pbo[index].y = 255.0 * weight;
+    pbo[index].z = 255.0 * weight;
+  }
+}
+
 static Scene *hst_scene                         = NULL;
 static glm::vec3 *dev_image                     = NULL;
 static Geom *dev_geoms                          = NULL;
@@ -131,7 +148,13 @@ static int *dev_materialIDs_cache                     = NULL;
 #endif
 
 // denoising parameters
-static glm::ivec2 *dev_kernelOffset = NULL;
+static glm::ivec2 *dev_kernelOffset         = NULL;
+static glm::vec3 *dev_image_denoised        = NULL;
+static glm::vec3 *dev_image_denoised_buffer = NULL;
+static float *dev_weights                   = NULL;  // for debug
+static float *dev_posWeights                = NULL;  // for debug
+static float *dev_norWeights                = NULL;  // for debug
+static float *dev_colorWeights              = NULL;  // for debug
 
 // 5x5 Gaussian kernel for image denoising
 static const std::array<float, KERNEL_SIZE> kernel = {
@@ -183,6 +206,23 @@ void pathtraceInit(Scene *scene) {
 #endif
 
   // ----- Denoising variables init -----
+  // construct debugging buffers
+  cudaMalloc((void **)&dev_weights, pixelcount * sizeof(float));
+  cudaMalloc((void **)&dev_posWeights, pixelcount * sizeof(float));
+  cudaMalloc((void **)&dev_colorWeights, pixelcount * sizeof(float));
+  cudaMalloc((void **)&dev_norWeights, pixelcount * sizeof(float));
+  checkCUDAError(
+      "cudaMalloc dev_weights, dev_posWeights, dev_colorWeights, "
+      "dev_norWeights failed");
+  // construct denoised image buffer
+  cudaMalloc((void **)&dev_image_denoised, pixelcount * sizeof(glm::vec3));
+  cudaMalloc((void **)&dev_image_denoised_buffer,
+             pixelcount * sizeof(glm::vec3));
+  checkCUDAError(
+      "cudaMalloc dev_image_denoised, dev_image_denoised_buffer failed");
+  cudaMemset(dev_image_denoised, 0, pixelcount * sizeof(glm::vec3));
+  cudaMemset(dev_image_denoised_buffer, 0, pixelcount * sizeof(glm::vec3));
+  checkCUDAError("cudaMemset dev_image_denoised failed");
   // construct kernel
   cudaMemcpyToSymbol(cdev_kernel, kernel.data(), KERNEL_SIZE * sizeof(float));
   checkCUDAError("cudaMemcpyToSymbol to cdev_kernel failed");
@@ -217,6 +257,12 @@ void pathtraceFree() {
   cudaFree(dev_materialIDs_cache);
 #endif
   cudaFree(dev_kernelOffset);
+  cudaFree(dev_image_denoised);
+  cudaFree(dev_image_denoised_buffer);
+  cudaFree(dev_weights);
+  cudaFree(dev_posWeights);
+  cudaFree(dev_norWeights);
+  cudaFree(dev_colorWeights);
 
   checkCUDAError("pathtraceFree");
 }
@@ -478,6 +524,71 @@ __global__ void addToImage(int pixelcount, glm::vec3 *image,
   }
 }
 
+__global__ void atrousDenoiser(glm::vec3 *image_denoised, float *weights,
+                               float *posWeights, float *colorWeights,
+                               float *norWeights, const glm::vec3 *image,
+                               const glm::ivec2 resolution, const float c_phi,
+                               const float n_phi, const float p_phi,
+                               const int stepwidth,
+                               const glm::ivec2 *kernel_offset,
+                               const GBufferPixel *gBuffer) {
+  int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+  if (x < resolution.x && y < resolution.y) {
+    int pix_index = x + (y * resolution.x);
+    glm::vec3 sum{0.f, 0.f, 0.f};
+    float sum_weight = 0.f;
+
+    // for debug visualizations
+    float sum_w_normal = 0.f;
+    float sum_w_pos    = 0.f;
+    float sum_w_color  = 0.f;
+
+    GBufferPixel pix_gBuffer = gBuffer[pix_index];
+    glm::vec3 pix_color      = image[pix_index];
+    glm::vec3 pix_normal     = pix_gBuffer.normal;
+    glm::vec3 pix_pos        = pix_gBuffer.position;
+
+    for (int i = 0; i < KERNEL_SIZE; ++i) {
+      glm::ivec2 adj_xy =
+          glm::clamp(glm::ivec2(x, y) + stepwidth * kernel_offset[i],
+                     glm::ivec2(0, 0), resolution - glm::ivec2(1, 1));
+      int index       = adj_xy.x + (adj_xy.y * resolution.x);
+      GBufferPixel gb = gBuffer[index];
+
+      glm::vec3 color   = image[index];
+      float color_dist2 = glm::length2(pix_color - color);
+      float w_color     = min(glm::exp(-color_dist2 / c_phi), 1.0f);
+
+      glm::vec3 normal   = gb.normal;
+      float normal_dist2 = max(
+          glm::length2(pix_normal - normal) / (stepwidth * stepwidth), 0.0f);
+      float w_normal = min(glm::exp(-normal_dist2 / n_phi), 1.0f);
+
+      glm::vec3 pos   = gb.position;
+      float pos_dist2 = glm::length2(pix_pos - pos);
+      float w_pos     = min(glm::exp(-pos_dist2 / p_phi), 1.0f);
+
+      float weight = w_color * w_normal * w_pos;
+      sum += color * weight * cdev_kernel[i];
+
+      // for debug visualizations
+      sum_weight += weight * cdev_kernel[i];
+      sum_w_pos += w_pos;
+      sum_w_normal += w_normal;
+      sum_w_color += w_color;
+    }
+    image_denoised[pix_index] = sum / sum_weight;
+
+    // for debug visualizations
+    weights[pix_index]      = sum_weight;
+    posWeights[pix_index]   = sum_w_pos / KERNEL_SIZE;
+    norWeights[pix_index]   = sum_w_normal / KERNEL_SIZE;
+    colorWeights[pix_index] = sum_w_color / KERNEL_SIZE;
+  }
+}
+
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
  * of memory management
@@ -672,6 +783,50 @@ void showGBufferPosition(uchar4 *pbo) {
       hst_scene->boundary.max_xyz);
 }
 
+void showGBufferWeights(uchar4 *pbo) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+
+  gbufferWeightToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution,
+                                                       dev_weights);
+}
+
+void showGBufferPositionWeights(uchar4 *pbo) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+
+  gbufferWeightToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution,
+                                                       dev_posWeights);
+}
+
+void showGBufferNormalWeights(uchar4 *pbo) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+
+  gbufferWeightToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution,
+                                                       dev_norWeights);
+}
+
+void showGBufferColorWeights(uchar4 *pbo) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+
+  gbufferWeightToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution,
+                                                       dev_colorWeights);
+}
+
 void showImage(uchar4 *pbo, int iter) {
   const Camera &cam = hst_scene->state.camera;
   const dim3 blockSize2d(8, 8);
@@ -682,4 +837,41 @@ void showImage(uchar4 *pbo, int iter) {
   // Send results to OpenGL buffer for rendering
   sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter,
                                                    dev_image);
+}
+
+void denoiseImage(int filter_width, float c_phi, float n_phi, float p_phi) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+  const int pixelcount = cam.resolution.x * cam.resolution.y;
+
+  cudaMemcpy(dev_image_denoised, dev_image, pixelcount * sizeof(glm::vec3),
+             cudaMemcpyDeviceToDevice);
+
+  int stepwidth    = 1;
+  int kernel_width = KERNEL_WIDTH;
+  while (kernel_width < filter_width) {
+    atrousDenoiser<<<blocksPerGrid2d, blockSize2d>>>(
+        dev_image_denoised_buffer, dev_weights, dev_posWeights,
+        dev_colorWeights, dev_norWeights, dev_image_denoised, cam.resolution,
+        c_phi, n_phi, p_phi, stepwidth, dev_kernelOffset, dev_gBuffer);
+    std::swap(dev_image_denoised, dev_image_denoised_buffer);
+    stepwidth++;
+    kernel_width = (KERNEL_WIDTH - 1) * stepwidth + 1;
+    c_phi /= 2.0f;
+  }
+}
+
+void showDenoisedImage(uchar4 *pbo, int iter) {
+  const Camera &cam = hst_scene->state.camera;
+  const dim3 blockSize2d(8, 8);
+  const dim3 blocksPerGrid2d(
+      (cam.resolution.x + blockSize2d.x - 1) / blockSize2d.x,
+      (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
+
+  // Send results to OpenGL buffer for rendering
+  sendImageToPBO<<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter,
+                                                   dev_image_denoised);
 }
