@@ -238,6 +238,7 @@ void pathtraceInit(Scene *scene) {
   cudaMemcpy(dev_kernelOffset, kernelOffset.data(),
              KERNEL_SIZE * sizeof(glm::ivec2), cudaMemcpyHostToDevice);
   checkCUDAError("cudaMemcpy to dev_kernelOffset failed");
+  // ------------------------------------
 
   checkCUDAError("pathtraceInit");
 }
@@ -572,9 +573,9 @@ __global__ void atrousDenoiser(glm::vec3 *image_denoised, float *weights,
 
       float weight = w_color * w_normal * w_pos;
       sum += color * weight * cdev_kernel[i];
+      sum_weight += weight * cdev_kernel[i];
 
       // for debug visualizations
-      sum_weight += weight * cdev_kernel[i];
       sum_w_pos += w_pos;
       sum_w_normal += w_normal;
       sum_w_color += w_color;
