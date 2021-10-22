@@ -16,6 +16,7 @@ CUDA Path Tracer with À-Trous Denoiser
   - [Qualitative Analysis](#qualitative-analysis)
     - [Visual Results vs. Filter Size](#visual-results-vs-filter-size)
     - [Visual Results vs. Material Type](#visual-results-vs-material-type)
+    - [Visual Results vs. Light Conditions](#visual-results-vs-light-conditions)
 - [CUDA Path Tracer](#cuda-path-tracer)
   - [Highlights](#highlights-1)
   - [Background: Ray Tracing](#background-ray-tracing)
@@ -70,6 +71,14 @@ The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324,
 | ![](img/denoise-diffuse.png) | ![](img/denoise-specular.png) | ![](img/denoise-refraction.png) |
 
 From the results we can see that the filter works best with diffuse materials, reasonably well with refractive materials, and the worst with reflective materials. This is mainly because the current implementation only caches the position & normal vectors of the first hit, while this property does not really apply to reflective materials (colors on a pure-reflective material depend heavily on the material properties from the 2nd hit). As a result, the filter is blurring the reflection on the reflective materials.
+
+### Visual Results vs. Light Conditions
+The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324, filter_size=100`.
+|         Cornell Box          |           Cornell Box with Large Lights            |
+| :--------------------------: | :------------------------------------------------: |
+| ![](img/denoise-cornell.png) | ![](img/denoise-denoise-cornell-ceiling-light.png) |
+
+From the results we can see that the filter works better in brighter lighting conditions. This is because in brighter lighting conditions the color tends to be more similar locally, while with point lights the color differs much from its adjacent pixels, making it more difficult to smooth. 
 
 
 # CUDA Path Tracer
