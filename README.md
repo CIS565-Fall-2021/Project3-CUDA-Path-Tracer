@@ -7,12 +7,14 @@ CUDA Path Tracer with À-Trous Denoiser
   * [LinkedIn](https://www.linkedin.com/in/zhihao-ruan-29b29a13a/), [personal website](https://zhihaoruan.xyz/)
 * Tested on: Ubuntu 20.04 LTS, Ryzen 3700X @ 2.22GHz 48GB, RTX 2060 Super @ 7976MB
 
-Table of Contents:
+*Table of Contents:*
 - [CUDA Path Tracer with À-Trous Denoiser](#cuda-path-tracer-with-à-trous-denoiser)
   - [Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising](#physically-based-ray-traced-pbrt-image-with-à-trous-denoising)
 - [CUDA Denoiser](#cuda-denoiser)
-  - [Introduction](#introduction)
   - [Highlights](#highlights)
+  - [Introduction](#introduction)
+  - [Qualitative Analysis](#qualitative-analysis)
+    - [Visual Results vs. Filter Size](#visual-results-vs-filter-size)
 - [CUDA Path Tracer](#cuda-path-tracer)
   - [Highlights](#highlights-1)
   - [Background: Ray Tracing](#background-ray-tracing)
@@ -35,13 +37,30 @@ Table of Contents:
 | ![](img/cornell.2021-10-21_21-56-47z.100samp.original.png) | ![](img/cornell.2021-10-21_22-57-08z.100samp.denoised.png) |
 
 # CUDA Denoiser
+## Highlights
+Implemented [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) denoising techniques with 5x5 Gaussian blur kernel.
+
 ## Introduction
 Physically-Based Ray Tracing (PBRT) is considered as one of the best methods that produce the most photorealistic images. The essence of PBRT is to approximate [the rendering equation](https://en.wikipedia.org/wiki/Rendering_equation) with Monte-Carlo integration, sampling multiple rays from each pixel of an image and bouncing them off multiple times from various surfaces of different kinds and different textures according to the ray directions, accumulating the colors along the way. 
 
-However, in reality it is very hard to run PBRT in real time, as we often need a large amount of rays to obtain a reasonable good approximation for the rendering equation. Hence, people come up with multiple ways of applying denoising techniques on partially ray-traced images, hoping that with denoising we could get reasonably good photorealistic images while terminating PBRT early. In this project, we would explore [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) for image denoising. For more details of the instructions, please checkout [the project instruction](INSTRUCTION.md).
+However, in reality it is very hard to run PBRT in real time, as we often need a large amount of rays to obtain a reasonable good approximation for the rendering equation. Hence, people come up with multiple ways of applying denoising techniques on partially ray-traced images, hoping that with denoising we could get reasonably good photorealistic images while terminating PBRT early. In this project, we explored [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) for image denoising. For more details, please checkout [the project instruction](INSTRUCTION.md).
 
-## Highlights
-Implemented [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) denoising techniques with 5x5 Gaussian blur kernel.
+The word "À-Trous" with meaning "with holes" comes from [*Algorithme À-Trous*](https://en.wikipedia.org/wiki/Stationary_wavelet_transform), which is a stationary wavelet transform commonly used in computer graphics to approximate the effect of a Gaussian filter with much faster performance. It starts from a fix-sized Gaussian filter, performs convolution on the image while expanding out each element of the filter, filling all missing entries with 0s. The "Edge-Avoiding" part of the algorithm incorporates the use of a pixel-wise *GBuffer*, storing positions and normals of the first hit for each ray. When the image is denoised, information of the GBuffer will be used to avoid blurring edges in the image, while the noisy surfaces are smoothed.
+
+![](img/a-trous.png)
+
+|                   Pure À-Trous Filtering                   |        À-Trous Filtering with Edge-Avoiding GBuffer        |
+| :--------------------------------------------------------: | :--------------------------------------------------------: |
+| ![](img/cornell.2021-10-22_00-46-51z.100samp.denoised.png) | ![](img/cornell.2021-10-22_00-47-47z.100samp.denoised.png) |
+
+## Qualitative Analysis
+### Visual Results vs. Filter Size
+The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324`.
+|          Filter Size = 6          |          Filter Size = 15          |          Filter Size = 32          |          Filter Size = 100          |
+| :-------------------------------: | :--------------------------------: | :--------------------------------: | :---------------------------------: |
+| ![](img/denoise.filtersize.6.png) | ![](img/denoise.filtersize.15.png) | ![](img/denoise.filtersize.32.png) | ![](img/denoise.filtersize.100.png) |
+
+From the results we can see that the visual results does not vary uniformly with the filter size. When the filter reaches some size threshold, it is no longer the filter size that stops the smoothing process but the weights of the GBuffer instead. 
 
 
 # CUDA Path Tracer
