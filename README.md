@@ -7,6 +7,7 @@ CUDA Path Tracer with À-Trous Denoiser
   * [LinkedIn](https://www.linkedin.com/in/zhihao-ruan-29b29a13a/), [personal website](https://zhihaoruan.xyz/)
 * Tested on: Ubuntu 20.04 LTS, Ryzen 3700X @ 2.22GHz 48GB, RTX 2060 Super @ 7976MB
 
+Table of Contents:
 - [CUDA Path Tracer with À-Trous Denoiser](#cuda-path-tracer-with-à-trous-denoiser)
   - [Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising](#physically-based-ray-traced-pbrt-image-with-à-trous-denoising)
 - [CUDA Denoiser](#cuda-denoiser)
