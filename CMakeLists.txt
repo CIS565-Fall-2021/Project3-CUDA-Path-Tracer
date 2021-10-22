@@ -82,6 +82,7 @@ set(headers
     src/stream_compaction.h
     src/static_config.h
     src/model_loader.hpp
+    src/timer.h
 )
 
 set(sources
