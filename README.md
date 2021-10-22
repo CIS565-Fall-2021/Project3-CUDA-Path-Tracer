@@ -32,6 +32,7 @@ CUDA Path Tracer with À-Trous Denoiser
     - [Physically-Based Depth of Field](#physically-based-depth-of-field)
     - [Mesh Loading](#mesh-loading)
   - [Performance Analysis](#performance-analysis)
+- [References](#references)
 
 ## Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising
 |                    PBRT, 5000 iterations                    |           PBRT, 5000 iterations, 4x anti-aliasing           |
@@ -191,4 +192,23 @@ The following experiments are conducted on a Cornell box scene as shown in [`cor
 ![](img/performance-analysis.png)
 
 From the performance analysis we can see that caching the first bounce for the 1st iteration has a slight improvement on the performance, while radix-sorting the material type before shading have a great negative impact on the performance. This is possibly due to the reason that radix-sorting itself takes a lot amount of time in each iteration. 
+
+
+# References
+* [PBRT] Physically Based Rendering, Second Edition: From Theory To Implementation. Pharr, Matt and Humphreys, Greg. 2010.
+* Antialiasing and Raytracing. Chris Cooksey and Paul Bourke, http://paulbourke.net/miscellaneous/aliasing/
+* [Sampling notes](http://graphics.ucsd.edu/courses/cse168_s14/) from Steve Rotenberg and Matteo Mannino, University of California, San Diego, CSE168: Rendering Algorithms
+* Path Tracer Readme Samples (non-exhaustive list):
+  * https://github.com/byumjin/Project3-CUDA-Path-Tracer
+  * https://github.com/lukedan/Project3-CUDA-Path-Tracer
+  * https://github.com/botforge/CUDA-Path-Tracer
+  * https://github.com/taylornelms15/Project3-CUDA-Path-Tracer
+  * https://github.com/emily-vo/cuda-pathtrace
+  * https://github.com/ascn/toki
+  * https://github.com/gracelgilbert/Project3-CUDA-Path-Tracer
+  * https://github.com/vasumahesh1/Project3-CUDA-Path-Tracer
+* [Edge-Avoiding A-Trous Wavelet Transform for fast Global Illumination Filtering](https://jo.dreggn.org/home/2010_atrous.pdf)
+* [Spatiotemporal Variance-Guided Filtering](https://research.nvidia.com/publication/2017-07_Spatiotemporal-Variance-Guided-Filtering%3A)
+* [A Survey of Efficient Representations for Independent Unit Vectors](http://jcgt.org/published/0003/02/01/paper.pdf)
+* ocornut/imgui - https://github.com/ocornut/imgui
 
