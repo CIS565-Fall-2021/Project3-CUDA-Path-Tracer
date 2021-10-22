@@ -7,6 +7,23 @@ CUDA Path Tracer with À-Trous Denoiser
   * [LinkedIn](https://www.linkedin.com/in/zhihao-ruan-29b29a13a/), [personal website](https://zhihaoruan.xyz/)
 * Tested on: Ubuntu 20.04 LTS, Ryzen 3700X @ 2.22GHz 48GB, RTX 2060 Super @ 7976MB
 
+- [CUDA Path Tracer with À-Trous Denoiser](#cuda-path-tracer-with-à-trous-denoiser)
+  - [Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising](#physically-based-ray-traced-pbrt-image-with-à-trous-denoising)
+- [CUDA Denoiser](#cuda-denoiser)
+  - [Introduction](#introduction)
+  - [Highlights](#highlights)
+- [CUDA Path Tracer](#cuda-path-tracer)
+  - [Highlights](#highlights-1)
+  - [Background: Ray Tracing](#background-ray-tracing)
+    - [BSDF: Bidirectional Scattering Distribution Functions](#bsdf-bidirectional-scattering-distribution-functions)
+    - [CUDA Optimization for Ray Tracing](#cuda-optimization-for-ray-tracing)
+  - [Results and Demos](#results-and-demos)
+    - [Ray Refraction for Glass-like Materials](#ray-refraction-for-glass-like-materials)
+    - [Stochastic Sampled Anti-Aliasing](#stochastic-sampled-anti-aliasing)
+    - [Physically-Based Depth of Field](#physically-based-depth-of-field)
+    - [Mesh Loading](#mesh-loading)
+  - [Performance Analysis](#performance-analysis)
+
 ## Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising
 |                    PBRT, 5000 iterations                    |           PBRT, 5000 iterations, 4x anti-aliasing           |
 | :---------------------------------------------------------: | :---------------------------------------------------------: |
@@ -27,6 +44,7 @@ Implemented [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/hom
 
 
 # CUDA Path Tracer
+![](img/cornell.2021-10-09_18-44-15z.5000samp.png)
 ## Highlights
 Finished path tracing core features:
 - diffuse shaders
