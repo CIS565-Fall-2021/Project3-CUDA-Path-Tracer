@@ -15,6 +15,7 @@ CUDA Path Tracer with À-Trous Denoiser
   - [Introduction](#introduction)
   - [Qualitative Analysis](#qualitative-analysis)
     - [Visual Results vs. Filter Size](#visual-results-vs-filter-size)
+    - [Visual Results vs. Material Type](#visual-results-vs-material-type)
 - [CUDA Path Tracer](#cuda-path-tracer)
   - [Highlights](#highlights-1)
   - [Background: Ray Tracing](#background-ray-tracing)
@@ -61,6 +62,14 @@ The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324`
 | ![](img/denoise.filtersize.6.png) | ![](img/denoise.filtersize.15.png) | ![](img/denoise.filtersize.32.png) | ![](img/denoise.filtersize.100.png) |
 
 From the results we can see that the visual results does not vary uniformly with the filter size. When the filter reaches some size threshold, it is no longer the filter size that stops the smoothing process but the weights of the GBuffer instead. 
+
+### Visual Results vs. Material Type
+The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324, filter_size=100`.
+|           Diffuse            |          Reflective           |           Refractive            |
+| :--------------------------: | :---------------------------: | :-----------------------------: |
+| ![](img/denoise-diffuse.png) | ![](img/denoise-specular.png) | ![](img/denoise-refraction.png) |
+
+From the results we can see that the filter works best with diffuse materials, reasonably well with refractive materials, and the worst with reflective materials. This is mainly because the current implementation only caches the position & normal vectors of the first hit, while this property does not really apply to reflective materials (colors on a pure-reflective material depend heavily on the material properties from the 2nd hit). As a result, the filter is blurring the reflection on the reflective materials.
 
 
 # CUDA Path Tracer
