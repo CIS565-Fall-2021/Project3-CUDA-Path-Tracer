@@ -18,6 +18,7 @@
 #include "sceneStructs.h"
 #include "static_config.h"
 #include "stream_compaction.h"
+#include "timer.h"
 #include "utilities.h"
 
 #define ERRORCHECK 1
@@ -43,6 +44,11 @@ void checkCUDAErrorFn(const char *msg, const char *file, int line) {
 #endif
   exit(EXIT_FAILURE);
 #endif
+}
+
+PerformanceTimer &timer() {
+  static PerformanceTimer timer;
+  return timer;
 }
 
 __host__ __device__ thrust::default_random_engine makeSeededRandomEngine(
@@ -842,6 +848,8 @@ void showImage(uchar4 *pbo, int iter) {
 }
 
 void denoiseImage(int filter_width, float c_phi, float n_phi, float p_phi) {
+  std::cout << "\n----- Begin image denoising -----\n";
+
   const Camera &cam = hst_scene->state.camera;
   const dim3 blockSize2d(8, 8);
   const dim3 blocksPerGrid2d(
@@ -851,6 +859,8 @@ void denoiseImage(int filter_width, float c_phi, float n_phi, float p_phi) {
 
   cudaMemcpy(dev_image_denoised, dev_image, pixelcount * sizeof(glm::vec3),
              cudaMemcpyDeviceToDevice);
+
+  timer().startGpuTimer();
 
   int stepwidth    = 1;
   int kernel_width = KERNEL_WIDTH;
@@ -864,6 +874,10 @@ void denoiseImage(int filter_width, float c_phi, float n_phi, float p_phi) {
     kernel_width = (KERNEL_WIDTH - 1) * stepwidth + 1;
     c_phi /= 2.0f;
   }
+
+  timer().endGpuTimer();
+  printElapsedTime(timer().getGpuElapsedTimeForPreviousOperation(),
+                   "(CUDA Measured)");
 }
 
 void showDenoisedImage(uchar4 *pbo, int iter) {

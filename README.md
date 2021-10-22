@@ -17,6 +17,10 @@ CUDA Path Tracer with À-Trous Denoiser
     - [Visual Results vs. Filter Size](#visual-results-vs-filter-size)
     - [Visual Results vs. Material Type](#visual-results-vs-material-type)
     - [Visual Results vs. Light Conditions](#visual-results-vs-light-conditions)
+  - [Quantitative Analysis](#quantitative-analysis)
+    - [Denoising Time](#denoising-time)
+    - [Number of Iterations Needed for a Smooth Image](#number-of-iterations-needed-for-a-smooth-image)
+    - [Denoising Runtime vs. Resolution, Filter Size](#denoising-runtime-vs-resolution-filter-size)
 - [CUDA Path Tracer](#cuda-path-tracer)
   - [Highlights](#highlights-1)
   - [Background: Ray Tracing](#background-ray-tracing)
@@ -47,7 +51,7 @@ Physically-Based Ray Tracing (PBRT) is considered as one of the best methods tha
 
 However, in reality it is very hard to run PBRT in real time, as we often need a large amount of rays to obtain a reasonable good approximation for the rendering equation. Hence, people come up with multiple ways of applying denoising techniques on partially ray-traced images, hoping that with denoising we could get reasonably good photorealistic images while terminating PBRT early. In this project, we explored [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) for image denoising. For more details, please checkout [the project instruction](INSTRUCTION.md).
 
-The word "À-Trous" with meaning "with holes" comes from [*Algorithme À-Trous*](https://en.wikipedia.org/wiki/Stationary_wavelet_transform), which is a stationary wavelet transform commonly used in computer graphics to approximate the effect of a Gaussian filter with much faster performance. It starts from a fix-sized Gaussian filter, performs convolution on the image while expanding out each element of the filter, filling all missing entries with 0s. The "Edge-Avoiding" part of the algorithm incorporates the use of a pixel-wise *GBuffer*, storing positions and normals of the first hit for each ray. When the image is denoised, information of the GBuffer will be used to avoid blurring edges in the image, while the noisy surfaces are smoothed.
+The word "À-Trous" with meaning "with holes" comes from [*Algorithme À-Trous*](https://en.wikipedia.org/wiki/Stationary_wavelet_transform), which is a stationary wavelet transform commonly used in computer graphics to approximate the effect of a Gaussian filter with much faster performance. It starts from a fix-sized Gaussian filter, performs convolution on the image while expanding out each element of the filter at every iteration, filling all missing entries with 0s. The "Edge-Avoiding" part of the algorithm incorporates the use of a pixel-wise *GBuffer*, storing positions and normals of the first hit for each ray. When the image is denoised, information of the GBuffer will be used to avoid blurring edges in the image, while the noisy surfaces are smoothed.
 
 ![](img/a-trous.png)
 
@@ -74,11 +78,40 @@ From the results we can see that the filter works best with diffuse materials, r
 
 ### Visual Results vs. Light Conditions
 The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324, filter_size=100`.
-|         Cornell Box          |           Cornell Box with Large Lights            |
-| :--------------------------: | :------------------------------------------------: |
-| ![](img/denoise-cornell.png) | ![](img/denoise-denoise-cornell-ceiling-light.png) |
+|         Cornell Box          |       Cornell Box with Large Lights        |
+| :--------------------------: | :----------------------------------------: |
+| ![](img/denoise-cornell.png) | ![](img/denoise-cornell-ceiling-light.png) |
 
 From the results we can see that the filter works better in brighter lighting conditions. This is because in brighter lighting conditions the color tends to be more similar locally, while with point lights the color differs much from its adjacent pixels, making it more difficult to smooth. 
+
+## Quantitative Analysis
+### Denoising Time
+For a standard scene as shown in [Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising](#physically-based-ray-traced-pbrt-image-with-à-trous-denoising), the denoising time for a 800x800 image with `c_phi=132.353, n_phi=0.245, p_phi=1.324, filter_size=100` is:
+```bash
+----- Begin image denoising -----
+   elapsed time: 31.2983ms    (CUDA Measured)
+```
+which is a reasonably fast denoising time. 
+
+### Number of Iterations Needed for a Smooth Image
+The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324, filter_size=100`.
+|        Iteration = 1        |        Iteration = 10        |        Iteration = 25        |
+| :-------------------------: | :--------------------------: | :--------------------------: |
+| ![](img/denoise-iter-1.png) | ![](img/denoise-iter-10.png) | ![](img/denoise-iter-25.png) |
+
+|        Iteration = 50        |        Iteration = 100        |
+| :--------------------------: | :---------------------------: |
+| ![](img/denoise-iter-50.png) | ![](img/denoise-iter-100.png) |
+
+From the results we can see that subjectively, with the parameters specified above, we can get a reasonably smooth image with number of iterations at least 50. 
+
+### Denoising Runtime vs. Resolution, Filter Size
+The following experiments are run with `c_phi=132.353, n_phi=0.245, p_phi=1.324`. For varying resolution, `filter_size = 100`; for varying filter size, `resolution = 800x800`.
+|         Runtime vs. Resolution          |         Runtime vs. Filter Size          |
+| :-------------------------------------: | :--------------------------------------: |
+| ![](img/denoise_runtime_resolution.png) | ![](img/denoise_runtime_filter_size.png) |
+
+From the results we can see that the runtime increases quadratically with resolution as the number of pixels increases quadratically with resolution; the runtime increases linearly with filter size, as increasing filter size would only increase the number of iterations that À-Trous wavelet transform needs to run.
 
 
 # CUDA Path Tracer
