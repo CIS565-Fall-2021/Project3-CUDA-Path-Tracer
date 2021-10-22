@@ -1,15 +1,32 @@
-CUDA Path Tracer
+CUDA Path Tracer with À-Trous Denoiser
 ================
 
-**University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3**
+**University of Pennsylvania, CIS 565: GPU Programming and Architecture, Project 3 and Project 4**
 
 * Zhihao Ruan (ruanzh@seas.upenn.edu)
   * [LinkedIn](https://www.linkedin.com/in/zhihao-ruan-29b29a13a/), [personal website](https://zhihaoruan.xyz/)
 * Tested on: Ubuntu 20.04 LTS, Ryzen 3700X @ 2.22GHz 48GB, RTX 2060 Super @ 7976MB
 
-![](img/cornell.2021-10-09_18-44-15z.5000samp.png)
+## Physically-Based Ray Traced (PBRT) Image with À-Trous Denoising
+|                    PBRT, 5000 iterations                    |           PBRT, 5000 iterations, 4x anti-aliasing           |
+| :---------------------------------------------------------: | :---------------------------------------------------------: |
+| ![](img/cornell.2021-10-21_22-45-59z.5000samp.original.png) | ![](img/cornell.2021-10-21_22-47-57z.5000samp.original.png) |
+
+|                    PBRT, 100 iterations                    |          PBRT, 100 iterations, À-Trous Denoising           |
+| :--------------------------------------------------------: | :--------------------------------------------------------: |
+| ![](img/cornell.2021-10-21_21-56-47z.100samp.original.png) | ![](img/cornell.2021-10-21_22-57-08z.100samp.denoised.png) |
+
+# CUDA Denoiser
+## Introduction
+Physically-Based Ray Tracing (PBRT) is considered as one of the best methods that produce the most photorealistic images. The essence of PBRT is to approximate [the rendering equation](https://en.wikipedia.org/wiki/Rendering_equation) with Monte-Carlo integration, sampling multiple rays from each pixel of an image and bouncing them off multiple times from various surfaces of different kinds and different textures according to the ray directions, accumulating the colors along the way. 
+
+However, in reality it is very hard to run PBRT in real time, as we often need a large amount of rays to obtain a reasonable good approximation for the rendering equation. Hence, people come up with multiple ways of applying denoising techniques on partially ray-traced images, hoping that with denoising we could get reasonably good photorealistic images while terminating PBRT early. In this project, we would explore [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) for image denoising. For more details of the instructions, please checkout [the project instruction](INSTRUCTION.md).
+
+## Highlights
+Implemented [Edge-Avoiding À-Trous Wavelet Transform](https://jo.dreggn.org/home/2010_atrous.pdf) denoising techniques with 5x5 Gaussian blur kernel.
 
 
+# CUDA Path Tracer
 ## Highlights
 Finished path tracing core features:
 - diffuse shaders
