@@ -529,6 +529,22 @@ __device__ inline float gaussianWeight(int x, int y, float s) {
   return (1.0f / (2 * PI * s * s)) * exp(-(x * x + y * y) / (2 * s * s));
 }
 
+__global__ void normalizeImage(int width, int height, glm::vec3* image, int iter) {
+  int x = (blockIdx.x * blockDim.x) + threadIdx.x;
+  int y = (blockIdx.y * blockDim.y) + threadIdx.y;
+
+  if (x < width && y < height) {
+    int index = x + (y * width);
+    glm::vec3 pix = image[index];
+
+    pix.x /= iter;
+    pix.y /= iter;
+    pix.z /= iter;
+
+    image[index] = pix;
+  }
+}
+
 // Denoise Kernel
 __global__ void kernDenoise(int width, int height, glm::vec3* image,
   int filterSize, GBufferPixel* gBuffer, int stepWidth, glm::mat4 camView, glm::mat4 camProj,
@@ -714,7 +730,8 @@ void pathtrace(int frame, int iter, bool denoise, int filterSize, int filterPass
 
     if (denoise) {
       cudaMemcpy(dev_denoised_image, dev_image, pixelcount * sizeof(glm::vec3), cudaMemcpyDeviceToDevice);
-
+      normalizeImage << <blocksPerGrid2d, blockSize2d >> > (cam.resolution.x, cam.resolution.y, dev_denoised_image, iter);
+      
       for (int i = 0; i < filterPasses; i++) {
         int stepWidth = 1;
         while (4 * stepWidth <= filterSize) {
@@ -760,5 +777,5 @@ void showImage(uchar4* pbo, int iter, bool denoise) {
     (cam.resolution.y + blockSize2d.y - 1) / blockSize2d.y);
 
   // Send results to OpenGL buffer for rendering
-  sendImageToPBO << <blocksPerGrid2d, blockSize2d >> > (pbo, cam.resolution, iter, denoise ? dev_denoised_image : dev_image);
+  sendImageToPBO << <blocksPerGrid2d, blockSize2d >> > (pbo, cam.resolution, denoise? 1 : iter, denoise ? dev_denoised_image : dev_image);
 }

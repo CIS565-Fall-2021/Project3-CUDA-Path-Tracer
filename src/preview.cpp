@@ -218,9 +218,9 @@ void drawGui(int windowWidth, int windowHeight) {
 
   ImGui::SliderInt("Filter Passes", &ui_filterPasses, 1, 10);
   ImGui::SliderInt("Filter Size", &ui_filterSize, 0, 100);
-  ImGui::SliderFloat("Color Weight", &ui_colorWeight, 0.0f, 10.0f);
-  ImGui::SliderFloat("Normal Weight", &ui_normalWeight, 0.0f, 10.0f);
-  ImGui::SliderFloat("Position Weight", &ui_positionWeight, 0.0f, 10.0f);
+  ImGui::SliderFloat("Color Weight", &ui_colorWeight, 0.0f, 5.0f);
+  ImGui::SliderFloat("Normal Weight", &ui_normalWeight, 0.0f, 5.0f);
+  ImGui::SliderFloat("Position Weight", &ui_positionWeight, 0.0f, 5.0f);
 
   ImGui::Separator();
 

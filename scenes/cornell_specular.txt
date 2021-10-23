@@ -52,7 +52,7 @@ EMITTANCE   0
 CAMERA
 RES         800 800
 FOVY        45
-ITERATIONS  800
+ITERATIONS  10
 DEPTH       8
 FILE        cornell
 EYE         0.0 5 10.5
@@ -119,7 +119,7 @@ SCALE       4 4 4
 // Sphere
 OBJECT 7
 cube
-material 1
+material 4
 TRANS       1 2 2
 ROTAT       0 45 0
 SCALE       2 3 2
