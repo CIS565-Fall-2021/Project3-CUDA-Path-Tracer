@@ -229,6 +229,7 @@ int Scene::loadMaterial(string materialid) {
                 float r = atof(tokens[1].c_str());
                 newMaterial.hasReflective = r;
                 newMaterial.pbrMetallicRoughness.metallicFactor = r;
+                newMaterial.pbrMetallicRoughness.roughnessFactor = 0.0;
             } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
@@ -347,6 +348,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
   int mat_offset = materials.size();
   for (const tinygltf::Material& gltfMat : model.materials) {
     Material newMat;
+    newMat.gltf = true;
     newMat.tex_offset = tex_offset;
     newMat.pbrMetallicRoughness.baseColorTexture = gltfMat.pbrMetallicRoughness.baseColorTexture;
     newMat.pbrMetallicRoughness.baseColorFactor = glm::make_vec3(gltfMat.pbrMetallicRoughness.baseColorFactor.data());

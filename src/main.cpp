@@ -11,6 +11,19 @@ static bool middleMousePressed = false;
 static double lastX;
 static double lastY;
 
+int ui_iterations = 10;
+int startupIterations = 10;
+int lastLoopIterations = 0;
+bool ui_showGbuffer = false;
+int ui_GbufferMode = GBUFFER_NORMAL;  //switch between different gbuffers
+bool ui_denoise = false;
+int ui_filterSize = 80;
+int ui_filterPasses = 2;
+float ui_colorWeight = 6.7f;
+float ui_normalWeight = 1.4f;
+float ui_positionWeight = 4.0f;
+bool ui_saveAndExit = false;
+
 static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
@@ -99,6 +112,11 @@ void saveImage() {
 }
 
 void runCuda() {
+    if (lastLoopIterations != ui_iterations) {
+      lastLoopIterations = ui_iterations;
+      camchanged = true;
+    }
+
     if (camchanged) {
         iteration = 0;
         Camera &cam = renderState->camera;
@@ -127,28 +145,49 @@ void runCuda() {
         pathtraceInit(scene);
     }
 
-    if (iteration < renderState->iterations) {
-        uchar4 *pbo_dptr = NULL;
-        iteration++;
-        cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
+    uchar4* pbo_dptr = NULL;
+    cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
-        // execute the kernel
-        int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+    bool denoise = ui_denoise;
+    if (iteration < ui_iterations) {
+      iteration++;
 
-        // unmap buffer object
-        cudaGLUnmapBufferObject(pbo);
-    } else {
-        saveImage();
-        pathtraceFree();
-        cudaDeviceReset();
-        exit(EXIT_SUCCESS);
+      // execute the kernel
+      int frame = 0;
+      denoise = ui_denoise && iteration == ui_iterations;  // only denoise after the last iteration
+      pathtrace(frame, iteration, denoise, ui_filterSize, ui_filterPasses, ui_colorWeight, ui_normalWeight, ui_positionWeight);
+    }
+
+    if (ui_showGbuffer) {
+      showGBuffer(pbo_dptr, ui_GbufferMode);
+    }
+    else {
+      showImage(pbo_dptr, iteration, denoise);
+    }
+
+    // unmap buffer object
+    cudaGLUnmapBufferObject(pbo);
+
+    if (ui_saveAndExit) {
+      saveImage();
+      pathtraceFree();
+      cudaDeviceReset();
+      exit(EXIT_SUCCESS);
     }
 }
 
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
       switch (key) {
+      case GLFW_KEY_1:
+        ui_GbufferMode = GBUFFER_NORMAL;
+        break;
+      case GLFW_KEY_2:
+        ui_GbufferMode = GBUFFER_POSITION;
+        break;
+      case GLFW_KEY_3:
+        ui_GbufferMode = GBUFFER_TIME;
+        break;
       case GLFW_KEY_ESCAPE:
         saveImage();
         glfwSetWindowShouldClose(window, GL_TRUE);

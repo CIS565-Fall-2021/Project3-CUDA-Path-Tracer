@@ -7,6 +7,8 @@
 #include "tiny_gltf.h"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
+#define NEAR 1.f
+#define FAR 50.f
 
 typedef glm::vec3 Color;
 
@@ -124,6 +126,8 @@ struct Material {
     float indexOfRefraction;
     float emittance;
 
+    bool gltf = false;
+
     PbrMetallicRoughness pbrMetallicRoughness;
 
     NormalTextureInfo normalTexture;
@@ -141,6 +145,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+    glm::mat4 viewMat;
+    glm::mat4 projMat;
 };
 
 struct RenderState {
@@ -169,6 +175,14 @@ struct ShadeableIntersection {
   glm::vec2 uv;
   glm::vec4 tangent;
 };
+
+struct GBufferPixel {
+  float t;
+  glm::vec3 n;  //normal
+  glm::vec3 p;  //position
+  float z;      //z-depth
+};
+
 
 // Predicate for checking if a path is complete or not
 struct isPathCompleted {

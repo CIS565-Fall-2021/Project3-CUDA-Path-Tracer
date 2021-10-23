@@ -193,7 +193,7 @@ void scatterRay(
     if (u01(rng) < pM) {
       // Specular
       glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, normal);
-      newDir = calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR);
+      newDir = m.gltf ? calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR) : reflect;
       //newDir = reflect;  //<---- use this for perfect specular
       color = pM * albedo;
     }
@@ -203,8 +203,9 @@ void scatterRay(
       color = (1.f - pM) * albedo;
     }
 
-    pathSegment.ray.origin = intersect;
+    pathSegment.ray.origin = intersect + (newDir * 0.0001f);;
     pathSegment.ray.direction = glm::normalize(newDir);
     pathSegment.color *= color;
 }
+
 
