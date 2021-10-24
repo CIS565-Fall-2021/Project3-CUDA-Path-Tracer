@@ -15,8 +15,10 @@ A CUDA-accelerated path tracer: a global-illumination renderer.
 ## Features
 -Basic pathtracer
 -Refractive, Reflective, and Diffused surfaces
+-Antialiasing
 -Depth of Field
 -Direct Lighting
+-Steam Compaction
 
 ### Material Surfaces
 
