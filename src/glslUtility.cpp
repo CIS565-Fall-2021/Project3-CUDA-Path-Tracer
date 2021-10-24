@@ -15,22 +15,22 @@ namespace glslUtility {
 
 // embedded passthrough shaders so that default passthrough shaders don't need to be loaded
 static std::string passthroughVS =
-    "   attribute vec4 Position; \n"
-    "   attribute vec2 Texcoords; \n"
-    "   varying vec2 v_Texcoords; \n"
-    "   \n"
-    "   void main(void){ \n"
-    "       v_Texcoords = Texcoords; \n"
-    "       gl_Position = Position; \n"
-    "   }";
+    "	attribute vec4 Position; \n"
+    "	attribute vec2 Texcoords; \n"
+    "	varying vec2 v_Texcoords; \n"
+    "	\n"
+    "	void main(void){ \n"
+    "		v_Texcoords = Texcoords; \n"
+    "		gl_Position = Position; \n"
+    "	}";
 static std::string passthroughFS =
-    "   varying vec2 v_Texcoords; \n"
-    "   \n"
-    "   uniform sampler2D u_image; \n"
-    "   \n"
-    "   void main(void){ \n"
-    "       gl_FragColor = texture2D(u_image, v_Texcoords); \n"
-    "   }";
+    "	varying vec2 v_Texcoords; \n"
+    "	\n"
+    "	uniform sampler2D u_image; \n"
+    "	\n"
+    "	void main(void){ \n"
+    "		gl_FragColor = texture2D(u_image, v_Texcoords); \n"
+    "	}";
 
 typedef struct {
     GLuint vertex;
