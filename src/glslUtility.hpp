@@ -11,7 +11,7 @@ namespace glslUtility {
 
 GLuint createDefaultProgram(const char *attributeLocations[], GLuint numberOfLocations);
 GLuint createProgram(const char *vertexShaderPath, const char *fragmentShaderPath,
-                     const char *attributeLocations[], GLuint numberOfLocations);
+	const char *attributeLocations[], GLuint numberOfLocations);
 }
 
 #endif
