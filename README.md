@@ -19,7 +19,7 @@ Implementation of a CUDA-based path tracer capable of rendering globally-illumin
 
 ### What is a Path Tracer?
 
-A Path Tracer is a rendering technique used to generate graphical images based on physically simulating how light works. As opposed to rasterization, it starts by shooting rays from a camera to the pixels in our screen, and following those rays at several points of intersection until it hits a light source. At every bounce, we multiply our current color with the color of the material hit. 
+Path tracing is a rendering technique used to generate graphical images based on physically simulating how light works. As opposed to rasterization, it starts by shooting rays from a camera to the pixels in our screen, and following those rays at several points of intersection until it hits a light source. At every bounce, we multiply our current color with the color of the material hit. 
 
 This technique has been widely used, mostly in the CPU, in many industries, most notably in animation, to generate photo-realistic images that mimic what we see in the real-world.
 
