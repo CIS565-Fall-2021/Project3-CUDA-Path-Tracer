@@ -4,6 +4,13 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION // define this in only *one* .cc
+// Optional. define TINYOBJLOADER_USE_MAPBOX_EARCUT gives robust trinagulation. Requires C++11
+//#define TINYOBJLOADER_USE_MAPBOX_EARCUT
+#include "tiny_obj_loader.h"
+
+#include "stb_image.h"
+
 Scene::Scene(string filename) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
@@ -13,6 +20,10 @@ Scene::Scene(string filename) {
         cout << "Error reading from file - aborting!" << endl;
         throw;
     }
+    // Pointer for each geometry
+    mesh_offset = 0;
+    texture_offset = 0;
+    normal_offset = 0;
     while (fp_in.good()) {
         string line;
         utilityCore::safeGetline(fp_in, line);
@@ -32,6 +43,127 @@ Scene::Scene(string filename) {
     }
 }
 
+// Load obj files by tinyObj
+// Copied from example code https://github.com/tinyobjloader/tinyobjloader
+void Scene::load_obj(string path, Geom& geom, int offset) {
+
+    std::string inputfile = path;
+    tinyobj::ObjReaderConfig reader_config;
+    //reader_config.mtl_search_path = "./"; // Path to material files
+
+    tinyobj::ObjReader reader;
+
+    if (!reader.ParseFromFile(inputfile, reader_config)) {
+        if (!reader.Error().empty()) {
+            std::cerr << "TinyObjReader: " << reader.Error();
+        }
+        exit(1);
+    }
+
+    if (!reader.Warning().empty()) {
+        std::cout << "TinyObjReader: " << reader.Warning();
+    }
+
+    auto &attrib = reader.GetAttrib();
+    auto &shapes = reader.GetShapes();
+    auto &materials = reader.GetMaterials();
+
+    geom.mesh_offset = offset;
+    geom.mesh_num = 0;
+    AABB bound_box;
+    bound_box.bottom_left = glm::vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+    bound_box.upper_right = glm::vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+
+    // Loop over shapes
+    for (size_t s = 0; s < shapes.size(); s++) {
+        // Loop over faces(polygon)
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+            Triangle new_tri;
+            // Loop over vertices in the face.
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+                new_tri.pos[v] = glm::vec3(vx, vy, vz);
+                bound_box.bottom_left = glm::min(bound_box.bottom_left, new_tri.pos[v]);
+                bound_box.upper_right = glm::max(bound_box.upper_right, new_tri.pos[v]);
+
+                // Check if `normal_index` is zero or positive. negative = no normal data
+                if (idx.normal_index >= 0) {
+                    tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+                    tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+                    tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+
+                    new_tri.normal[v] = glm::vec3(nx, ny, nz);
+                }          
+
+                // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+                if (idx.texcoord_index >= 0) {
+                    tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
+                    tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
+
+                    new_tri.uv[v] = glm::vec2(tx, ty);
+                }
+
+                // Optional: vertex colors
+                // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
+                // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
+                // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+            }
+            index_offset += fv;
+
+            // per-face material
+            shapes[s].mesh.material_ids[f];
+
+            meshes.push_back(new_tri);
+            geom.mesh_num++;
+            geom.bound_box = bound_box;
+        }
+    }
+}
+
+// Load texture or normal map from an image
+void Scene::load_texture(const char *path, Geom &geom, int offset, bool is_normal_map) {
+    if (is_normal_map) {
+        geom.normal_offset = offset;
+    }
+    else {
+        geom.texture_offset = offset;
+    }
+
+    int width = 0;
+    int height = 0;    
+    int channel = 3;
+    float *data = stbi_loadf(path, &width, &height, &channel, channel);
+
+    if (is_normal_map) {
+        geom.normal_shape = glm::ivec2(width, height);
+    }
+    else {
+        geom.texture_shape = glm::ivec2(width, height);
+    }
+
+    for (int i = 0; i < width * height; i++) {
+        if (is_normal_map) {
+            // Convert color to real normal
+            glm::vec3 normal(data[i * channel], data[i * channel + 1], data[i * channel + 2]);
+            normal = glm::normalize(normal * 2.f - 1.f);
+            normal_maps.push_back(normal);
+        }
+        else {
+            textures.push_back(glm::vec3(data[i * channel], data[i * channel + 1], data[i * channel + 2]));
+        }
+    }
+
+    stbi_image_free(data);
+}
+
 int Scene::loadGeom(string objectid) {
     int id = atoi(objectid.c_str());
     if (id != geoms.size()) {
@@ -42,6 +174,9 @@ int Scene::loadGeom(string objectid) {
         Geom newGeom;
         string line;
 
+        newGeom.texture_offset = -1;
+        newGeom.normal_offset = -1;
+
         //load object type
         utilityCore::safeGetline(fp_in, line);
         if (!line.empty() && fp_in.good()) {
@@ -51,6 +186,12 @@ int Scene::loadGeom(string objectid) {
             } else if (strcmp(line.c_str(), "cube") == 0) {
                 cout << "Creating new cube..." << endl;
                 newGeom.type = CUBE;
+            } else if (strcmp(line.c_str(), "mesh") == 0) {
+                cout << "Creating new mesh..." << endl;
+                newGeom.type = MESH;
+                utilityCore::safeGetline(fp_in, line);
+                load_obj(line, newGeom, mesh_offset);
+                mesh_offset += newGeom.mesh_num;
             }
         }
 
@@ -70,10 +211,19 @@ int Scene::loadGeom(string objectid) {
             //load tranformations
             if (strcmp(tokens[0].c_str(), "TRANS") == 0) {
                 newGeom.translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+                newGeom.end_translation = newGeom.translation;
             } else if (strcmp(tokens[0].c_str(), "ROTAT") == 0) {
                 newGeom.rotation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
             } else if (strcmp(tokens[0].c_str(), "SCALE") == 0) {
                 newGeom.scale = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+            } else if (strcmp(tokens[0].c_str(), "END") == 0) {
+                newGeom.end_translation = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+            } else if (strcmp(tokens[0].c_str(), "texture") == 0) {
+                load_texture(tokens[1].c_str(), newGeom, texture_offset, false);
+                texture_offset += (newGeom.texture_shape[0] * newGeom.texture_shape[1]);
+            } else if (strcmp(tokens[0].c_str(), "normal") == 0) {
+                load_texture(tokens[1].c_str(), newGeom, normal_offset, true);
+                normal_offset += (newGeom.normal_shape[0] * newGeom.normal_shape[1]);
             }
 
             utilityCore::safeGetline(fp_in, line);
@@ -114,6 +264,7 @@ int Scene::loadCamera() {
         }
     }
 
+    camera.lens_radius = 0;
     string line;
     utilityCore::safeGetline(fp_in, line);
     while (!line.empty() && fp_in.good()) {
@@ -124,6 +275,10 @@ int Scene::loadCamera() {
             camera.lookAt = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
         } else if (strcmp(tokens[0].c_str(), "UP") == 0) {
             camera.up = glm::vec3(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
+        } else if (strcmp(tokens[0].c_str(), "LENRAD") == 0) {
+            camera.lens_radius = atof(tokens[1].c_str());
+        } else if (strcmp(tokens[0].c_str(), "FOCALLEN") == 0) {
+            camera.focal_length = atof(tokens[1].c_str());
         }
 
         utilityCore::safeGetline(fp_in, line);

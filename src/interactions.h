@@ -41,6 +41,51 @@ glm::vec3 calculateRandomDirectionInHemisphere(
         + sin(around) * over * perpendicularDirection2;
 }
 
+// Calculate the direction reflected by a mirror-like surface
+__host__ __device__
+glm::vec3 calculate_reflection_direction(glm::vec3 normal, glm::vec3 incident) {
+    return glm::reflect(incident, normal);
+}
+
+// Calculate the transmission direction based on Snell's Law
+__host__ __device__
+glm::vec3 calculate_refraction_direction(glm::vec3 normal, glm::vec3 incident, float index) {
+    return glm::refract(incident, normal, 1.f / index);
+}
+
+// Calculate the direction mixed of reflection and transmission
+// The ratio between these two depends on Schlick's approximation
+__host__ __device__
+glm::vec3 calculate_reflection_and_refraction_direction(glm::vec3 normal, glm::vec3 incident, float index, thrust::default_random_engine &rng, bool* is_refract) {
+    // Determine whether the light goes from material to air
+    if (glm::dot(normal, incident) > 0) {
+        normal = -normal;
+        index = 1.f / index;
+    }
+
+    // Decide reflection or transmission
+    thrust::uniform_real_distribution<float> u01(0, 1);
+    float R_0 = powf((1.f - index) / (1.f + index), 2.f);
+    float ref_coeff = R_0 + (1 - R_0) * powf(1.f + glm::dot(normal, incident), 5.f); 
+
+    glm::vec3 emergent;
+    if (u01(rng) < ref_coeff) {
+        emergent = calculate_reflection_direction(normal, incident);
+    }
+    else {
+        emergent = calculate_refraction_direction(normal, incident, index);
+        *is_refract = true;
+
+        // Totally reflection over critical angle
+        if (glm::length(emergent) == 0.f) {
+            emergent = calculate_reflection_direction(normal, incident);
+            *is_refract = false;
+        }
+    }
+
+    return emergent;
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -72,8 +117,60 @@ void scatterRay(
         glm::vec3 intersect,
         glm::vec3 normal,
         const Material &m,
+        glm::vec3 texture,
         thrust::default_random_engine &rng) {
     // TODO: implement this.
     // A basic implementation of pure-diffuse shading will just call the
     // calculateRandomDirectionInHemisphere defined above.
+
+    // Determine whether refraction orrurs
+    bool is_refraction = false;
+
+    if (pathSegment.remainingBounces > 0) {
+        glm::vec3 bounce_ray;
+
+        // Both refractive and reflective
+        if (m.hasRefractive) {
+            // Shade rays
+            pathSegment.color *= m.specular.color;
+            // Shoot new ray
+            bounce_ray = calculate_reflection_and_refraction_direction(normal, pathSegment.ray.direction, m.indexOfRefraction, rng, &is_refraction);
+        }
+        // Perfect specular
+        else if (m.hasReflective) {
+            // Shade rays
+            pathSegment.color *= m.specular.color;
+            // Shoot new ray
+            bounce_ray = calculate_reflection_direction(normal, pathSegment.ray.direction);
+        }
+        // Ideal diffuse
+        else {
+            if (texture[0] < 0.f) {
+                // Shade rays
+                pathSegment.color *= m.color;
+            }
+            else {
+                // Use texture if exists
+                pathSegment.color *= texture;
+            }
+
+            // Use this to test normal
+            //pathSegment.color = (normal + 1.f) / 2.f;
+            
+            // Shoot new ray
+            bounce_ray = calculateRandomDirectionInHemisphere(normal, rng);
+        }
+        
+        // Add small offset to avoid hitting intersection
+        bounce_ray = glm::normalize(bounce_ray);
+        if (is_refraction) {
+            pathSegment.ray.origin = intersect + .0002f * pathSegment.ray.direction;
+        }
+        else {
+            pathSegment.ray.origin = intersect;
+        } 
+        pathSegment.ray.direction = bounce_ray;
+
+        pathSegment.remainingBounces--;
+    }
 }

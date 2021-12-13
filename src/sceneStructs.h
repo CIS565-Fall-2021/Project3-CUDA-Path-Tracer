@@ -10,11 +10,24 @@
 enum GeomType {
     SPHERE,
     CUBE,
+    MESH
 };
 
 struct Ray {
     glm::vec3 origin;
     glm::vec3 direction;
+    int is_shadow_ray;
+};
+
+struct AABB {
+    glm::vec3 bottom_left;
+    glm::vec3 upper_right;
+};
+
+struct Triangle {
+    glm::vec3 pos[3];
+    glm::vec3 normal[3];
+    glm::vec2 uv[3];
 };
 
 struct Geom {
@@ -26,6 +39,17 @@ struct Geom {
     glm::mat4 transform;
     glm::mat4 inverseTransform;
     glm::mat4 invTranspose;
+    glm::vec3 end_translation;
+    glm::mat4 old_transform;
+    glm::mat4 old_inverseTransform;
+    glm::mat4 old_invTranspose;
+    int mesh_offset;
+    int mesh_num;
+    AABB bound_box;
+    int texture_offset;
+    glm::ivec2 texture_shape;
+    int normal_offset;
+    glm::ivec2 normal_shape;
 };
 
 struct Material {
@@ -49,6 +73,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+    float lens_radius;
+    float focal_length;
 };
 
 struct RenderState {
@@ -73,4 +99,5 @@ struct ShadeableIntersection {
   float t;
   glm::vec3 surfaceNormal;
   int materialId;
+  glm::vec3 texture_color;
 };

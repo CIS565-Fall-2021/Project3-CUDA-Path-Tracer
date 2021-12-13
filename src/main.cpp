@@ -23,8 +23,16 @@ Scene *scene;
 RenderState *renderState;
 int iteration;
 
+double time_elapse;
+double kernel_fps;
+
 int width;
 int height;
+
+// CUDA events for recording time stamp
+#if KERNEL_FPS
+cudaEvent_t kernel_start, kernel_stop;
+#endif
 
 //-------------------------------
 //-------------MAIN--------------
@@ -68,6 +76,13 @@ int main(int argc, char** argv) {
 
     // Initialize CUDA and GL components
     init();
+
+#if KERNEL_FPS    
+    cudaEventCreate(&kernel_start);
+    cudaEventCreate(&kernel_stop);
+    time_elapse = 0;
+    kernel_fps = 0;
+#endif
 
     // GLFW main loop
     mainLoop();
@@ -132,9 +147,25 @@ void runCuda() {
         iteration++;
         cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
+#if KERNEL_FPS
+        cudaEventRecord(kernel_start);
+#endif
+
         // execute the kernel
         int frame = 0;
         pathtrace(pbo_dptr, frame, iteration);
+
+#if KERNEL_FPS
+        cudaEventRecord(kernel_stop);
+        cudaEventSynchronize(kernel_stop);
+
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, kernel_start, kernel_stop);
+        time_elapse += milliseconds / 1000;
+
+        // display average FPS
+        kernel_fps = iteration / time_elapse;
+#endif
 
         // unmap buffer object
         cudaGLUnmapBufferObject(pbo);
