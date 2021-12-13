@@ -1,6 +1,15 @@
 #include "main.h"
 #include "preview.h"
 #include <cstring>
+#include <iostream>
+#include <iomanip>
+#include <chrono>
+
+#define FIXED_FLOAT(x) std::fixed <<std::setprecision(2)<<(x) 
+
+/* Definitions */
+#define TIMING_ANALYSIS
+
 
 static std::string startTimeString;
 
@@ -42,6 +51,41 @@ int main(int argc, char** argv) {
 
     // Load scene file
     scene = new Scene(sceneFile);
+
+    // NOTE: Loading the cornell-stripped.txt scene is a great starting point for loading new objs
+    // 
+    // Load OBJs 
+
+    //Transform transform;
+    //transform.rotate = glm::vec3(0, 90, 0);
+    //transform.scale = glm::vec3(20.f);
+    //transform.translate = glm::vec3(3, 4, -3);
+    //scene->LoadObj("../objs/bunny.obj", transform, 2, true);
+
+    // final.txt
+    /*Transform transform;
+    transform.rotate = glm::vec3(0, 90, 0);
+    transform.scale = glm::vec3(20.f);
+    transform.translate = glm::vec3(-3.75, 6.4, -3);
+    scene->LoadObj("../objs/bunny.obj", transform, 2, true);
+
+    Transform transform2;
+    transform2.rotate = glm::vec3(0, 10, 0);
+    transform2.scale = glm::veGc3(20.f);
+    transform2.translate = glm::vec3(4, 6.4, -2.5);
+    scene->LoadObj("../objs/bunny.obj", transform2, 5, true);*/
+
+    // cornell-filled.txt
+    Transform transform;
+    transform.rotate = glm::vec3(0, 0, 0);
+    transform.scale = glm::vec3(15.f);
+    transform.translate = glm::vec3(2.5, -1, 4);
+    scene->LoadObj("../objs/dragon_low_poly.obj", transform, 3, true);
+    Transform transform2;
+    transform2.rotate = glm::vec3(10, 10, -10);
+    transform2.scale = glm::vec3(15.f);
+    transform2.translate = glm::vec3(0, 5, 2);
+    scene->LoadObj("../objs/bunny.obj", transform2, 6, true);
 
     // Set up camera stuff from loaded path tracer settings
     iteration = 0;
@@ -99,6 +143,9 @@ void saveImage() {
 }
 
 void runCuda() {
+#ifdef TIMING_ANALYSIS
+  static std::chrono::time_point<std::chrono::system_clock> start;
+#endif
     if (camchanged) {
         iteration = 0;
         Camera &cam = renderState->camera;
@@ -125,20 +172,31 @@ void runCuda() {
     if (iteration == 0) {
         pathtraceFree();
         pathtraceInit(scene);
+#ifdef TIMING_ANALYSIS
+        start = std::chrono::system_clock::now();
+#endif
     }
 
     if (iteration < renderState->iterations) {
-        uchar4 *pbo_dptr = NULL;
-        iteration++;
-        cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
+      uchar4* pbo_dptr = NULL;
+      cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
 
-        // execute the kernel
-        int frame = 0;
-        pathtrace(pbo_dptr, frame, iteration);
+      // execute the kernel
+      int frame = 0;
+      pathtrace(pbo_dptr, frame, iteration);
 
-        // unmap buffer object
-        cudaGLUnmapBufferObject(pbo);
-    } else {
+      // unmap buffer object
+      cudaGLUnmapBufferObject(pbo);
+      iteration++;
+    }
+    else {
+#ifdef TIMING_ANALYSIS
+      std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
+      float milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+      std::cout << "Average time per iteration: " << FIXED_FLOAT(milliseconds / renderState->iterations) << "(ms)" << std::endl;
+      std::cout << "Elapsed time: " << FIXED_FLOAT(milliseconds / 1000.f) << " (s)" << std::endl << std::endl;
+#endif
         saveImage();
         pathtraceFree();
         cudaDeviceReset();
