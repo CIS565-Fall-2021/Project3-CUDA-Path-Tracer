@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-project(cis565_path_tracer)
+project(cuda_path_tracer)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -26,7 +26,10 @@ endif()
 find_package(CUDA 10 REQUIRED)
 include(${CMAKE_MODULE_PATH}/CUDAComputesList.cmake)
 
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_GENERATE_CODE})
+list(APPEND CUDA_NVCC_FLAGS 
+    ${CUDA_GENERATE_CODE}
+    --expt-relaxed-constexpr
+)
 list(APPEND CUDA_NVCC_FLAGS_DEBUG "-g -G")
 set(CUDA_VERBOSE_BUILD ON)
 
@@ -79,7 +82,8 @@ set(headers
     src/stream_compaction.h
     src/static_config.h
     src/model_loader.hpp
-    )
+    src/timer.h
+)
 
 set(sources
     src/main.cpp
@@ -92,18 +96,33 @@ set(sources
     src/stream_compaction.cu
     src/static_config.cpp
     src/obj_loader.cpp
-    )
+)
+
+set(imgui
+    src/imgui/imconfig.h
+    src/imgui/imgui.cpp
+    src/imgui/imgui.h
+    src/imgui/imgui_draw.cpp
+    src/imgui/imgui_internal.h
+    src/imgui/imgui_widgets.cpp
+    src/imgui/imgui_demo.cpp
+    src/imgui/imgui_impl_glfw.cpp
+    src/imgui/imgui_impl_glfw.h
+    src/imgui/imgui_impl_opengl2.cpp
+    src/imgui/imgui_impl_opengl2.h
+    src/imgui/imgui_impl_opengl3.cpp
+    src/imgui/imgui_impl_opengl3.h
+)
 
 list(SORT headers)
 list(SORT sources)
+list(SORT imgui)
 
 source_group(Headers FILES ${headers} ${EXTERNAL_HEADERS})
 source_group(Sources FILES ${sources})
+source_group(imgui FILES ${imgui})
 
-#add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
-
-cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
+cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers} ${imgui})
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
-    #stream_compaction  # TODO: uncomment if using your stream compaction
-    )
+)

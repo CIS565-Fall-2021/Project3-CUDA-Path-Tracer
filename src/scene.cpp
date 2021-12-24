@@ -1,9 +1,11 @@
 #include "scene.h"
 
+#include <algorithm>
 #include <cstring>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
+#include <limits>
 
 #include "model_loader.hpp"
 
@@ -34,6 +36,94 @@ Scene::Scene(string filename) {
         cout << " " << endl;
       }
     }
+  }
+
+  if (!geoms.empty()) {
+    // determine scene's boundary
+    float scene_x_min = std::numeric_limits<float>::infinity(),
+          scene_y_min = std::numeric_limits<float>::infinity(),
+          scene_z_min = std::numeric_limits<float>::infinity(),
+          scene_x_max = -std::numeric_limits<float>::infinity(),
+          scene_y_max = -std::numeric_limits<float>::infinity(),
+          scene_z_max = -std::numeric_limits<float>::infinity();
+    for (const auto &geom : geoms) {
+      float x_min = std::numeric_limits<float>::infinity(),
+            x_max = -std::numeric_limits<float>::infinity(),
+            y_min = std::numeric_limits<float>::infinity(),
+            y_max = -std::numeric_limits<float>::infinity(),
+            z_min = std::numeric_limits<float>::infinity(),
+            z_max = -std::numeric_limits<float>::infinity();
+      if (geom.type == GeomType::TRIANGLE) {
+        // triangles have already been transformed in world coordinates
+        std::vector<float> list_x{geom.triangle.vertices[0].x,
+                                  geom.triangle.vertices[1].x,
+                                  geom.triangle.vertices[2].x};
+        std::vector<float> list_y{geom.triangle.vertices[0].y,
+                                  geom.triangle.vertices[1].y,
+                                  geom.triangle.vertices[2].y};
+        std::vector<float> list_z{geom.triangle.vertices[0].z,
+                                  geom.triangle.vertices[1].z,
+                                  geom.triangle.vertices[2].z};
+        x_min = *std::min_element(list_x.begin(), list_x.end());
+        y_min = *std::min_element(list_y.begin(), list_y.end());
+        z_min = *std::min_element(list_z.begin(), list_z.end());
+        x_max = *std::max_element(list_x.begin(), list_x.end());
+        y_max = *std::max_element(list_y.begin(), list_y.end());
+        z_max = *std::max_element(list_z.begin(), list_z.end());
+      } else if (geom.type == GeomType::CUBE) {
+        // cubes are in default -0.5 to 0.5 in each axis and is centered at the
+        // origin.
+        std::vector<glm::vec3> box_vertices{
+            glm::vec3(-0.5, -0.5, -0.5), glm::vec3(-0.5, -0.5, 0.5),
+            glm::vec3(-0.5, 0.5, -0.5),  glm::vec3(-0.5, 0.5, 0.5),
+            glm::vec3(0.5, -0.5, -0.5),  glm::vec3(0.5, -0.5, 0.5),
+            glm::vec3(0.5, 0.5, -0.5),   glm::vec3(0.5, 0.5, 0.5)};
+        for (const auto &vertex : box_vertices) {
+          glm::vec3 transformed_vertex =
+              glm::vec3(geom.transform * glm::vec4(vertex, 1.0f));
+          x_min = std::min(x_min, transformed_vertex.x);
+          x_max = std::max(x_max, transformed_vertex.x);
+          y_min = std::min(y_min, transformed_vertex.y);
+          y_max = std::max(y_max, transformed_vertex.y);
+          z_min = std::min(z_min, transformed_vertex.z);
+          z_max = std::max(z_max, transformed_vertex.z);
+        }
+      } else if (geom.type == GeomType::SPHERE) {
+        // spheres are assumed to have radius 0.5 and is centered at the origin.
+        // assume the endpoints on the principal axes are the farthest (no
+        // rotation)
+        std::vector<glm::vec3> sphere_endpoints{
+            glm::vec3(0.5f, 0.f, 0.f), glm::vec3(-0.5f, 0.f, 0.f),
+            glm::vec3(0.f, 0.5f, 0.f), glm::vec3(0.f, -0.5f, 0.f),
+            glm::vec3(0.f, 0.f, 0.5f), glm::vec3(0.f, 0.f, -0.5f)};
+        for (const auto &endpoint : sphere_endpoints) {
+          glm::vec3 transformed_endpoint =
+              glm::vec3(geom.transform * glm::vec4(endpoint, 1.0f));
+          x_min = std::min(x_min, transformed_endpoint.x);
+          x_max = std::max(x_max, transformed_endpoint.x);
+          y_min = std::min(y_min, transformed_endpoint.y);
+          y_max = std::max(y_max, transformed_endpoint.y);
+          z_min = std::min(z_min, transformed_endpoint.z);
+          z_max = std::max(z_max, transformed_endpoint.z);
+        }
+      } else {
+        // unknown geom type
+        x_min = 0.0f;
+        x_max = 0.0f;
+        y_min = 0.0f;
+        y_max = 0.0f;
+        z_min = 0.0f;
+        z_max = 0.0f;
+      }
+      scene_x_min = std::min(scene_x_min, x_min);
+      scene_x_max = std::max(scene_x_max, x_max);
+      scene_y_min = std::min(scene_y_min, y_min);
+      scene_y_max = std::max(scene_y_max, y_max);
+      scene_z_min = std::min(scene_z_min, z_min);
+      scene_z_max = std::max(scene_z_max, z_max);
+    }
+    boundary.min_xyz = glm::vec3(scene_x_min, scene_y_min, scene_z_min);
+    boundary.max_xyz = glm::vec3(scene_x_max, scene_y_max, scene_z_max);
   }
 }
 

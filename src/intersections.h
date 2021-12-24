@@ -180,7 +180,7 @@ __host__ __device__ float triangleIntersectionTest(const Geom tri, const Ray r,
       r.origin, r.direction, tri.triangle.vertices[0], tri.triangle.vertices[1],
       tri.triangle.vertices[2], barycentric_position);
 
-  // bary-centric interpolate the triangle normal
+  // barycentric interpolate the triangle normal
   // reference: https://community.khronos.org/t/ray-cast-ray-tracing/73652/22
   normal = tri.triangle.normals[0] * barycentric_position.x +
            tri.triangle.normals[1] * barycentric_position.y +

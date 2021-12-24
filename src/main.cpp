@@ -2,6 +2,9 @@
 
 #include <cstring>
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_opengl3.h"
 #include "preview.h"
 
 static std::string startTimeString;
@@ -12,6 +15,34 @@ static bool rightMousePressed  = false;
 static bool middleMousePressed = false;
 static double lastX;
 static double lastY;
+
+// CHECKITOUT: simple UI parameters.
+// Search for any of these across the whole project to see how these are used,
+// or look at the diff for commit 1178307347e32da064dce1ef4c217ce0ca6153a8.
+// For all the gory GUI details, look at commit
+// 5feb60366e03687bfc245579523402221950c9c5.
+int ui_iterations               = 0;
+int startupIterations           = 0;
+int lastLoopIterations          = 0;
+bool ui_showGbuffer_normal      = false;
+bool ui_showGbuffer_position    = false;
+bool ui_showGbuffer_weight      = false;
+bool ui_showGbuffer_posWeight   = false;
+bool ui_showGbuffer_norWeight   = false;
+bool ui_showGbuffer_colorWeight = false;
+bool ui_denoise                 = false;
+bool ui_showDenoisedImage       = false;
+int ui_filterSize               = 100;
+float ui_colorWeight            = 132.353f;
+float ui_normalWeight           = 0.245f;
+float ui_positionWeight         = 1.324f;
+int prev_ui_filterSize          = ui_filterSize;
+float prev_ui_colorWeight       = ui_colorWeight;
+float prev_ui_normalWeight      = ui_normalWeight;
+float prev_ui_positionWeight    = ui_positionWeight;
+bool ui_saveAndExit             = false;
+
+bool has_denoised = false;
 
 static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
@@ -27,6 +58,18 @@ int iteration;
 
 int width;
 int height;
+
+bool SyncDenoiseParams() {
+  bool is_changed        = !(prev_ui_colorWeight == ui_colorWeight &&
+                      prev_ui_filterSize == ui_filterSize &&
+                      prev_ui_normalWeight == ui_normalWeight &&
+                      prev_ui_positionWeight == ui_positionWeight);
+  prev_ui_filterSize     = ui_filterSize;
+  prev_ui_colorWeight    = ui_colorWeight;
+  prev_ui_normalWeight   = ui_normalWeight;
+  prev_ui_positionWeight = ui_positionWeight;
+  return is_changed;
+}
 
 //-------------------------------
 //-------------MAIN--------------
@@ -51,6 +94,9 @@ int main(int argc, char **argv) {
   Camera &cam = renderState->camera;
   width       = cam.resolution.x;
   height      = cam.resolution.y;
+
+  ui_iterations     = renderState->iterations;
+  startupIterations = ui_iterations;
 
   glm::vec3 view  = cam.view;
   glm::vec3 up    = cam.up;
@@ -90,9 +136,11 @@ void saveImage() {
     }
   }
 
-  std::string filename = renderState->imageName;
+  std::string filename    = renderState->imageName;
+  std::string postprocess = (ui_showDenoisedImage) ? "denoised" : "original";
   std::ostringstream ss;
-  ss << filename << "." << startTimeString << "." << samples << "samp";
+  ss << filename << "." << startTimeString << "." << samples << "samp"
+     << "." << postprocess;
   filename = ss.str();
 
   // CHECKITOUT
@@ -101,6 +149,15 @@ void saveImage() {
 }
 
 void runCuda() {
+  if (lastLoopIterations != ui_iterations) {
+    lastLoopIterations = ui_iterations;
+    camchanged         = true;
+  }
+
+  if (camchanged || SyncDenoiseParams()) {
+    has_denoised = false;
+  }
+
   if (camchanged) {
     iteration        = 0;
     Camera &cam      = renderState->camera;
@@ -130,18 +187,43 @@ void runCuda() {
     pathtraceInit(scene);
   }
 
-  if (iteration < renderState->iterations) {
-    uchar4 *pbo_dptr = NULL;
+  uchar4 *pbo_dptr = NULL;
+  cudaGLMapBufferObject((void **)&pbo_dptr, pbo);
+
+  if (iteration < ui_iterations) {
     iteration++;
-    cudaGLMapBufferObject((void **)&pbo_dptr, pbo);
 
     // execute the kernel
     int frame = 0;
-    pathtrace(pbo_dptr, frame, iteration);
+    pathtrace(frame, iteration);
+  } else if (ui_denoise && !has_denoised) {
+    denoiseImage(ui_filterSize, ui_colorWeight, ui_normalWeight,
+                 ui_positionWeight);
+    has_denoised = true;
+  }
 
-    // unmap buffer object
-    cudaGLUnmapBufferObject(pbo);
+  if (ui_showGbuffer_normal) {
+    showGBufferNormal(pbo_dptr);
+  } else if (ui_showGbuffer_position) {
+    showGBufferPosition(pbo_dptr);
+  } else if (ui_showGbuffer_weight) {
+    showGBufferWeights(pbo_dptr);
+  } else if (ui_showGbuffer_posWeight) {
+    showGBufferPositionWeights(pbo_dptr);
+  } else if (ui_showGbuffer_colorWeight) {
+    showGBufferColorWeights(pbo_dptr);
+  } else if (ui_showGbuffer_norWeight) {
+    showGBufferNormalWeights(pbo_dptr);
+  } else if (ui_showDenoisedImage) {
+    showDenoisedImage(pbo_dptr, iteration);
   } else {
+    showImage(pbo_dptr, iteration);
+  }
+
+  // unmap buffer object
+  cudaGLUnmapBufferObject(pbo);
+
+  if (ui_saveAndExit) {
     saveImage();
     pathtraceFree();
     cudaDeviceReset();
@@ -171,6 +253,7 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action,
 }
 
 void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
+  if (ImGui::GetIO().WantCaptureMouse) return;
   leftMousePressed = (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS);
   rightMousePressed =
       (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS);
