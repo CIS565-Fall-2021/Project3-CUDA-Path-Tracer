@@ -4,8 +4,6 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
-#include "glm/glm.hpp"
-#include "utilities.h"
 #include "sceneStructs.h"
 
 
@@ -17,7 +15,6 @@ private:
 	int loadCamera();
 public:
 	Scene(std::string filename);
-	~Scene();
 
 	std::vector<Geom> geoms;
 	std::vector<Material> materials;

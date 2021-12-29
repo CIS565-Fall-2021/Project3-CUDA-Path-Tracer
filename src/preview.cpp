@@ -8,9 +8,10 @@ GLuint texcoordsLocation = 1;
 GLuint pbo;
 GLuint displayImage;
 
-GLFWwindow* window;
+GLFWwindow *window;
 
-std::string currentTimeString() {
+std::string currentTimeString()
+{
 	time_t now;
 	time(&now);
 	char buf[sizeof "0000-00-00_00-00-00z"];
@@ -22,7 +23,8 @@ std::string currentTimeString() {
 //----------SETUP STUFF----------
 //-------------------------------
 
-void initTextures() {
+void initTextures()
+{
 	glGenTextures(1, &displayImage);
 	glBindTexture(GL_TEXTURE_2D, displayImage);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -30,7 +32,8 @@ void initTextures() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
 }
 
-void initVAO(void) {
+void initVAO(void)
+{
 	GLfloat vertices[] = {
 		-1.0f, -1.0f,
 		1.0f, -1.0f,
@@ -52,20 +55,21 @@ void initVAO(void) {
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer((GLuint) positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(positionLocation);
 
 	glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObjID[1]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(texcoords), texcoords, GL_STATIC_DRAW);
-	glVertexAttribPointer((GLuint)texcoordsLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer((GLuint) texcoordsLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	glEnableVertexAttribArray(texcoordsLocation);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vertexBufferObjID[2]);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 }
 
-GLuint initShader() {
-	const char* attribLocations[] = { "Position", "Texcoords" };
+GLuint initShader()
+{
+	const char *attribLocations[] = { "Position", "Texcoords" };
 	GLuint program = glsl_util::create_default_prog(attribLocations, 2);
 	GLint location;
 
@@ -77,7 +81,8 @@ GLuint initShader() {
 	return program;
 }
 
-void deletePBO(GLuint* pbo) {
+void deletePBO(GLuint *pbo)
+{
 	if (pbo) {
 		// unregister this buffer object with CUDA
 		cudaGLUnregisterBufferObject(*pbo);
@@ -85,16 +90,18 @@ void deletePBO(GLuint* pbo) {
 		glBindBuffer(GL_ARRAY_BUFFER, *pbo);
 		glDeleteBuffers(1, pbo);
 
-		*pbo = (GLuint)NULL;
+		*pbo = (GLuint) NULL;
 	}
 }
 
-void deleteTexture(GLuint* tex) {
+void deleteTexture(GLuint *tex)
+{
 	glDeleteTextures(1, tex);
-	*tex = (GLuint)NULL;
+	*tex = (GLuint) NULL;
 }
 
-void cleanupCuda() {
+void cleanupCuda()
+{
 	if (pbo) {
 		deletePBO(&pbo);
 	}
@@ -103,14 +110,16 @@ void cleanupCuda() {
 	}
 }
 
-void initCuda() {
+void initCuda()
+{
 	cudaGLSetGLDevice(0);
 
 	// Clean up on program exit
 	atexit(cleanupCuda);
 }
 
-void initPBO() {
+void initPBO()
+{
 	// set up vertex data parameter
 	int num_texels = width * height;
 	int num_values = num_texels * 4;
@@ -128,11 +137,13 @@ void initPBO() {
 
 }
 
-void errorCallback(int error, const char* description) {
+void errorCallback(int error, const char *description)
+{
 	fprintf(stderr, "%s\n", description);
 }
 
-bool init() {
+bool init()
+{
 	glfwSetErrorCallback(errorCallback);
 
 	if (!glfwInit()) {
@@ -168,7 +179,8 @@ bool init() {
 	return true;
 }
 
-void mainLoop() {
+void mainLoop()
+{
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		runCuda();

@@ -161,9 +161,9 @@ __global__ void computeIntersections(
 			Geom &geom = geoms[i];
 
 			if (geom.type == GeomType::CUBE) {
-				t = boxIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				t = boxIntersectionTest(geom, pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
 			} else if (geom.type == GeomType::SPHERE) {
-				t = sphereIntersectionTest(geom, pathSegment.ray, tmp_intersect, tmp_normal, outside);
+				t = sphereIntersectionTest(geom, pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
 			}
 			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -301,12 +301,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
 	// TODO: perform one iteration of path tracing
 
-	generateRayFromCamera << <blocksPerGrid2d, blockSize2d >> > (cam, iter, traceDepth, dv_paths.get());
+	generateRayFromCamera <<<blocksPerGrid2d, blockSize2d>>> (cam, iter, traceDepth, dv_paths.get());
 	cu_check_err("generate camera ray");
 
 	int depth = 0;
 	cPtr<PathSegment> dv_path_end = dv_paths + pixelcount;
-	int num_paths = dv_path_end - dv_paths;
+	int num_paths = (int) (dv_path_end - dv_paths);
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
@@ -319,7 +319,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
 		// tracing
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
-		computeIntersections << <numblocksPathSegmentTracing, blockSize1d >> > (
+		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 			depth,
 			num_paths,
 			dv_paths.get(),
@@ -340,7 +340,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 		// TODO: compare between directly shading the path segments and shading
 		// path segments that have been reshuffled to be contiguous in memory.
 
-		shadeFakeMaterial << <numblocksPathSegmentTracing, blockSize1d >> > (
+		shadeFakeMaterial <<<numblocksPathSegmentTracing, blockSize1d>>> (
 			iter,
 			num_paths,
 			dv_intersections.get(),
@@ -353,13 +353,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
-	finalGather << <numBlocksPixels, blockSize1d >> > (num_paths, dv_img.get(), dv_paths.get());
+	finalGather <<<numBlocksPixels, blockSize1d>>> (num_paths, dv_img.get(), dv_paths.get());
 	cu_check_err("finalGather");
 
 	///////////////////////////////////////////////////////////////////////////
 
 	// Send results to OpenGL buffer for rendering
-	sendImageToPBO << <blocksPerGrid2d, blockSize2d >> > (pbo, cam.resolution, iter, dv_img.get());
+	sendImageToPBO <<<blocksPerGrid2d, blockSize2d>>>(pbo, cam.resolution, iter, dv_img.get());
 	cu_check_err("sendImageToPBO");
 
 	// Retrieve image from GPU

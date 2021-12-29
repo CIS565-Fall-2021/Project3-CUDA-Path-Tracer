@@ -30,6 +30,27 @@ void cu_check_error_fn(const char *msg, const char *file, int line)
 #define cu_check_err(msg) cu_check_error_fn(msg, FILENAME, __LINE__)
 
 
+template <typename T>
+__host__ __device__ T max(T v) {
+	return v;
+}
+
+template <typename T, typename... U>
+__host__ __device__ T max(T v1, T v2, U ... vs) {
+	return max(v1 > v2 ? v1 : v2, vs...);
+}
+
+template <typename T>
+__host__ __device__ T min(T v) {
+	return v;
+}
+
+template <typename T, typename... U>
+__host__ __device__ T min(T v1, T v2, U ... vs) {
+	return max(v1 < v2 ? v1 : v2, vs...);
+}
+
+
 
 namespace cu {
 
@@ -80,7 +101,7 @@ public:
 	cPtr operator+(size_t i) const { cPtr<T> cp = *this; cp.p += i; return cp; }
 	cPtr operator-(size_t i) const { cPtr<T> cp = *this; cp.p -= i; return cp; }
 
-	int operator-(const cPtr<T> &b) const { return p - b.p; }
+	ptrdiff_t operator-(const cPtr<T> &b) const { return p - b.p; }
 
 	bool operator!() const { return p != nullptr; }
 

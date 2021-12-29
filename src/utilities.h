@@ -10,7 +10,7 @@
 #define SQRT_OF_ONE_THIRD 0.5773502691896257645091487805019574556476f
 #define EPSILON           0.00001f
 
-namespace utilityCore {
+namespace utilities {
 
 float clamp(float f, float min, float max);
 glm::vec3 clampRGB(glm::vec3 color);
