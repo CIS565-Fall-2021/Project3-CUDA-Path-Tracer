@@ -48,6 +48,16 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
+// refractive whatever
+MATERIAL 5
+RGB         0.35 0.35 0.85
+SPECEX      0
+SPECRGB     0.90 0.90 0.98
+REFL        0
+REFR        1
+REFRIOR     1.1
+EMITTANCE   0
+
 // Camera
 CAMERA
 RES         800 800
@@ -124,6 +134,13 @@ TRANS       2 2 0
 ROTAT       0 0 0
 SCALE       3 3 3
 
+// Sphere
+OBJECT 8
+sphere
+material 5
+TRANS       -1 1.5 2
+ROTAT       0 0 0
+SCALE       3 3 3
 
 //// Ceiling light 2
 //OBJECT 8

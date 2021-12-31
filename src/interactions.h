@@ -2,7 +2,6 @@
 
 #include "intersections.h"
 
-using glm::vec3;
 
 // CHECKITOUT
 /**
@@ -44,6 +43,20 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 		+ sin(around) * over * perpendicularDirection2;
 }
 
+
+
+__host__ __device__
+float schlick_approx(float n2_n1, float cos1)
+{
+	float R_0 = (1.0f - n2_n1) / (1.0f + n2_n1);
+	R_0 = R_0 * R_0;
+	float p = (1-cos1);
+	float s = p * p;
+	s *= s;
+	s *= p;
+	return R_0 + (1 - R_0) * s; 
+}
+
 /**
  * Scatter a ray with some probabilities according to the material properties.
  * For example, a diffuse surface scatters in a cosine-weighted hemisphere.
@@ -77,28 +90,38 @@ void scatterRay(
 	const Material &m,
 	thrust::default_random_engine &rng)
 {
-	// TODO: implement this.
-	// A basic implementation of pure-diffuse shading will just call the
-	// calculateRandomDirectionInHemisphere defined above.
-
-
-	//BSDF
 	Ray &ray = path_segment.ray;
 	// reflection if prob is <reflect_prob, refraction if prob > refract_prob, diffuse otherwise
-	float reflect_prob = m.hasReflective / (m.hasReflective + m.hasRefractive);
-	float refract_prob = 1.0f - m.hasRefractive / (m.hasReflective + m.hasRefractive);
 	thrust::uniform_real_distribution<float> u01(0, 1);
 	float prob = u01(rng);
+	float p = u01(rng);
 
-	//if (prob > refract_prob) { /* refraction */
-	//	// TODO
-	//	printf("here\n");
-	//	return;
-	//}
+	if (prob > 1 - m.hasRefractive) { /* refraction */
+		//based on PBRT 8.2 and RayTracingInOneWeekend
+		glm::vec3 u_dir = glm::normalize(ray.direction);
 
-	path_segment.color *= m.color; /* these are same for reflect/diffuse */
-	ray.origin = intersect;	
-	ray.direction = prob < reflect_prob ? glm::reflect(ray.direction, normal) /* reflection */
-		: calculateRandomDirectionInHemisphere(normal, rng); /* diffuse*/
+		bool outwards = glm::dot(u_dir, normal) > 0.0f; /* is this ray leaving the object? */
+		float n2_n1 = outwards ? m.indexOfRefraction : (1.0f / m.indexOfRefraction); /* ratio of n2 to n1 */
+
+		float cosine = min(-glm::dot(u_dir, normal), 1.0f);
+		float sine = sqrt(1.0f - cosine * cosine);
+
+
+		bool reflects = (n2_n1 * sine > 1.0f) /*sine of second angle >=1 implies internal reflection */
+			|| (cosine > 0.0f && schlick_approx(n2_n1, cosine) > p);
+
+		ray.direction = glm::normalize(reflects ? glm::reflect(u_dir, normal * (outwards ? -1.0f : 1.0f))
+			: glm::refract(u_dir, normal * (outwards ? -1.0f : 1.0f), n2_n1));
+
+		ray.origin = intersect + 0.001f * normal * (2 * reflects - 1.0f) * (1.0f - 2 * outwards);
+
+		if (reflects)
+			path_segment.color *= m.specular.color;
+	} else {
+		path_segment.color *= m.color; /* these are same for reflect/diffuse */
+		ray.origin = intersect;
+		ray.direction = prob < m.hasReflective ? glm::reflect(ray.direction, normal) /* reflection */
+			: calculateRandomDirectionInHemisphere(normal, rng); /* diffuse*/
+	}
 
 }
