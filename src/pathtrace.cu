@@ -28,6 +28,8 @@ using cu::cVec;
 #define SORT_BY_MAT 1
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 1
+#define STOCHASTIC_ANTIALIAS 1
+/* note: caching the first bounce is disabled if antialias is turned on */
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
@@ -119,22 +121,30 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
 	int y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-	if (x < cam.resolution.x && y < cam.resolution.y) {
-		int index = x + (y * cam.resolution.x);
-		PathSegment &segment = pathSegments[index];
+	if (x >= cam.resolution.x || y >= cam.resolution.y)
+		return;
 
-		segment.ray.origin = cam.position;
-		segment.color = vec3(1.0f, 1.0f, 1.0f);
+	int index = x + (y * cam.resolution.x);
+	PathSegment &segment = pathSegments[index];
 
-		// TODO: implement antialiasing by jittering the ray
-		segment.ray.direction = glm::normalize(cam.view
-			- cam.right * cam.pixelLength.x * ((float) x - (float) cam.resolution.x * 0.5f)
-			- cam.up * cam.pixelLength.y * ((float) y - (float) cam.resolution.y * 0.5f)
-		);
+	thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
+	thrust::uniform_real_distribution<float> u01(0, 1);
 
-		segment.pixelIndex = index;
-		segment.remainingBounces = traceDepth;
-	}
+	segment.ray.origin = cam.position;
+	segment.color = vec3(1.0f, 1.0f, 1.0f);
+
+	segment.ray.direction = glm::normalize(cam.view
+	#if STOCHASTIC_ANTIALIAS
+		- cam.right * cam.pixelLength.x * ((float) x - (float) cam.resolution.x * 0.5f + (u01(rng) - 0.5f))
+		- cam.up * cam.pixelLength.y * ((float) y - (float) cam.resolution.y * 0.5f + (u01(rng) - 0.5f))
+	#else
+		- cam.right * cam.pixelLength.x * ((float) x - (float) cam.resolution.x * 0.5f)
+		- cam.up * cam.pixelLength.y * ((float) y - (float) cam.resolution.y * 0.5f)
+	#endif
+	);
+
+	segment.pixelIndex = index;
+	segment.remainingBounces = traceDepth;
 }
 
 // TODO:
@@ -367,11 +377,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
 	do {
-
-		// tracing
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
-	#if CACHE_FIRST_BOUNCE
+	#if CACHE_FIRST_BOUNCE && !STOCHASTIC_ANTIALIAS
 		if (depth == 0) { /* first bounce */
 			if (iter == 1) {
 				cu::set(dv_cached_intersections, 0, pixelcount);
@@ -401,6 +409,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			cu_check_err("computeIntersections");
 		}
 	#else
+		// clean shading chunks
+		cu::set(dv_intersections, 0, pixelcount);
 		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 			depth,
 			num_paths,
