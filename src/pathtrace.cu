@@ -26,7 +26,8 @@ using cu::cPtr;
 using cu::cVec;
 
 #define SORT_BY_MAT 1
-#define COMPACT 0
+#define COMPACT 1
+#define CACHE_FIRST_BOUNCE 1
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
@@ -66,7 +67,7 @@ static cPtr<Material> dv_materials = NULL;
 static cPtr<PathSegment> dv_paths = NULL;
 static cPtr<ShadeableIntersection> dv_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
-// ...
+static cPtr<ShadeableIntersection> dv_cached_intersections = NULL;
 
 void pathtraceInit(Scene *scene)
 {
@@ -89,7 +90,8 @@ void pathtraceInit(Scene *scene)
 	cu::set(dv_intersections, 0, pixelcount);
 
 	// TODO: initialize any extra device memeory you need
-
+	dv_cached_intersections = cu::make<ShadeableIntersection>(pixelcount);
+	cu::set(dv_cached_intersections, 0, pixelcount);
 }
 
 void pathtraceFree()
@@ -101,7 +103,7 @@ void pathtraceFree()
 	cu::del(dv_intersections);
 
 	// TODO: clean up any extra device memory you created
-
+	cu::del(dv_cached_intersections);
 }
 
 /**
@@ -291,7 +293,7 @@ __global__ void finalGather(int nPaths, vec3 *image, PathSegment *iterationPaths
 
 // FIXME: replace this with my own impl for stream compact
 struct is_zero {
-	__host__ __device__ bool operator()(const PathSegment s)
+	__host__ __device__ bool operator()(const PathSegment &s)
 	{
 		return glm::length(s.color) < EPSILON;
 	}
@@ -365,11 +367,40 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
 	do {
-		// clean shading chunks
-		cu::set(dv_intersections, 0, pixelcount);
 
 		// tracing
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
+
+	#if CACHE_FIRST_BOUNCE
+		if (depth == 0) { /* first bounce */
+			if (iter == 1) {
+				cu::set(dv_cached_intersections, 0, pixelcount);
+				/* first intersections not cached yet, calculate them */
+				computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+				depth,
+				num_paths,
+				dv_paths.get(),
+				dv_geoms.get(),
+				hst_scene->geoms.size(),
+				dv_cached_intersections.get());
+				cu_check_err("computeIntersections");
+			}
+			cudaDeviceSynchronize();
+			cu::copy(dv_intersections, dv_cached_intersections, pixelcount);
+		} else {
+			// clean shading chunks
+			cu::set(dv_intersections, 0, pixelcount);
+
+			computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
+			depth,
+			num_paths,
+			dv_paths.get(),
+			dv_geoms.get(),
+			hst_scene->geoms.size(),
+			dv_intersections.get());
+			cu_check_err("computeIntersections");
+		}
+	#else
 		computeIntersections <<<numblocksPathSegmentTracing, blockSize1d>>> (
 			depth,
 			num_paths,
@@ -378,9 +409,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			hst_scene->geoms.size(),
 			dv_intersections.get());
 		cu_check_err("trace one bounce");
+	#endif
 		cudaDeviceSynchronize();
 		depth++;
-
 
 		// TODO:
 		// --- Shading Stage ---
@@ -404,12 +435,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			dv_materials.get()
 			);
 		cu_check_err("shade_material");
-
+		cudaDeviceSynchronize();
 
 	#if COMPACT
 		// TODO: replace this with my own impl for stream compact
 		thrust::device_ptr<PathSegment> start(dv_paths.get()), end(dv_path_end.get());
 		dv_path_end = thrust::remove_if(thrust::device, start, end, is_zero()).get();
+		num_paths = dv_path_end - dv_paths;
 	#endif
 
 	} while (depth < traceDepth && dv_path_end > dv_paths); // DONE: should be based off stream compaction results.
