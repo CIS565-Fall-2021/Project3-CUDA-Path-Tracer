@@ -2,6 +2,8 @@
 
 #include "intersections.h"
 
+using glm::vec3;
+
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
@@ -69,7 +71,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-	PathSegment &pathSegment,
+	PathSegment &path_segment,
 	glm::vec3 intersect,
 	glm::vec3 normal,
 	const Material &m,
@@ -78,5 +80,36 @@ void scatterRay(
 	// TODO: implement this.
 	// A basic implementation of pure-diffuse shading will just call the
 	// calculateRandomDirectionInHemisphere defined above.
-	
+
+
+	// material is a light source, from shadeFakeMaterial
+	if (m.emittance > 0.0f) {
+		path_segment.color *= m.color * m.emittance;
+		path_segment.remainingBounces = 0;
+		return;
+	}
+
+	path_segment.remainingBounces--;
+	if (path_segment.remainingBounces == 0)
+		path_segment.color = vec3(0.0f);
+
+	//BSDF
+	Ray &ray = path_segment.ray;
+	// reflection if prob is <reflect_prob, refraction if prob > refract_prob, diffuse otherwise
+	float reflect_prob = m.hasReflective / (m.hasReflective + m.hasRefractive);
+	float refract_prob = 1.0f - m.hasRefractive / (m.hasReflective + m.hasRefractive);
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float prob = u01(rng);
+
+	//if (prob > refract_prob) { /* refraction */
+	//	// TODO
+	//	printf("here\n");
+	//	return;
+	//}
+
+	path_segment.color *= m.color; /* these are same for reflect/diffuse */
+	ray.origin = intersect;	
+	ray.direction = prob < reflect_prob ? glm::reflect(ray.direction, normal) /* reflection */
+		: calculateRandomDirectionInHemisphere(normal, rng); /* diffuse*/
+
 }

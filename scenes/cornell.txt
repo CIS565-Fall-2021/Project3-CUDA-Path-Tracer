@@ -60,7 +60,7 @@ LOOKAT      0 5 0
 UP          0 1 0
 
 
-// Ceiling light
+// Ceiling light 1
 OBJECT 0
 cube
 material 0
@@ -115,3 +115,35 @@ material 4
 TRANS       -1 4 -1
 ROTAT       0 0 0
 SCALE       3 3 3
+
+//// Ceiling light 2
+//OBJECT 7
+//cube
+//material 0
+//TRANS       -3 10 3
+//ROTAT       0 0 0
+//SCALE       2 .2 2
+//
+//// Ceiling light 3
+//OBJECT 8
+//cube
+//material 0
+//TRANS       3 10 -3
+//ROTAT       0 0 0
+//SCALE       2 .2 2
+//
+//// Ceiling light 4
+//OBJECT 9
+//cube
+//material 0
+//TRANS       -3 10 -3
+//ROTAT       0 0 0
+//SCALE       2 .2 2
+//
+//// Ceiling light 5
+//OBJECT 10
+//cube
+//material 0
+//TRANS       3 10 3
+//ROTAT       0 0 0
+//SCALE       2 .2 2

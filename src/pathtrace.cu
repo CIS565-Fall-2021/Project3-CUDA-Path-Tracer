@@ -4,6 +4,7 @@
 #include <thrust/execution_policy.h>
 #include <thrust/random.h>
 #include <thrust/remove.h>
+#include <thrust/device_ptr.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -239,6 +240,30 @@ __global__ void shadeFakeMaterial(
 	}
 }
 
+__global__ void shade_material(int iter, int num_paths, ShadeableIntersection *s_intersections,
+	PathSegment *path_segments, Material *materials)
+{
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	if (idx >= num_paths)
+		return;
+	if (path_segments[idx].remainingBounces <= 0)
+		return;
+
+	ShadeableIntersection intersection = s_intersections[idx];
+	if (intersection.t > 0.0f) {
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+//		thrust::uniform_real_distribution<float> u01(0, 1);
+
+		vec3 intersect_point = getPointOnRay(path_segments[idx].ray, intersection.t);
+		Material material = materials[intersection.materialId];
+
+		scatterRay(path_segments[idx], intersect_point, intersection.surfaceNormal, material, rng);
+	} else {
+		path_segments[idx].color = vec3(0.0f);
+		path_segments[idx].remainingBounces = 0;
+	}
+}
+
 // Add the current iteration's output to the overall image
 __global__ void finalGather(int nPaths, vec3 *image, PathSegment *iterationPaths)
 {
@@ -250,6 +275,16 @@ __global__ void finalGather(int nPaths, vec3 *image, PathSegment *iterationPaths
 	PathSegment iterationPath = iterationPaths[index];
 	image[iterationPath.pixelIndex] += iterationPath.color;
 }
+
+
+// FIXME: replace this with my own impl for stream compact
+struct is_zero {
+	__host__ __device__ bool operator()(const PathSegment &s)
+	{
+		glm::length(s.color) < EPSILON;
+	}
+};
+
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -306,14 +341,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
 	int depth = 0;
 	cPtr<PathSegment> dv_path_end = dv_paths + pixelcount;
-	int num_paths = (int) (dv_path_end - dv_paths);
+	size_t num_paths = dv_path_end - dv_paths;
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
-	bool iterationComplete = false;
-	while (!iterationComplete) {
-
+	do {
 		// clean shading chunks
 		cu::set(dv_intersections, 0, pixelcount);
 
@@ -340,16 +373,29 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 		// TODO: compare between directly shading the path segments and shading
 		// path segments that have been reshuffled to be contiguous in memory.
 
-		shadeFakeMaterial <<<numblocksPathSegmentTracing, blockSize1d>>> (
+		//shadeFakeMaterial <<<numblocksPathSegmentTracing, blockSize1d>>> (
+		//	iter,
+		//	num_paths,
+		//	dv_intersections.get(),
+		//	dv_paths.get(),
+		//	dv_materials.get()
+		//	);
+		//cu_check_err("shadeFakeMaterial");
+
+		shade_material <<<numblocksPathSegmentTracing, blockSize1d >>> (
 			iter,
 			num_paths,
 			dv_intersections.get(),
 			dv_paths.get(),
 			dv_materials.get()
 			);
-		cu_check_err("shadeFakeMaterial");
-		iterationComplete = true; // TODO: should be based off stream compaction results.
-	}
+		cu_check_err("shade_material");
+
+		// FIXME: replace this with my own impl for stream compact
+		thrust::device_ptr<PathSegment> start(dv_paths.get()), end(dv_path_end.get());
+		dv_path_end = thrust::remove_if(start, end, is_zero()).get();
+
+	} while (depth < traceDepth && dv_path_end > dv_paths); // DONE: should be based off stream compaction results.
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
@@ -365,3 +411,5 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	// Retrieve image from GPU
 	cu::copy(hst_scene->state.image.data(), dv_img.get(), pixelcount);
 }
+
+
