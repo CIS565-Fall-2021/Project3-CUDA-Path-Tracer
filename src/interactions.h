@@ -82,17 +82,6 @@ void scatterRay(
 	// calculateRandomDirectionInHemisphere defined above.
 
 
-	// material is a light source, from shadeFakeMaterial
-	if (m.emittance > 0.0f) {
-		path_segment.color *= m.color * m.emittance;
-		path_segment.remainingBounces = 0;
-		return;
-	}
-
-	path_segment.remainingBounces--;
-	if (path_segment.remainingBounces == 0)
-		path_segment.color = vec3(0.0f);
-
 	//BSDF
 	Ray &ray = path_segment.ray;
 	// reflection if prob is <reflect_prob, refraction if prob > refract_prob, diffuse otherwise

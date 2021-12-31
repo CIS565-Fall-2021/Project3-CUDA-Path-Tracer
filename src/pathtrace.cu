@@ -5,6 +5,7 @@
 #include <thrust/random.h>
 #include <thrust/remove.h>
 #include <thrust/device_ptr.h>
+#include <thrust/sort.h>
 
 #include "sceneStructs.h"
 #include "scene.h"
@@ -16,11 +17,16 @@
 #include "interactions.h"
 #include "cu.h"
 
+//#include "../stream_compaction/stream_compaction/efficient.h"
+
 using glm::ivec2;
 using glm::ivec3;
 using glm::vec3;
 using cu::cPtr;
 using cu::cVec;
+
+#define SORT_BY_MAT 1
+#define COMPACT 0
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
@@ -254,10 +260,16 @@ __global__ void shade_material(int iter, int num_paths, ShadeableIntersection *s
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
 //		thrust::uniform_real_distribution<float> u01(0, 1);
 
-		vec3 intersect_point = getPointOnRay(path_segments[idx].ray, intersection.t);
 		Material material = materials[intersection.materialId];
-
+		
+		if (material.emittance > 0.0f) { /* hit a light */
+			path_segments[idx].color *= (material.color * material.emittance);
+			path_segments[idx].remainingBounces = 0;
+			return;
+		}
+		vec3 intersect_point = getPointOnRay(path_segments[idx].ray, intersection.t);
 		scatterRay(path_segments[idx], intersect_point, intersection.surfaceNormal, material, rng);
+		path_segments[idx].remainingBounces--;
 	} else {
 		path_segments[idx].color = vec3(0.0f);
 		path_segments[idx].remainingBounces = 0;
@@ -279,12 +291,18 @@ __global__ void finalGather(int nPaths, vec3 *image, PathSegment *iterationPaths
 
 // FIXME: replace this with my own impl for stream compact
 struct is_zero {
-	__host__ __device__ bool operator()(const PathSegment &s)
+	__host__ __device__ bool operator()(const PathSegment s)
 	{
-		glm::length(s.color) < EPSILON;
+		return glm::length(s.color) < EPSILON;
 	}
 };
 
+struct mat_sort {
+	__host__ __device__ bool operator()(const ShadeableIntersection &a, const ShadeableIntersection &b)
+	{
+		return a.materialId < b.materialId;
+	}
+};
 
 /**
  * Wrapper for the __global__ call that sets up the kernel calls and does a ton
@@ -373,14 +391,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 		// TODO: compare between directly shading the path segments and shading
 		// path segments that have been reshuffled to be contiguous in memory.
 
-		//shadeFakeMaterial <<<numblocksPathSegmentTracing, blockSize1d>>> (
-		//	iter,
-		//	num_paths,
-		//	dv_intersections.get(),
-		//	dv_paths.get(),
-		//	dv_materials.get()
-		//	);
-		//cu_check_err("shadeFakeMaterial");
+	#if SORT_BY_MAT
+		thrust::sort_by_key(thrust::device, dv_intersections.get(), (dv_intersections + num_paths).get(),
+			dv_paths.get(), mat_sort());
+	#endif
 
 		shade_material <<<numblocksPathSegmentTracing, blockSize1d >>> (
 			iter,
@@ -391,9 +405,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			);
 		cu_check_err("shade_material");
 
-		// FIXME: replace this with my own impl for stream compact
+
+	#if COMPACT
+		// TODO: replace this with my own impl for stream compact
 		thrust::device_ptr<PathSegment> start(dv_paths.get()), end(dv_path_end.get());
-		dv_path_end = thrust::remove_if(start, end, is_zero()).get();
+		dv_path_end = thrust::remove_if(thrust::device, start, end, is_zero()).get();
+	#endif
 
 	} while (depth < traceDepth && dv_path_end > dv_paths); // DONE: should be based off stream compaction results.
 

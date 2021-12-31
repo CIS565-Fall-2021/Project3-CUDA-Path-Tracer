@@ -91,6 +91,7 @@ public:
 	~cPtr() {}
 
 	cPtr<T> &operator=(const cVec<T> &v) { p = v.p; return *this; }
+	cPtr<T> &operator=(T *ptr) { p = ptr; return *this; }
 
 	cPtr &operator++() { p++; return *this; }
 	cPtr operator++(int) { cPtr<T> cp = *this; p++; return cp; }
