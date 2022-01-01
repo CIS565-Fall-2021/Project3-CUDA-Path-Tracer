@@ -11,6 +11,7 @@
 #include "scene.h"
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
+#include <glm/gtc/matrix_inverse.hpp>
 #include "utilities.h"
 #include "pathtrace.h"
 #include "intersections.h"
@@ -32,7 +33,7 @@ using cu::cVec;
 #define STOCHASTIC_ANTIALIAS 0
 /* note: caching the first bounce is disabled if antialias is turned on */
 #define DEPTH_OF_FIELD 1
-#define LENS_RADIUS 0.1f
+#define LENS_RADIUS 0.05f
 #define FOC_LEN 5.f
 
 __host__ __device__
@@ -74,6 +75,7 @@ static cPtr<PathSegment> dv_paths = NULL;
 static cPtr<ShadeableIntersection> dv_intersections = NULL;
 // TODO: static variables for device memory, any extra info you need, etc
 static cPtr<ShadeableIntersection> dv_cached_intersections = NULL;
+static cPtr<Triangle> dv_tris = NULL; /* this is the array containing all triangles on device */
 
 void pathtraceInit(Scene *scene)
 {
@@ -98,7 +100,12 @@ void pathtraceInit(Scene *scene)
 	// TODO: initialize any extra device memeory you need
 	dv_cached_intersections = cu::make<ShadeableIntersection>(pixelcount);
 	cu::set(dv_cached_intersections, 0, pixelcount);
+
+	dv_tris = cu::make<Triangle>(scene->tris.size());
+	cu::copy(dv_tris, scene->tris.data(), scene->tris.size());
+	printf("size: %d\n", scene->tris.size());
 }
+
 
 void pathtraceFree()
 {
@@ -110,6 +117,7 @@ void pathtraceFree()
 
 	// TODO: clean up any extra device memory you created
 	cu::del(dv_cached_intersections);
+	cu::del(dv_tris);
 }
 
 
@@ -195,8 +203,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	segment.ray.direction = glm::normalize(p_focus - segment.ray.origin);
 #endif
 
-	
-	
 
 	segment.pixelIndex = index;
 	segment.remainingBounces = traceDepth;
@@ -212,7 +218,8 @@ __global__ void computeIntersections(
 	PathSegment *pathSegments,
 	Geom *geoms,
 	int geoms_size,
-	ShadeableIntersection *intersections)
+	ShadeableIntersection *intersections,
+	Triangle *tris)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -238,8 +245,25 @@ __global__ void computeIntersections(
 				t = boxIntersectionTest(geom, pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
 			} else if (geom.type == GeomType::SPHERE) {
 				t = sphereIntersectionTest(geom, pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
+			} else if (geom.type == GeomType::MESH) {
+				/* do box-intersection with bounding boxes */
+				auto max_min = max((geom.mincoords.x - pathSegment.ray.origin.x) / pathSegment.ray.direction.x,
+				(geom.mincoords.y - pathSegment.ray.origin.y) / pathSegment.ray.direction.y,
+				(geom.mincoords.y - pathSegment.ray.origin.z) / pathSegment.ray.direction.z);
+				auto min_max = min((geom.maxcoords.x - pathSegment.ray.origin.x) / pathSegment.ray.direction.x,
+				(geom.maxcoords.y - pathSegment.ray.origin.y) / pathSegment.ray.direction.y,
+				(geom.maxcoords.y - pathSegment.ray.origin.z) / pathSegment.ray.direction.z);
+				
+				if (min_max >= max_min) {
+				
+					for (size_t i = geom.triangle_start; i < geom.triangle_start + geom.triangle_n; i++) {
+						t = triangle_intersection_test(tris[i], pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
+					//	if (t > 0.0f) {
+					//		printf("intersected\n");
+					//	}
+					}
+				}
 			}
-			// TODO: add more intersection tests here... triangle? metaball? CSG?
 
 			// Compute the minimum t from the intersection tests to determine what
 			// scene geometry object was hit first.
@@ -445,7 +469,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 				dv_paths.get(),
 				dv_geoms.get(),
 				hst_scene->geoms.size(),
-				dv_cached_intersections.get());
+				dv_cached_intersections.get(),
+				dv_tris.get());
 				cu_check_err("computeIntersections");
 			}
 			cudaDeviceSynchronize();
@@ -460,7 +485,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			dv_paths.get(),
 			dv_geoms.get(),
 			hst_scene->geoms.size(),
-			dv_intersections.get());
+			dv_intersections.get(),
+			dv_tris.get());
 			cu_check_err("computeIntersections");
 		}
 	#else
@@ -472,8 +498,9 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			dv_paths.get(),
 			dv_geoms.get(),
 			hst_scene->geoms.size(),
-			dv_intersections.get());
-		cu_check_err("trace one bounce");
+			dv_intersections.get(),
+			dv_tris.get());
+		cu_check_err("computeIntersections");
 	#endif
 		cudaDeviceSynchronize();
 		depth++;

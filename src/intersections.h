@@ -37,6 +37,25 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v)
 	return glm::vec3(m * v);
 }
 
+
+/* for triangle meshes */
+__host__ __device__ float triangle_intersection_test(const Triangle tri, const Ray r, glm::vec3 *intersect, glm::vec3 *normal, bool *outside)
+{
+	/* the triangle lies on some plane, we wish to find the point of intersection of the ray and this plane */
+	
+	glm::vec3 b_coord;
+	if (!glm::intersectRayTriangle(r.origin, r.direction, tri.v1, tri.v2, tri.v3, b_coord))
+		return -1.0f; /* no collision */
+	
+	*normal = glm::normalize(glm::cross(tri.v2-tri.v1, tri.v3-tri.v1));
+	if (glm::dot(r.direction, *normal) < 0)
+		*outside = true;
+
+	return glm::length(b_coord - r.origin);
+}
+
+
+
 // CHECKITOUT
 /**
  * Test intersection between a ray and a transformed cube. Untransformed,

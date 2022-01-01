@@ -142,6 +142,15 @@ TRANS       -1 1.5 2
 ROTAT       0 0 0
 SCALE       3 3 3
 
+// dragon
+//OBJECT 9
+//mesh
+//../scenes/meshes/teapot.obj
+//material 2
+//TRANS       0 2 0
+//ROTAT       0 0 0
+//SCALE       1 1 1
+
 //// Ceiling light 2
 //OBJECT 8
 //cube

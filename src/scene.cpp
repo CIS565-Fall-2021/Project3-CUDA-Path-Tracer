@@ -4,6 +4,9 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 #include "scene.h"
 #include "utilities.h"
 
@@ -15,12 +18,13 @@ using std::stof;
 
 using utilities::safe_getline;
 using glm::vec3;
+using glm::vec4;
 
 
 Scene::Scene(string filename)
 {
 	printf("Reading scene from %s ...\n\n", filename.c_str());
-	
+
 	fp_in.open(filename);
 	if (!fp_in.is_open()) {
 		fprintf(stderr, "Error reading from file - aborting!\n");
@@ -40,6 +44,78 @@ Scene::Scene(string filename)
 				loadCamera();
 		}
 	}
+
+}
+
+/* returns number of triangles added */
+int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords)
+{
+	/* adapted directly from https://github.com/tinyobjloader/tinyobjloader */
+	using namespace tinyobj;
+
+	ObjReader reader;
+	ObjReaderConfig reader_conf;
+	reader_conf.mtl_search_path = "../scenes/meshes/";
+
+	if (!reader.ParseFromFile(inputfile, reader_conf) || !reader.Error().empty()) {
+		fprintf(stderr, "TinyObjReader: %s\n", reader.Error().c_str());
+		return 0;
+	}
+	if (!reader.Warning().empty())
+		fprintf(stderr, "TinyObjReader: %s\n", reader.Warning().c_str());
+
+	auto &attrib = reader.GetAttrib();
+	auto &shapes = reader.GetShapes();
+	auto &materials = reader.GetMaterials();
+
+	auto &vertices = attrib.vertices;
+
+	int size = tris.size();
+
+	/* an obj file can contain multiple shapes; iterate over them: */
+	for (auto &s : shapes) {
+		size_t index_offset = 0;
+		auto &mesh = s.mesh;
+		auto &indices = mesh.indices;
+
+
+		/* iterate over faces of the mesh (specifically the #vertices in each face */
+		for (unsigned char fv : mesh.num_face_vertices) {
+			auto idx = indices[index_offset];
+
+
+			vec3 shape_first_point = { vertices[3 * idx.vertex_index + 0],
+				vertices[3 * idx.vertex_index + 1],
+				vertices[3 * idx.vertex_index + 2] };
+
+			/* iterate over vertices of each face */
+			for (unsigned char v = 1; v < fv; v += 2) {
+				auto idx1 = indices[index_offset + v];
+				auto idx2 = indices[index_offset + v + 1];
+
+				 this->tris.push_back({ /* create triangle based on the two vertices */
+					shape_first_point,
+					vec3(vertices[3 * idx1.vertex_index + 0],
+						vertices[3 * idx1.vertex_index + 1],
+						vertices[3 * idx1.vertex_index + 2]),
+					vec3(vertices[3 * idx2.vertex_index + 0],
+						vertices[3 * idx2.vertex_index + 1],
+						vertices[3 * idx2.vertex_index + 2]),
+				});
+			}
+		}
+	}
+	for (int i = 0; i < vertices.size()-2; i += 3) { /* for bounding box */
+		using glm::min;
+		using glm::max;
+		mincoords.x = min(mincoords.x, vertices[i]);
+		mincoords.y = min(mincoords.y, vertices[i+1]);
+		mincoords.z = min(mincoords.z, vertices[i+2]);
+		maxcoords.x = max(maxcoords.x, vertices[i]);
+		maxcoords.y = max(maxcoords.y, vertices[i+1]);
+		maxcoords.z = max(maxcoords.z, vertices[i+2]);
+	}
+	return tris.size() - size;
 }
 
 int Scene::loadGeom(string objectid)
@@ -65,6 +141,16 @@ int Scene::loadGeom(string objectid)
 			printf("Creating new cube...\n");
 			newGeom.type = GeomType::CUBE;
 		}
+		if (line == "mesh") {
+			printf("Creating new mesh...\n");
+			newGeom.type = GeomType::MESH;
+			newGeom.triangle_start = tris.size();
+
+			string inputfile;
+			safe_getline(fp_in, inputfile);
+			newGeom.triangle_n = load_obj(inputfile, newGeom.mincoords, newGeom.maxcoords);
+
+		}
 	}
 
 	//link material
@@ -85,7 +171,7 @@ int Scene::loadGeom(string objectid)
 			newGeom.translation = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 		if (tokens[0] == "ROTAT")
 			newGeom.rotation = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
-		if (tokens[0] == "SCALE") 
+		if (tokens[0] == "SCALE")
 			newGeom.scale = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 
 		safe_getline(fp_in, line);
@@ -95,6 +181,16 @@ int Scene::loadGeom(string objectid)
 		newGeom.translation, newGeom.rotation, newGeom.scale);
 	newGeom.inverseTransform = glm::inverse(newGeom.transform);
 	newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
+
+	if (newGeom.type == GeomType::MESH) {
+		/* correct the coordinates of all the triangles */
+		for (int i = newGeom.triangle_start; i < newGeom.triangle_start + newGeom.triangle_n; i++) {
+			Triangle &t = tris[i];
+			t.v1 = vec3(newGeom.transform * vec4(t.v1, 1.f));
+			t.v2 = vec3(newGeom.transform * vec4(t.v2, 1.f));
+			t.v3 = vec3(newGeom.transform * vec4(t.v3, 1.f));
+		}
+	}
 
 	geoms.push_back(newGeom);
 	printf("\n");

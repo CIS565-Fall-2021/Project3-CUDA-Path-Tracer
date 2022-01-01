@@ -9,11 +9,16 @@
 enum class GeomType {
 	SPHERE,
 	CUBE,
+	MESH,
 };
 
 struct Ray {
 	glm::vec3 origin;
 	glm::vec3 direction;
+};
+
+struct Triangle {
+	glm::vec3 v1, v2, v3;
 };
 
 struct Geom {
@@ -25,6 +30,9 @@ struct Geom {
 	glm::mat4 transform;
 	glm::mat4 inverseTransform;
 	glm::mat4 invTranspose;
+	size_t triangle_start; /* where does this mesh's triangles start in the dv_tri buffer? */ 
+	size_t triangle_n; /* and how many triangles? */
+	glm::vec3 mincoords, maxcoords; /* most negative coordinates of any triangle vertices and most positive coordinates, for bounding box */
 };
 
 struct Material {
