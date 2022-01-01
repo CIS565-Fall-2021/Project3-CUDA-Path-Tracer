@@ -11,3 +11,8 @@ CUDA Path Tracer
 *DO NOT* leave the README to the last minute! It is a crucial part of the
 project, and we will not be able to grade you without a good README.
 
+
+
+
+## External libraries
+Added [tiny object loader](https://github.com/tinyobjloader/tinyobjloader/blob/master/tiny_obj_loader.h).
