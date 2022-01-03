@@ -48,7 +48,7 @@ REFR        0
 REFRIOR     0
 EMITTANCE   0
 
-// refractive whatever
+// refractive
 MATERIAL 5
 RGB         0.35 0.35 0.85
 SPECEX      0
@@ -57,6 +57,20 @@ REFL        0
 REFR        1
 REFRIOR     1.1
 EMITTANCE   0
+
+
+// refractive + relfective
+MATERIAL 6
+RGB         0.35 0.35 0.85
+SPECEX      0
+SPECRGB     0.90 0.90 0.98
+REFL        0.3
+REFR        0.7
+REFRIOR     1.1
+EMITTANCE   0
+
+
+
 
 // Camera
 CAMERA
@@ -139,6 +153,14 @@ OBJECT 8
 sphere
 material 5
 TRANS       -1 1.5 2
+ROTAT       0 0 0
+SCALE       3 3 3
+
+// Cube
+OBJECT 9
+cube
+material 6
+TRANS       -2 3 0
 ROTAT       0 0 0
 SCALE       3 3 3
 

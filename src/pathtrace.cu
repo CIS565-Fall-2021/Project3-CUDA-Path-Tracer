@@ -32,7 +32,7 @@ using cu::cVec;
 #define CACHE_FIRST_BOUNCE 1
 #define STOCHASTIC_ANTIALIAS 0
 /* note: caching the first bounce is disabled if antialias is turned on */
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
 #define LENS_RADIUS 0.05f
 #define FOC_LEN 5.f
 
