@@ -103,14 +103,21 @@ Loading of OBJ files and triangle intersect is complete. TODO: bugfix in renderi
 
 
 ## Performance Improvements
-(will update shortly)
+![cornell box runtimes](visuals/runtimes_cornell.png)
 
+The above chart is the performance measurements of the Cornell box with three spheres (a perfect diffuse, a perfect
+refract, and a blue mixed reflect-refract) whose image is shown under *Refraction*.
+
+![cornell box runtimes 2](visuals/runtimes_cornell_2.png)
+The above chart shows the runtimes for the same cornell box but with a "front" wall added, the blue sphere removed (to
+maintain the same number of objects), and the camera moved forward into the now-closed box.
 
 ### Material sorting
-Why is sorting more efficient? Reduces divergence as more kernels in same block are calling the same intersect/shading functions since they're the same material.
+Why is sorting more efficient? Reduces divergence as more kernels of the same warp in the same block are calling the same intersect/shading functions since they're the same material.
 
-
-
+### Caching first bounces
+The above charts effectively show the change in performance for different max ray depths when the first bounce is
+cached. That is, by observing the change in runtime of the subsequent kernel calls and comparing across an open versus a closed cornell box, we can analyze the performance benefit of the caching.
 
 
 

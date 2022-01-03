@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <chrono>
 #include <cuda.h>
 #include <cmath>
 #include <thrust/execution_policy.h>
@@ -27,10 +28,13 @@ using glm::vec3;
 using cu::cPtr;
 using cu::cVec;
 
+using hrclock = std::chrono::high_resolution_clock; /* for performance measurements */
+#define MEASURE_PERF 1
+
 #define SORT_BY_MAT 1
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 1
-#define STOCHASTIC_ANTIALIAS 1
+#define STOCHASTIC_ANTIALIAS 0
 /* note: caching the first bounce is disabled if antialias is turned on */
 #define DEPTH_OF_FIELD 0
 #define LENS_RADIUS 0.5f
@@ -43,7 +47,7 @@ thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int de
 	return thrust::default_random_engine(h);
 }
 
-//Kernel that writes the image to the OpenGL PBO directly.
+//Kerne that writes the image to the OpenGL PBO directly.
 __global__ void sendImageToPBO(uchar4 *pbo, ivec2 resolution, int iter, vec3 *image)
 {
 	int x = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -455,6 +459,10 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
+#if MEASURE_PERF
+	auto prev_time = hrclock::now();
+#endif
+
 	do {
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
@@ -537,6 +545,12 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	#endif
 
 	} while (depth < traceDepth && dv_path_end > dv_paths); // DONE: should be based off stream compaction results.
+
+#if MEASURE_PERF
+	auto t = hrclock::now();
+	auto s = std::chrono::duration_cast<std::chrono::milliseconds>(t-prev_time);
+	printf("time elapsed at iter %d: %ld\n", iter, s.count());
+#endif
 
 	// Assemble this iteration and apply it to the image
 	dim3 numBlocksPixels = (pixelcount + blockSize1d - 1) / blockSize1d;
