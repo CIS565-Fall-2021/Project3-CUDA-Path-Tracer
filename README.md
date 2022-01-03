@@ -158,7 +158,7 @@ farther cells could be the nearest intersect for this ray. The hierarchical data
 performance as our current implementation, if the ray intersects the bounding box, checks it against every triangle
 in the mesh whereas a much smaller number can suffice.
 
-## Performance Improvements
+## Performance Analysis
 ![cornell box runtimes](visuals/runtimes_cornell.png)
 
 The above chart is the performance measurements of the Cornell box with three spheres (a perfect diffuse, a perfect
@@ -179,8 +179,7 @@ change in results.
 ![compact performance](visuals/compact_perf.png)
 
 Stream compaction results in a clear decrease in the time elapsed per depth-level in an iteration, especially as the
-depth increases. For the illustrated data, we begin with 600000 paths exactly, which takes about 60ms for depth-level
-1. However, with stream compaction, we more than halve the runtime by the fourth depth-level and reach 14ms by depth 8.
+depth increases. For the illustrated data, we begin with 600000 paths exactly, which takes about 60ms for depth-level 1. However, with stream compaction, we more than halve the runtime by the fourth depth-level and reach 14ms by depth 8.
 As such, especially for renders with large depth-limits, stream compacting has a major runtime improvement as we
 progress through each iteration. Note that these benefits only exist if rays terminate (otherwise, like the above
 case with the closed scene, we waste time by running the stream compact algorithm).
