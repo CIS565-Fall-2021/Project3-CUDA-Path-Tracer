@@ -59,7 +59,7 @@ REFRIOR     1.2
 EMITTANCE   0
 
 
-// refractive + relfective
+// refractive + reflective
 MATERIAL 6
 RGB         0.35 0.35 0.85
 SPECEX      0

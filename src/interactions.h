@@ -110,8 +110,8 @@ void scatterRay(
 		bool reflects = (n2_n1 * sine > 1.0f) /*sine of second angle >=1 implies internal reflection */
 			|| (cosine > 0.0f && schlick_approx(n2_n1, cosine) > p);
 
-		ray.direction = glm::normalize(reflects ? glm::reflect(u_dir, normal * (outwards ? -1.0f : 1.0f))
-			: glm::refract(u_dir, normal * (outwards ? -1.0f : 1.0f), n2_n1));
+		ray.direction = glm::normalize(reflects ? glm::reflect(u_dir, normal * (1.0f - 2 * outwards))
+			: glm::refract(u_dir, normal * (1.0f - 2 * outwards), n2_n1));
 
 		ray.origin = intersect + 0.001f * normal * (2 * reflects - 1.0f) * (1.0f - 2 * outwards);
 

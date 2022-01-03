@@ -29,12 +29,12 @@ using cu::cPtr;
 using cu::cVec;
 
 using hrclock = std::chrono::high_resolution_clock; /* for performance measurements */
-#define MEASURE_PERF 1
+#define MEASURE_PERF 0
 
 #define SORT_BY_MAT 1
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 1
-#define STOCHASTIC_ANTIALIAS 0
+#define STOCHASTIC_ANTIALIAS 1
 /* note: caching the first bounce is disabled if antialias is turned on */
 #define DEPTH_OF_FIELD 0
 #define LENS_RADIUS 0.5f
@@ -550,6 +550,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	auto t = hrclock::now();
 	auto s = std::chrono::duration_cast<std::chrono::milliseconds>(t-prev_time);
 	printf("time elapsed at iter %d: %ld\n", iter, s.count());
+	prev_time = t;
 #endif
 
 	// Assemble this iteration and apply it to the image
