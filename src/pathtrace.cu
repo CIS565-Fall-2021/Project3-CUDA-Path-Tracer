@@ -30,11 +30,11 @@ using cu::cVec;
 #define SORT_BY_MAT 1
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 1
-#define STOCHASTIC_ANTIALIAS 0
+#define STOCHASTIC_ANTIALIAS 1
 /* note: caching the first bounce is disabled if antialias is turned on */
 #define DEPTH_OF_FIELD 0
-#define LENS_RADIUS 0.05f
-#define FOC_LEN 5.f
+#define LENS_RADIUS 0.5f
+#define FOC_LEN 6.f
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)

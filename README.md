@@ -7,8 +7,7 @@ CUDA Path Tracer
   * [LinkedIn](https://linkedin.com/in/kaanberk), [personal website](https://kaan9.github.io)
 * Tested on: Windows 10, i7-8850H @ 2.592GHz 24GB, Quadro P1000
 
-(will update shortly, rendering images takes time)
-(TODO: insert cover image)
+![cover](visuals/cover.png)
 
 ## Project Overview
 A path tracer is a program that renders 3-dimensional scenes by mimicking, in reverse, the scattering of light from a
@@ -45,17 +44,22 @@ angle from the surface).
 ![ideal diffuse](visuals/diffuse.png)
 
 ### Perfectly specular reflection
-Simulates a perfect mirror, bouncing light off at teh same angle as the incident ray.
+Simulates a perfect mirror, bouncing light off at the same angle as the incident ray.
 ![ideal diffuse and reflect](visuals/diffuse_reflect.png)
 
 
 ### Refraction
 Refractive surfaces with Fresnel effects using Schlick's approximation.
-These rendered images use an index of refraction of ... for the "glassy" subtance.
+The rendered image uses indices of refraction of 1.2, 1.5, and 2.0 (back-to-front) respectively for the spheres. 
+![refraction](visuals/refraction0.png)
+
 ![refraction](visuals/refraction.png)
 
 Multiple effects, such as refraction and reflection can be combined by probabilistically deciding which type of effect
 to create depending on the incident ray.
+
+The blue sphere is both refracting and reflecting.
+![sphere reflect refract](visuals/reflect_refract.png)
 
 ![box refraction](visuals/box_refraction.png)
 
@@ -65,10 +69,10 @@ This is a method of antialiasing, where for each pixel in every iteration of the
 (and slightly blurs) the image.
 
 Without anti-aliasing:
-[!no antialias](visuals/not_antialias.png)
+![no antialias](visuals/not_antialias.png)
 
 With anti-aliasing:
-[!antialias](visuals/antialias.png)
+![antialias](visuals/antialias.png)
 
 The difference is especially noticeable on the top edge of the ideal diffused surface,
 where the antialiased version is much smoother. It is also visible in the edges of the cornell box.
@@ -116,12 +120,12 @@ Why is sorting more efficient? Reduces divergence as more kernels in same block 
 ![depth of field blooper](visuals/depth_of_field_blooper.png)
 
 #### Incorrect refract implementations
-![buggy refract 1](incorrect_refract1.png)
-![buggy refract 2](incorrect_refract2.png)
-![buggy refract 2](incorrect_refract3.png)
+![buggy refract 1](visuals/incorrect_refract1.png)      
+![buggy refract 2](visuals/incorrect_refract2.png)
+![buggy refract 2](visuals/incorrect_refract3.png)
 
 #### Incorrect reflection implementation
-![buggy reflect](buggy_reflect.png)
+![buggy reflect](visuals/buggy_reflect.png)
 
 ## Acknowledgments and External libraries
 * Added [tiny object loader](https://github.com/tinyobjloader/tinyobjloader/).
