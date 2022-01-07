@@ -159,6 +159,7 @@ performance as our current implementation, if the ray intersects the bounding bo
 in the mesh whereas a much smaller number can suffice.
 
 ## Performance Analysis
+(following recent bugfix, will update these timing shortly to include timings without material sort)
 ![cornell box runtimes](visuals/runtimes_cornell.png)
 
 The above chart is the performance measurements of the Cornell box with three spheres (a perfect diffuse, a perfect
@@ -187,11 +188,16 @@ case with the closed scene, we waste time by running the stream compact algorith
 
 ### Material sorting
 Sorting the rays and path-segments by material so that those with the same material are contiguous in memory
-results in a performance benefit. This is primarily because of a reduction in divergence: The shading kernel's behavior
-for each ray depends on its material and the kernel branches on the properties of the material. Therefore, by having
-rays and path segments of the same material grouped together, we increase the chances of a warp having a more homogenous
-makeup of material, resulting in a greater chance of executing the same intersect/shading routines and thus reducing
-divergence.
+results in a significant performance decrease. The potential benefit from material sort was due to an expected
+reduction in divergence: The shading kernel's behavior for each ray depends on its material and the kernel branches on the properties of the material. Therefore, by having rays and path segments of the same material grouped together,
+we increase the chances of a warp having a more homogenous makeup of material, resulting in a greater chance of
+executing the same intersect/shading routines and thus reducing divergence.
+
+However, in the Cornell box scenes that were tested the material sort resulted in a net decrease in performance, most
+likely because, as there is only a few materials in the scene, consecutive rays are more likely to be shading the
+same material and the decrease in divergence given by the sorting does not outweigh the time spent sorting the data
+by material. As a future performance inquiry, a scene with a very large number of materials could be benchmarked with
+and without material sort where the sorting might provide a net benefit.
 
 ### Caching first bounces
 The above charts effectively show the change in performance for different max ray depths when the first bounce is

@@ -31,7 +31,7 @@ using cu::cVec;
 using hrclock = std::chrono::high_resolution_clock; /* for performance measurements */
 #define MEASURE_PERF 0
 
-#define SORT_BY_MAT 1
+#define SORT_BY_MAT 0
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 1
 #define STOCHASTIC_ANTIALIAS 1
@@ -342,7 +342,7 @@ __global__ void shadeFakeMaterial(
 }
 
 __global__ void shade_material(int iter, int num_paths, ShadeableIntersection *s_intersections,
-	PathSegment *path_segments, Material *materials)
+	PathSegment *path_segments, Material *materials, int depth)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >= num_paths)
@@ -352,7 +352,7 @@ __global__ void shade_material(int iter, int num_paths, ShadeableIntersection *s
 
 	ShadeableIntersection intersection = s_intersections[idx];
 	if (intersection.t > 0.0f) {
-		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, 0);
+		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
 //		thrust::uniform_real_distribution<float> u01(0, 1);
 
 		Material material = materials[intersection.materialId];
@@ -532,7 +532,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 			num_paths,
 			dv_intersections.get(),
 			dv_paths.get(),
-			dv_materials.get()
+			dv_materials.get(),
+			depth
 			);
 		cu_check_err("shade_material");
 		cudaDeviceSynchronize();
