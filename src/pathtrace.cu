@@ -33,12 +33,12 @@ using hrclock = std::chrono::high_resolution_clock; /* for performance measureme
 
 #define SORT_BY_MAT 0
 #define COMPACT 1
-#define CACHE_FIRST_BOUNCE 1
-#define STOCHASTIC_ANTIALIAS 1
+#define CACHE_FIRST_BOUNCE 0
+#define STOCHASTIC_ANTIALIAS 0
 /* note: caching the first bounce is disabled if antialias is turned on */
-#define DEPTH_OF_FIELD 0
+#define DEPTH_OF_FIELD 1
 #define LENS_RADIUS 0.5f
-#define FOC_LEN 6.f
+#define FOC_LEN 3.f
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
@@ -107,13 +107,6 @@ void pathtraceInit(Scene *scene)
 
 	dv_tris = cu::make<Triangle>(scene->tris.size());
 	cu::copy(dv_tris, scene->tris.data(), scene->tris.size());
-	printf("size: %d\n", scene->tris.size());
-
-	//for (int i = 0; i < scene->tris.size(); i++) {
-	//	Triangle &tri = scene->tris[i];
-	//	printf("triangle %d is (%f, %f, %f)\n", i, tri.v[0], tri.v[1], tri.v[2]);
-	//}
-
 }
 
 
@@ -131,7 +124,7 @@ void pathtraceFree()
 }
 
 
-/* Helper for PBRT 6.2.3 lens effect,  */
+/* Helper for PBRT 6.2.3 lens effect, from 13.6.2. maps points of [0,1]x[0,1] to unit disk uniformly */
 __host__ __device__ vec2 sample_disk(vec2 uv) 
 {
 	/* uv is in [0,1]x[0,1]*/
@@ -139,7 +132,7 @@ __host__ __device__ vec2 sample_disk(vec2 uv)
 	float x = uv.x * 2.0f - 1.0f;
 	float y = uv.y * 2.0f - 1.0f; // xy is in [-1,1]x[-1,1]
 
-	if (x == 0 || y == 0)
+	if (x == 0 && y == 0)
 		return vec2(0, 0);
 
 	float th, r; // map uv to polar coords theta and r
@@ -166,7 +159,6 @@ __host__ __device__ vec2 sample_disk(vec2 uv)
 //	return vec2(x, y);
 }
 
-
 /**
 * Generate PathSegments with rays from the camera through the screen into the
 * scene, which is the first bounce of rays.
@@ -189,8 +181,13 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
 	thrust::uniform_real_distribution<float> u01(0, 1);
 
-	segment.ray.origin = cam.position;
 	segment.color = vec3(1.0f, 1.0f, 1.0f);
+
+	segment.ray.origin = cam.position;
+#if DEPTH_OF_FIELD
+	vec2 lens_point = LENS_RADIUS * sample_disk(vec2(u01(rng), u01(rng)));
+	segment.ray.origin += vec3(lens_point, 0.0f);
+#endif
 
 	segment.ray.direction = glm::normalize(cam.view
 #if STOCHASTIC_ANTIALIAS
@@ -203,13 +200,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	);
 
 #if DEPTH_OF_FIELD
-	/* From PBRT 6.2.3 */
-	vec2 lens_point = LENS_RADIUS * sample_disk(vec2(1.f-((float)x)/ cam.resolution.x, 1.f-((float)y)/cam.resolution.y));
+	/* Based on PBRT 6.2.3 and RayTracingInOneWeekend 12.2 */
 
 	float ft = FOC_LEN / glm::dot(segment.ray.direction, cam.view); /* the "z" coordinate of the ray if the focus is perpendicular to the z-axis */
-	vec3 p_focus = cam.position + segment.ray.direction * ft; /* "pFocus = (*ray)(ft)" from PBRT */
+	vec3 p_focus = segment.ray.origin + segment.ray.direction * ft; /* "pFocus = (*ray)(ft)" from PBRT */
 	
-	segment.ray.origin = cam.position + cam.right * lens_point.x + cam.up * lens_point.y;	
 	segment.ray.direction = glm::normalize(p_focus - segment.ray.origin);
 #endif
 
