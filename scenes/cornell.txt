@@ -55,7 +55,7 @@ SPECEX      0
 SPECRGB     0.98 0.98 0.98
 REFL        0
 REFR        1
-REFRIOR     1.2
+REFRIOR     1.1
 EMITTANCE   0
 
 
@@ -143,7 +143,7 @@ SCALE       3 3 3
 // Sphere
 OBJECT 7
 sphere
-material 5
+material 1
 TRANS       2 2 0
 ROTAT       0 0 0
 SCALE       3 3 3
@@ -151,10 +151,20 @@ SCALE       3 3 3
 // Sphere
 OBJECT 8
 sphere
-material 6
+material 5
 TRANS       -1 1.5 2
 ROTAT       0 0 0
 SCALE       3 3 3
+
+
+// Pyramid
+OBJECT 9
+mesh
+../scenes/meshes/bipyramid.obj
+material 2
+TRANS 0 4 0
+ROTAT 0 0 0
+SCALE 1 1 1
 
 // Cube
 //OBJECT 9

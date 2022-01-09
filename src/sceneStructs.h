@@ -18,7 +18,7 @@ struct Ray {
 };
 
 struct Triangle {
-	glm::vec3 v1, v2, v3;
+	glm::vec3 v[3];
 };
 
 struct Geom {
@@ -30,6 +30,7 @@ struct Geom {
 	glm::mat4 transform;
 	glm::mat4 inverseTransform;
 	glm::mat4 invTranspose;
+	/* the following are for meshes only */
 	size_t triangle_start; /* where does this mesh's triangles start in the dv_tri buffer? */ 
 	size_t triangle_n; /* and how many triangles? */
 	glm::vec3 mincoords, maxcoords; /* most negative coordinates of any triangle vertices and most positive coordinates, for bounding box */
@@ -80,4 +81,7 @@ struct ShadeableIntersection {
 	float t;
 	glm::vec3 surfaceNormal;
 	int materialId;
+	bool outside; /* is this ray coming from the outside of this object? */
+	glm::vec3 intersect_point;
+	int geom_index; /* index of the geom this intersection is with */
 };

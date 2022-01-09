@@ -1,14 +1,14 @@
 #pragma once
 
 #include "intersections.h"
-
+#include <thrust/random.h>
 
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
-__host__ __device__
+__host__ __device__ __forceinline__
 glm::vec3 calculateRandomDirectionInHemisphere(
 	glm::vec3 normal, thrust::default_random_engine &rng)
 {
@@ -45,17 +45,44 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 
 
 
-__host__ __device__
+__host__ __device__ __forceinline__
 float schlick_approx(float n2_n1, float cos1)
 {
 	float R_0 = (1.0f - n2_n1) / (1.0f + n2_n1);
 	R_0 = R_0 * R_0;
-	float p = (1-cos1);
+	const float p = (1-cos1);
 	float s = p * p;
 	s *= s;
-	s *= p;
-	return R_0 + (1 - R_0) * s; 
+	return R_0 + (1 - R_0) * s * p; 
 }
+
+/* helper for scatterRay that performs refraction (with Fresnel effects) */
+__host__ __device__ __forceinline__
+void refract(Ray &ray, PathSegment &path_segment,
+	const glm::vec3 &intersect, const glm::vec3 &normal, bool outside, const Material &m,
+	thrust::default_random_engine &rng, thrust::uniform_real_distribution<float> &u01)
+{
+		//based on PBRT 8.2 and RayTracingInOneWeekend
+		glm::vec3 unit_dir = glm::normalize(ray.direction);
+
+		bool outwards = glm::dot(unit_dir, normal) > 0.0f; /* is this ray leaving the object? */
+		float n2_n1 = outside ? 1.0f/m.indexOfRefraction :  m.indexOfRefraction; /* ratio of n2 to n1 */
+
+		float cosine = min(abs(glm::dot(unit_dir, normal)), 1.0f);
+		float sine = sqrt(1.0f - cosine * cosine);
+
+		bool reflects = (n2_n1 * sine > 1.0f) /*sine of second angle >=1 implies internal reflection */
+			|| (schlick_approx(n2_n1, cosine) > u01(rng));
+
+		ray.direction = glm::normalize(reflects ? glm::reflect(unit_dir, normal * (1.0f - 2 * outwards))
+			: glm::refract(unit_dir, normal * (1.0f - 2 * outwards), n2_n1));
+
+		ray.origin = intersect + 0.001f * normal * (2 * reflects - 1.0f) * (1.0f - 2 * outwards);
+
+		if (reflects)
+			path_segment.color *= m.specular.color;
+}
+
 
 /**
  * Scatter a ray with some probabilities according to the material properties.
@@ -87,6 +114,7 @@ void scatterRay(
 	PathSegment &path_segment,
 	glm::vec3 intersect,
 	glm::vec3 normal,
+	bool outside,
 	const Material &m,
 	thrust::default_random_engine &rng)
 {
@@ -94,29 +122,9 @@ void scatterRay(
 	// reflection if prob is <reflect_prob, refraction if prob > refract_prob, diffuse otherwise
 	thrust::uniform_real_distribution<float> u01(0, 1);
 	float prob = u01(rng);
-	float p = u01(rng);
 
 	if (prob > 1 - m.hasRefractive) { /* refraction */
-		//based on PBRT 8.2 and RayTracingInOneWeekend
-		glm::vec3 u_dir = glm::normalize(ray.direction);
-
-		bool outwards = glm::dot(u_dir, normal) > 0.0f; /* is this ray leaving the object? */
-		float n2_n1 = outwards ? m.indexOfRefraction : (1.0f / m.indexOfRefraction); /* ratio of n2 to n1 */
-
-		float cosine = min(-glm::dot(u_dir, normal), 1.0f);
-		float sine = sqrt(1.0f - cosine * cosine);
-
-
-		bool reflects = (n2_n1 * sine > 1.0f) /*sine of second angle >=1 implies internal reflection */
-			|| (cosine > 0.0f && schlick_approx(n2_n1, cosine) > p);
-
-		ray.direction = glm::normalize(reflects ? glm::reflect(u_dir, normal * (1.0f - 2 * outwards))
-			: glm::refract(u_dir, normal * (1.0f - 2 * outwards), n2_n1));
-
-		ray.origin = intersect + 0.001f * normal * (2 * reflects - 1.0f) * (1.0f - 2 * outwards);
-
-		if (reflects)
-			path_segment.color *= m.specular.color;
+		refract(ray, path_segment, intersect, normal, outside, m, rng, u01);
 	} else {
 		path_segment.color *= m.color; /* these are same for reflect/diffuse */
 		ray.origin = intersect;

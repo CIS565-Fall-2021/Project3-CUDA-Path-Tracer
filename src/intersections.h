@@ -6,6 +6,7 @@
 
 #include "sceneStructs.h"
 #include "utilities.h"
+#include "cu.h"
 
 /* Handy-dandy hash function that provides seeds for random number generation. */
 __host__ __device__ inline unsigned int hash(unsigned int a)
@@ -44,14 +45,73 @@ __host__ __device__ float triangle_intersection_test(const Triangle tri, const R
 	/* the triangle lies on some plane, we wish to find the point of intersection of the ray and this plane */
 	
 	glm::vec3 b_coord;
-	if (!glm::intersectRayTriangle(r.origin, r.direction, tri.v1, tri.v2, tri.v3, b_coord))
+	if (!glm::intersectRayTriangle(r.origin, r.direction, tri.v[0], tri.v[1], tri.v[2], b_coord))
 		return -1.0f; /* no collision */
 	
-	*normal = glm::normalize(glm::cross(tri.v2-tri.v1, tri.v3-tri.v1));
+	*normal = glm::normalize(glm::cross(tri.v[1]-tri.v[0], tri.v[2]-tri.v[0]));
 	if (glm::dot(r.direction, *normal) < 0)
 		*outside = true;
 
 	return glm::length(b_coord - r.origin);
+}
+
+
+/**
+ * Test intersection between a ray and a mesh. Untransformed,
+ * the cube ranges from -0.5 to 0.5 in each axis and is centered at the origin.
+ *
+ * @param intersectionPoint  Output parameter for point of intersection.
+ * @param normal             Output parameter for surface normal.
+ * @param outside            Output param for whether the ray came from outside.
+ * @return                   Ray parameter `t` value. -1 if no intersection.
+ */
+__host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
+	glm::vec3 *intersectionPoint, glm::vec3 *normal, bool *outside, const Triangle *tris)
+{
+	float t = -1.0f;
+	float t_min = FLT_MAX;
+	glm::vec3 tri_intersect_point;
+	glm::vec3 tri_normal;
+	bool tri_outside;
+
+	glm::vec3 tmp_intersect;
+	glm::vec3 tmp_normal;
+	bool tmp_outside;
+
+
+	///* do box-intersection with bounding boxes */
+	//auto max_min = max((mesh.mincoords.x - r.origin.x) / r.direction.x,
+	//	(mesh.mincoords.y - r.origin.y) / r.direction.y,
+	//	(mesh.mincoords.y - r.origin.z) / r.direction.z);
+	//auto min_max = min((mesh.maxcoords.x - r.origin.x) / r.direction.x,
+	//	(mesh.maxcoords.y - r.origin.y) / r.direction.y,
+	//	(mesh.maxcoords.y - r.origin.z) / r.direction.z);
+	//
+	//if (min_max >= max_min) {
+	
+	for (size_t i = mesh.triangle_start; i < mesh.triangle_start + mesh.triangle_n; i++) {
+		t = triangle_intersection_test(tris[i], r, &tmp_intersect, &tmp_normal, &tmp_outside);
+
+		if (t > 0.0f && t_min > t) {
+			t_min = t;
+			tri_intersect_point = tmp_intersect;
+			tri_normal = tmp_normal;
+			tri_outside = tmp_outside;
+			//printf("triangle %lld is closer\n", i);
+		}
+
+	}
+
+	if (t_min > 0.0f) {
+		*intersectionPoint = tri_intersect_point;
+		*normal = tri_normal;
+		*outside = tri_outside;
+		return t_min;
+	}
+
+
+
+	return -1.0f;
 }
 
 

@@ -71,6 +71,10 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 	auto &vertices = attrib.vertices;
 
 	int size = tris.size();
+	
+	for (int i = 0; i < vertices.size(); i++) {
+		printf("vertices[%d]: %f\n", i, vertices[i]);
+	}
 
 	/* an obj file can contain multiple shapes; iterate over them: */
 	for (auto &s : shapes) {
@@ -78,15 +82,20 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 		auto &mesh = s.mesh;
 		auto &indices = mesh.indices;
 
+		printf("shape\n");
 
 		/* iterate over faces of the mesh (specifically the #vertices in each face */
 		for (unsigned char fv : mesh.num_face_vertices) {
+			printf("face %d\n", fv);
 			auto idx = indices[index_offset];
 
 
 			vec3 shape_first_point = { vertices[3 * idx.vertex_index + 0],
 				vertices[3 * idx.vertex_index + 1],
 				vertices[3 * idx.vertex_index + 2] };
+
+			printf("first point: (%f, %f, %f)\n", shape_first_point.x, shape_first_point.y, shape_first_point.z);
+			printf("idx: %d\n", idx.vertex_index);
 
 			/* iterate over vertices of each face */
 			for (unsigned char v = 1; v < fv; v += 2) {
@@ -102,7 +111,11 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 						vertices[3 * idx2.vertex_index + 1],
 						vertices[3 * idx2.vertex_index + 2]),
 				});
+				printf("idx1: %d\n", idx1.vertex_index);
+				printf("idx2: %d\n", idx2.vertex_index);
+				printf("added triangle\n");
 			}
+			index_offset += fv;
 		}
 	}
 	for (int i = 0; i < vertices.size()-2; i += 3) { /* for bounding box */
@@ -186,9 +199,9 @@ int Scene::loadGeom(string objectid)
 		/* correct the coordinates of all the triangles */
 		for (int i = newGeom.triangle_start; i < newGeom.triangle_start + newGeom.triangle_n; i++) {
 			Triangle &t = tris[i];
-			t.v1 = vec3(newGeom.transform * vec4(t.v1, 1.f));
-			t.v2 = vec3(newGeom.transform * vec4(t.v2, 1.f));
-			t.v3 = vec3(newGeom.transform * vec4(t.v3, 1.f));
+			t.v[0] = vec3(newGeom.transform * vec4(t.v[0], 1.f));
+			t.v[1] = vec3(newGeom.transform * vec4(t.v[1], 1.f));
+			t.v[2] = vec3(newGeom.transform * vec4(t.v[2], 1.f));
 		}
 	}
 

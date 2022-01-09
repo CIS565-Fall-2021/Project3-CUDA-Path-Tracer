@@ -108,6 +108,12 @@ void pathtraceInit(Scene *scene)
 	dv_tris = cu::make<Triangle>(scene->tris.size());
 	cu::copy(dv_tris, scene->tris.data(), scene->tris.size());
 	printf("size: %d\n", scene->tris.size());
+
+	//for (int i = 0; i < scene->tris.size(); i++) {
+	//	Triangle &tri = scene->tris[i];
+	//	printf("triangle %d is (%f, %f, %f)\n", i, tri.v[0], tri.v[1], tri.v[2]);
+	//}
+
 }
 
 
@@ -177,7 +183,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	if (x >= cam.resolution.x || y >= cam.resolution.y)
 		return;
 
-	int index = x + (y * cam.resolution.x);
+	int index = x + y * cam.resolution.x;
 	PathSegment &segment = pathSegments[index];
 
 	thrust::default_random_engine rng = makeSeededRandomEngine(iter, index, 0);
@@ -207,7 +213,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	segment.ray.direction = glm::normalize(p_focus - segment.ray.origin);
 #endif
 
-
 	segment.pixelIndex = index;
 	segment.remainingBounces = traceDepth;
 }
@@ -223,12 +228,12 @@ __global__ void computeIntersections(
 	Geom *geoms,
 	int geoms_size,
 	ShadeableIntersection *intersections,
-	Triangle *tris)
+	const Triangle *tris)
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (path_index < num_paths) {
-		PathSegment pathSegment = pathSegments[path_index];
+		Ray ray = pathSegments[path_index].ray;
 
 		float t;
 		vec3 intersect_point;
@@ -239,35 +244,19 @@ __global__ void computeIntersections(
 
 		vec3 tmp_intersect;
 		vec3 tmp_normal;
+		bool tmp_outside;
 
 		// naive parse through global geoms
 
 		for (int i = 0; i < geoms_size; i++) {
 			Geom &geom = geoms[i];
 
-			if (geom.type == GeomType::CUBE) {
-				t = boxIntersectionTest(geom, pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
-			} else if (geom.type == GeomType::SPHERE) {
-				t = sphereIntersectionTest(geom, pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
-			} else if (geom.type == GeomType::MESH) {
-				/* do box-intersection with bounding boxes */
-				auto max_min = max((geom.mincoords.x - pathSegment.ray.origin.x) / pathSegment.ray.direction.x,
-				(geom.mincoords.y - pathSegment.ray.origin.y) / pathSegment.ray.direction.y,
-				(geom.mincoords.y - pathSegment.ray.origin.z) / pathSegment.ray.direction.z);
-				auto min_max = min((geom.maxcoords.x - pathSegment.ray.origin.x) / pathSegment.ray.direction.x,
-				(geom.maxcoords.y - pathSegment.ray.origin.y) / pathSegment.ray.direction.y,
-				(geom.maxcoords.y - pathSegment.ray.origin.z) / pathSegment.ray.direction.z);
-				
-				if (min_max >= max_min) {
-				
-					for (size_t i = geom.triangle_start; i < geom.triangle_start + geom.triangle_n; i++) {
-						t = triangle_intersection_test(tris[i], pathSegment.ray, &tmp_intersect, &tmp_normal, &outside);
-					//	if (t > 0.0f) {
-					//		printf("intersected\n");
-					//	}
-					}
-				}
-			}
+			if (geom.type == GeomType::CUBE)
+				t = boxIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside);
+			else if (geom.type == GeomType::SPHERE)
+				t = sphereIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside);
+			else if (geom.type == GeomType::MESH)
+				t = meshIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside, tris);
 
 			// Compute the minimum t from the intersection tests to determine what
 			// scene geometry object was hit first.
@@ -276,17 +265,24 @@ __global__ void computeIntersections(
 				hit_geom_index = i;
 				intersect_point = tmp_intersect;
 				normal = tmp_normal;
+				outside = tmp_outside;
 			}
 		}
 
+		ShadeableIntersection &intersection = intersections[path_index];
+
 		if (hit_geom_index == -1) {
-			intersections[path_index].t = -1.0f;
-		} else {
-			//The ray hits something
-			intersections[path_index].t = t_min;
-			intersections[path_index].materialId = geoms[hit_geom_index].materialid;
-			intersections[path_index].surfaceNormal = normal;
+			intersection.t = -1.0f;
+			return;
 		}
+		//The ray hits something
+		intersection.t = t_min;
+		intersection.materialId = geoms[hit_geom_index].materialid;
+		intersection.surfaceNormal = normal;
+		intersection.outside = outside;
+		/* move the intersection point a bit back so it doesn't actually intersect the object, like getPointOnRay */
+		intersection.intersect_point = intersect_point - .0001f * glm::normalize(ray.direction);
+		intersection.geom_index = hit_geom_index;
 	}
 }
 
@@ -341,33 +337,34 @@ __global__ void shadeFakeMaterial(
 	}
 }
 
+
 __global__ void shade_material(int iter, int num_paths, ShadeableIntersection *s_intersections,
 	PathSegment *path_segments, Material *materials, int depth)
 {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	PathSegment &path_segment = path_segments[idx];
+
 	if (idx >= num_paths)
 		return;
-	if (path_segments[idx].remainingBounces <= 0)
+	if (path_segment.remainingBounces <= 0)
 		return;
 
-	ShadeableIntersection intersection = s_intersections[idx];
+	ShadeableIntersection &intersection = s_intersections[idx];
 	if (intersection.t > 0.0f) {
 		thrust::default_random_engine rng = makeSeededRandomEngine(iter, idx, depth);
-//		thrust::uniform_real_distribution<float> u01(0, 1);
 
 		Material material = materials[intersection.materialId];
 		
 		if (material.emittance > 0.0f) { /* hit a light */
-			path_segments[idx].color *= (material.color * material.emittance);
-			path_segments[idx].remainingBounces = 0;
+			path_segment.color *= (material.color * material.emittance);
+			path_segment.remainingBounces = 0;
 			return;
 		}
-		vec3 intersect_point = getPointOnRay(path_segments[idx].ray, intersection.t);
-		scatterRay(path_segments[idx], intersect_point, intersection.surfaceNormal, material, rng);
-		path_segments[idx].remainingBounces--;
+		scatterRay(path_segment, intersection.intersect_point, intersection.surfaceNormal, intersection.outside, material, rng);
+		path_segment.remainingBounces--;
 	} else {
-		path_segments[idx].color = vec3(0.0f);
-		path_segments[idx].remainingBounces = 0;
+		path_segment.color = vec3(0.0f);
+		path_segment.remainingBounces = 0;
 	}
 }
 
