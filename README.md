@@ -31,8 +31,8 @@ This project implements a path tracer on the GPU using CUDA, parallelizing on th
 * Caching first bounces (since these are always the same when not using methods like antialiasing)
 * Refraction with Fresnel effects using Schlick's approximation
 * Stochastic Sampled Antialiasing
-* Physically-based depth of field (partial implementation, work-in-progress)
-* Arbitrary OBJ mesh loading (complete) and rendering (incomplete) with bounding boxes, using triangle intersections
+* Physically-based depth of field (work-in-progress)
+* Arbitrary OBJ mesh loading and rendering using triangle intersections (complete) with bounding boxes (in-progress)
 
 
 ## Visuals
@@ -124,7 +124,7 @@ implementation maps pixels bijectively from the unit square to a unit disk (as d
 However, such a precise mapping might not be in fact necessary, and more loose mappings, even those determined
 probabilistically with less computation might be able to render appropriately.
 
-### OBJ Mesh loading and Bounding boxes (work-in-progress)
+### OBJ Mesh loading and Bounding boxes
 
 ![teapot](visuals/teapot.png)
 
@@ -138,7 +138,7 @@ the box that bounds the mesh entirely. Then, ray collisions with the mesh are pe
 intersections with the bounding box, and then by performing a triangle intersection test which every triangle in the
 mesh.
 
-Loading of OBJ files and triangle intersect is complete. TODO: bugfix in rendering
+Loading of OBJ files, triangle intersect, and rendering is complete. TODO: debug bounding boxes
 
 There is a very significant performance penalty associated with loading arbitary meshes into the scene. As the meshes
 are broken down into and represented as triangles; complex meshes introduce a huge number of triangles into the scene

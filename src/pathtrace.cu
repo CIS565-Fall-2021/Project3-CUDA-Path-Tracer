@@ -34,9 +34,9 @@ using hrclock = std::chrono::high_resolution_clock; /* for performance measureme
 #define SORT_BY_MAT 0
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 0
-#define STOCHASTIC_ANTIALIAS 0
+#define STOCHASTIC_ANTIALIAS 1
 /* note: caching the first bounce is disabled if antialias is turned on */
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
 #define LENS_RADIUS 0.5f
 #define FOC_LEN 3.f
 
