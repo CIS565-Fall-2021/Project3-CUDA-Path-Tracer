@@ -8,6 +8,8 @@
 #include "utilities.h"
 #include "cu.h"
 
+#define BOUNDING_BOX 0
+
 /* Handy-dandy hash function that provides seeds for random number generation. */
 __host__ __device__ inline unsigned int hash(unsigned int a)
 {
@@ -75,20 +77,26 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
 	bool hit = false;
 
 
+#if BOUNDING_BOX
 	/* do box-intersection with bounding boxes */
-	//printf("mincoords: (%f, %f, %f)\tmaxcoords: (%f, %f, %f)\n",
-		//mesh.mincoords.x, mesh.mincoords.y, mesh.mincoords.z,
-		//mesh.maxcoords.x, mesh.maxcoords.y, mesh.maxcoords.z);
-	//auto max_min = max((mesh.mincoords.x - r.origin.x) / r.direction.x,
-	//	(mesh.mincoords.y - r.origin.y) / r.direction.y,
-	//	(mesh.mincoords.z - r.origin.z) / r.direction.z);
-	//auto min_max = min((mesh.maxcoords.x - r.origin.x) / r.direction.x,
-	//	(mesh.maxcoords.y - r.origin.y) / r.direction.y,
-	//	(mesh.maxcoords.z - r.origin.z) / r.direction.z);
+	printf("mincoords: (%f, %f, %f)\tmaxcoords: (%f, %f, %f)\n",
+		mesh.mincoords.x, mesh.mincoords.y, mesh.mincoords.z,
+		mesh.maxcoords.x, mesh.maxcoords.y, mesh.maxcoords.z);
+
+	glm::vec3 d = glm::normalize(r.direction);
+	auto max_of_mins = max(0.f,
+		(mesh.mincoords.x - r.origin.x) / d.x,
+		(mesh.mincoords.y - r.origin.y) / d.y,
+		(mesh.mincoords.z - r.origin.z) / d.z);
+	auto min_of_maxes = min(
+		(mesh.maxcoords.x - r.origin.x) / d.x,
+		(mesh.maxcoords.y - r.origin.y) / d.y,
+		(mesh.maxcoords.z - r.origin.z) / d.z);
 	
-	//if (min_max < max_min)
-		//return -1.0f;
-	
+	if (min_of_maxes < max_of_mins)
+		return -1.0f;
+#endif
+
 	for (size_t i = mesh.triangle_start; i < mesh.triangle_start + mesh.triangle_n; i++) {
 		t = triangle_intersection_test(tris[i], r, &tmp_intersect, &tmp_normal);
 

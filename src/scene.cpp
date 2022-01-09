@@ -118,14 +118,26 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 			index_offset += fv;
 		}
 	}
-	for (int i = 0; i < vertices.size()-2; i += 3) { /* for bounding box */
-		mincoords.x = glm::min(mincoords.x, vertices[i]);
-		mincoords.y = glm::min(mincoords.y, vertices[i+1]);
-		mincoords.z = glm::min(mincoords.z, vertices[i+2]);
-		maxcoords.x = glm::max(maxcoords.x, vertices[i]);
-		maxcoords.y = glm::max(maxcoords.y, vertices[i+1]);
-		maxcoords.z = glm::max(maxcoords.z, vertices[i+2]);
-	}
+	//for (int i = size; i < tris.size(); i++) {
+	//	Triangle &tri = tris[i];
+	//	for (vec3 v : tri.v) {
+	//		mincoords.x = glm::min(mincoords.x, v.x);
+	//		mincoords.y = glm::min(mincoords.y, v.y);
+	//		mincoords.z = glm::min(mincoords.z, v.z);
+	//		maxcoords.x = glm::max(maxcoords.x, v.x);
+	//		maxcoords.y = glm::max(maxcoords.y, v.y);
+	//		maxcoords.z = glm::max(maxcoords.z, v.z);
+	//		printf("added (%f, %f, %f)\n", v.x, v.y, v.z);
+	//	}
+	//}
+	//for (int i = 0; i + 2 < vertices.size(); i += 3) { /* for bounding box */
+	//	mincoords.x = glm::min(mincoords.x, vertices[i]);
+	//	mincoords.y = glm::min(mincoords.y, vertices[i+1]);
+	//	mincoords.z = glm::min(mincoords.z, vertices[i+2]);
+	//	maxcoords.x = glm::max(maxcoords.x, vertices[i]);
+	//	maxcoords.y = glm::max(maxcoords.y, vertices[i+1]);
+	//	maxcoords.z = glm::max(maxcoords.z, vertices[i+2]);
+	//}
 	return tris.size() - size;
 }
 
@@ -192,16 +204,30 @@ int Scene::loadGeom(string objectid)
 	newGeom.inverseTransform = glm::inverse(newGeom.transform);
 	newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
+
+	newGeom.mincoords = vec3(FLT_MAX, FLT_MAX, FLT_MAX);
+	newGeom.maxcoords = vec3(FLT_MIN, FLT_MIN, FLT_MIN);
+
 	if (newGeom.type == GeomType::MESH) {
-		/* correct the coordinates of all the triangles */
+		/* correct the coordinates of all the triangles, also determine bounding box */
 		for (int i = newGeom.triangle_start; i < newGeom.triangle_start + newGeom.triangle_n; i++) {
 			Triangle &t = tris[i];
 			t.v[0] = vec3(newGeom.transform * vec4(t.v[0], 1.f));
 			t.v[1] = vec3(newGeom.transform * vec4(t.v[1], 1.f));
 			t.v[2] = vec3(newGeom.transform * vec4(t.v[2], 1.f));
+		
+			for (int i = 0; i < 2; i++) {
+			glm::vec3 &v = t.v[i];
+			newGeom.mincoords.x = glm::min(newGeom.mincoords.x, v.x);
+			newGeom.mincoords.y = glm::min(newGeom.mincoords.y, v.y);
+			newGeom.mincoords.z = glm::min(newGeom.mincoords.z, v.z);
+			newGeom.maxcoords.x = glm::max(newGeom.maxcoords.x, v.x);
+			newGeom.maxcoords.y = glm::max(newGeom.maxcoords.y, v.y);
+			newGeom.maxcoords.z = glm::max(newGeom.maxcoords.z, v.z);
+			}
 		}
-		newGeom.mincoords = vec3(newGeom.transform * vec4(newGeom.mincoords, 1.f));
-		newGeom.maxcoords = vec3(newGeom.transform * vec4(newGeom.maxcoords, 1.f));
+//		newGeom.mincoords = vec3(newGeom.transform * vec4(newGeom.mincoords, 1.f));
+//		newGeom.maxcoords = vec3(newGeom.transform * vec4(newGeom.maxcoords, 1.f));
 	}
 
 	geoms.push_back(newGeom);
