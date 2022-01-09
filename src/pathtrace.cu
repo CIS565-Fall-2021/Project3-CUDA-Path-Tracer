@@ -232,58 +232,65 @@ __global__ void computeIntersections(
 {
 	int path_index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	if (path_index < num_paths) {
-		Ray ray = pathSegments[path_index].ray;
+	if (path_index >= num_paths)
+		return;
+	Ray ray = pathSegments[path_index].ray;
 
-		float t;
-		vec3 intersect_point;
-		vec3 normal;
-		float t_min = FLT_MAX;
-		int hit_geom_index = -1;
-		bool outside = true;
+	float t;
+	vec3 intersect_point;
+	vec3 normal;
+	float t_min = FLT_MAX;
+	int hit_geom_index = -1;
+	bool outside = true;
 
-		vec3 tmp_intersect;
-		vec3 tmp_normal;
-		bool tmp_outside;
+	vec3 tmp_intersect;
+	vec3 tmp_normal;
+	bool tmp_outside;
 
-		// naive parse through global geoms
+	// naive parse through global geoms
 
-		for (int i = 0; i < geoms_size; i++) {
-			Geom &geom = geoms[i];
+	for (int i = 0; i < geoms_size; i++) {
+		Geom &geom = geoms[i];
 
-			if (geom.type == GeomType::CUBE)
-				t = boxIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside);
-			else if (geom.type == GeomType::SPHERE)
-				t = sphereIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside);
-			else if (geom.type == GeomType::MESH)
-				t = meshIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside, tris);
+		if (geom.type == GeomType::CUBE)
+			t = boxIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside);
+		else if (geom.type == GeomType::SPHERE)
+			t = sphereIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside);
+		else if (geom.type == GeomType::MESH)
+			t = meshIntersectionTest(geom, ray, &tmp_intersect, &tmp_normal, &tmp_outside, tris);
 
-			// Compute the minimum t from the intersection tests to determine what
-			// scene geometry object was hit first.
-			if (t > 0.0f && t_min > t) {
-				t_min = t;
-				hit_geom_index = i;
-				intersect_point = tmp_intersect;
-				normal = tmp_normal;
-				outside = tmp_outside;
-			}
+		// Compute the minimum t from the intersection tests to determine what
+		// scene geometry object was hit first.
+		if (t > 0.0f && t_min > t) {
+			t_min = t;
+			hit_geom_index = i;
+			intersect_point = tmp_intersect;
+			normal = tmp_normal;
+			outside = tmp_outside;
 		}
-
-		ShadeableIntersection &intersection = intersections[path_index];
-
-		if (hit_geom_index == -1) {
-			intersection.t = -1.0f;
-			return;
-		}
-		//The ray hits something
-		intersection.t = t_min;
-		intersection.materialId = geoms[hit_geom_index].materialid;
-		intersection.surfaceNormal = normal;
-		intersection.outside = outside;
-		/* move the intersection point a bit back so it doesn't actually intersect the object, like getPointOnRay */
-		intersection.intersect_point = intersect_point - .0001f * glm::normalize(ray.direction);
-		intersection.geom_index = hit_geom_index;
 	}
+
+	ShadeableIntersection &intersection = intersections[path_index];
+
+	if (hit_geom_index == -1) {
+		intersection.t = -1.0f;
+		return;
+	}
+	//The ray hits something
+	intersection.t = t_min;
+	intersection.materialId = geoms[hit_geom_index].materialid;
+	intersection.surfaceNormal = normal;
+	intersection.outside = outside;
+	/* move the intersection point a bit back so it doesn't actually intersect the object, like getPointOnRay */
+	intersection.intersect_point = intersect_point - .0001f * glm::normalize(ray.direction);
+	intersection.geom_index = hit_geom_index;
+
+	if (intersection.materialId == 4) {
+	/*	printf("t: %f, normal = (%f, %f, %f), outside = %d, intersect = (%f, %f, %f), geom_index = %d\n",
+		intersection.t, intersection.surfaceNormal.x, intersection.surfaceNormal.y, intersection.surfaceNormal.z,
+		int(outside), intersect_point.x, intersect_point.y, intersect_point.z, intersection.geom_index);*/
+	}
+	
 }
 
 // LOOK: "fake" shader demonstrating what you might do with the info in

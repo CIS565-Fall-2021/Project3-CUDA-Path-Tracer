@@ -119,14 +119,12 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 		}
 	}
 	for (int i = 0; i < vertices.size()-2; i += 3) { /* for bounding box */
-		using glm::min;
-		using glm::max;
-		mincoords.x = min(mincoords.x, vertices[i]);
-		mincoords.y = min(mincoords.y, vertices[i+1]);
-		mincoords.z = min(mincoords.z, vertices[i+2]);
-		maxcoords.x = max(maxcoords.x, vertices[i]);
-		maxcoords.y = max(maxcoords.y, vertices[i+1]);
-		maxcoords.z = max(maxcoords.z, vertices[i+2]);
+		mincoords.x = glm::min(mincoords.x, vertices[i]);
+		mincoords.y = glm::min(mincoords.y, vertices[i+1]);
+		mincoords.z = glm::min(mincoords.z, vertices[i+2]);
+		maxcoords.x = glm::max(maxcoords.x, vertices[i]);
+		maxcoords.y = glm::max(maxcoords.y, vertices[i+1]);
+		maxcoords.z = glm::max(maxcoords.z, vertices[i+2]);
 	}
 	return tris.size() - size;
 }
@@ -190,8 +188,7 @@ int Scene::loadGeom(string objectid)
 		safe_getline(fp_in, line);
 	}
 
-	newGeom.transform = utilities::make_transform_matrix(
-		newGeom.translation, newGeom.rotation, newGeom.scale);
+	newGeom.transform = utilities::make_transform_matrix(newGeom.translation, newGeom.rotation, newGeom.scale);
 	newGeom.inverseTransform = glm::inverse(newGeom.transform);
 	newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
@@ -203,6 +200,8 @@ int Scene::loadGeom(string objectid)
 			t.v[1] = vec3(newGeom.transform * vec4(t.v[1], 1.f));
 			t.v[2] = vec3(newGeom.transform * vec4(t.v[2], 1.f));
 		}
+		newGeom.mincoords = vec3(newGeom.transform * vec4(newGeom.mincoords, 1.f));
+		newGeom.maxcoords = vec3(newGeom.transform * vec4(newGeom.maxcoords, 1.f));
 	}
 
 	geoms.push_back(newGeom);

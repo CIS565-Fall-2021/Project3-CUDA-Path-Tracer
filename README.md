@@ -125,6 +125,9 @@ However, such a precise mapping might not be in fact necessary, and more loose m
 probabilistically with less computation might be able to render appropriately.
 
 ### OBJ Mesh loading and Bounding boxes (work-in-progress)
+
+![teapot](visuals/teapot.png)
+
 Arbitrary meshes in the form of OBJ files can be loaded into the scene. The meshes are broken down into and represented as triangles. Specifically, a contiguous array of triangles is kept in memory (and later transferred to device memory for rendering). The meshes are loaded by iterating over the faces and breaking up and generating triangles for the faces,
 then appending these triangles to the contiguous array. Each mesh stores the index in the triangle array of where its
 triangles begin and the number of triangles it contains.

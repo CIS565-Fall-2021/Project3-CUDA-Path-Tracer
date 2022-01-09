@@ -40,19 +40,16 @@ __host__ __device__ glm::vec3 multiplyMV(glm::mat4 m, glm::vec4 v)
 
 
 /* for triangle meshes */
-__host__ __device__ float triangle_intersection_test(const Triangle tri, const Ray r, glm::vec3 *intersect, glm::vec3 *normal, bool *outside)
+__host__ __device__ float triangle_intersection_test(const Triangle tri, const Ray r, glm::vec3 *intersect, glm::vec3 *normal)
 {
-	/* the triangle lies on some plane, we wish to find the point of intersection of the ray and this plane */
-	
 	glm::vec3 b_coord;
 	if (!glm::intersectRayTriangle(r.origin, r.direction, tri.v[0], tri.v[1], tri.v[2], b_coord))
 		return -1.0f; /* no collision */
 	
-	*normal = glm::normalize(glm::cross(tri.v[1]-tri.v[0], tri.v[2]-tri.v[0]));
-	if (glm::dot(r.direction, *normal) < 0)
-		*outside = true;
-
-	return glm::length(b_coord - r.origin);
+	*normal = glm::normalize(glm::cross(tri.v[2]-tri.v[0], tri.v[1]-tri.v[0]));
+	
+	*intersect = getPointOnRay(r, b_coord.z);
+	return b_coord.z;
 }
 
 
@@ -72,40 +69,46 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
 	float t_min = FLT_MAX;
 	glm::vec3 tri_intersect_point;
 	glm::vec3 tri_normal;
-	bool tri_outside;
 
 	glm::vec3 tmp_intersect;
 	glm::vec3 tmp_normal;
-	bool tmp_outside;
+	bool hit = false;
 
 
-	///* do box-intersection with bounding boxes */
+	/* do box-intersection with bounding boxes */
+	//printf("mincoords: (%f, %f, %f)\tmaxcoords: (%f, %f, %f)\n",
+		//mesh.mincoords.x, mesh.mincoords.y, mesh.mincoords.z,
+		//mesh.maxcoords.x, mesh.maxcoords.y, mesh.maxcoords.z);
 	//auto max_min = max((mesh.mincoords.x - r.origin.x) / r.direction.x,
 	//	(mesh.mincoords.y - r.origin.y) / r.direction.y,
-	//	(mesh.mincoords.y - r.origin.z) / r.direction.z);
+	//	(mesh.mincoords.z - r.origin.z) / r.direction.z);
 	//auto min_max = min((mesh.maxcoords.x - r.origin.x) / r.direction.x,
 	//	(mesh.maxcoords.y - r.origin.y) / r.direction.y,
-	//	(mesh.maxcoords.y - r.origin.z) / r.direction.z);
-	//
-	//if (min_max >= max_min) {
+	//	(mesh.maxcoords.z - r.origin.z) / r.direction.z);
+	
+	//if (min_max < max_min)
+		//return -1.0f;
 	
 	for (size_t i = mesh.triangle_start; i < mesh.triangle_start + mesh.triangle_n; i++) {
-		t = triangle_intersection_test(tris[i], r, &tmp_intersect, &tmp_normal, &tmp_outside);
+		t = triangle_intersection_test(tris[i], r, &tmp_intersect, &tmp_normal);
 
 		if (t > 0.0f && t_min > t) {
 			t_min = t;
 			tri_intersect_point = tmp_intersect;
 			tri_normal = tmp_normal;
-			tri_outside = tmp_outside;
 			//printf("triangle %lld is closer\n", i);
+			hit = true;
 		}
 
 	}
 
-	if (t_min > 0.0f) {
+	if (t_min > 0.0f && hit) {
 		*intersectionPoint = tri_intersect_point;
+	//	*normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tri_normal, 1.0f)));
 		*normal = tri_normal;
-		*outside = tri_outside;
+		*outside = glm::dot(r.direction, *normal) < 0;
+	//printf("normal: (%f, %f, %f) (%f, %f, %f) %d\n", normal->x, normal->y, normal->z, r.direction.x, r.direction.y, r.direction.z, int(*outside));
+	//printf("intersect = (%f, %f, %f)\n", intersectionPoint->x, intersectionPoint->y, intersectionPoint->z);
 		return t_min;
 	}
 
