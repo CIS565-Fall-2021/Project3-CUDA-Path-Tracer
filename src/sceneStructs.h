@@ -57,8 +57,8 @@ struct Camera {
 	glm::vec3 right;
 	glm::vec2 fov;
 	glm::vec2 pixelLength;
-	float focus_len = 5.f;
-	float lens_radius = 0.f; /* lens_radius == 0 means no depth-of-field */
+	float focus_len;
+	float lens_radius; /* lens_radius == 0 means no depth-of-field */
 };
 
 struct RenderState {

@@ -29,13 +29,14 @@ using cu::cPtr;
 using cu::cVec;
 
 using hrclock = std::chrono::high_resolution_clock; /* for performance measurements */
-#define MEASURE_PERF 0
+#define MEASURE_PERF 1
 
 #define SORT_BY_MAT 0
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 0
 #define STOCHASTIC_ANTIALIAS 0
-/* note: caching the first bounce is disabled if antialias is turned on */
+#define DEPTH_OF_FIELD 1
+/* note: caching the first bounce is disabled if antialias or depth-of-field is turned on */
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
@@ -171,11 +172,6 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 
 	segment.ray.origin = cam.position;
 
-	if (cam.lens_radius > 0.0f) {
-		vec2 lens_point = cam.lens_radius * sample_disk(vec2(u01(rng), u01(rng)));
-		segment.ray.origin += vec3(lens_point, 0.0f);
-	}
-
 	segment.ray.direction = glm::normalize(cam.view
 #if STOCHASTIC_ANTIALIAS
 		- cam.right * cam.pixelLength.x * ((float) x - (float) cam.resolution.x * 0.5f + (u01(rng) - 0.5f))
@@ -186,14 +182,15 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 #endif
 	
 	);
-
+#if DEPTH_OF_FIELD
 	/* Based on PBRT 6.2.3 and RayTracingInOneWeekend 12.2 */
 	if (cam.lens_radius > 0.0f) {
-		float ft = cam.focus_len / glm::dot(segment.ray.direction, cam.view); /* the "z" coordinate of the ray if the focus is perpendicular to the z-axis */
-		vec3 p_focus = segment.ray.origin + segment.ray.direction * ft; /* "pFocus = (*ray)(ft)" from PBRT */
+		vec2 lens_point = sample_disk(vec2(u01(rng), u01(rng)));
+		segment.ray.origin += cam.lens_radius * ( lens_point.x * cam.right + lens_point.y * cam.up);
 	
-		segment.ray.direction = glm::normalize(p_focus - segment.ray.origin);
+		segment.ray.direction = glm::normalize(cam.position + segment.ray.direction * cam.focus_len - segment.ray.origin);
 	}
+#endif
 
 	segment.pixelIndex = index;
 	segment.remainingBounces = traceDepth;
@@ -452,7 +449,7 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 	do {
 		dim3 numblocksPathSegmentTracing = (num_paths + blockSize1d - 1) / blockSize1d;
 
-	#if CACHE_FIRST_BOUNCE && !STOCHASTIC_ANTIALIAS
+	#if CACHE_FIRST_BOUNCE && !STOCHASTIC_ANTIALIAS && !DEPTH_OF_FIELD
 		if (depth == 0) { /* first bounce */
 			if (iter == 1) {
 				cu::set(dv_cached_intersections, 0, pixelcount);

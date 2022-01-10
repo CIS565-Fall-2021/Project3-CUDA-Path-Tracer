@@ -7,7 +7,7 @@ CUDA Path Tracer
   * [LinkedIn](https://linkedin.com/in/kaanberk), [personal website](https://kaan9.github.io)
 * Tested on: Windows 10, i7-8850H @ 2.592GHz 24GB, Quadro P1000
 
-![cover](visuals/cover.png)
+![cover](visuals/cover_dof.png)
 
 ## Project Overview
 A path tracer is a program that renders 3-dimensional scenes by mimicking, in reverse, the scattering of light from a
@@ -66,7 +66,7 @@ The blue sphere is both refracting and reflecting.
 
 Refraction has a relatively small but nonzero performance hit: Specifically, the cornell box scene with 3 spheres (2
 refractive) renders 10 iterations in 2202 milliseconds whereas if all 3 spheres are ideal diffuse surfaces, the runtime
-for 10 iterations reduces to 2107 milliseconds.
+for 10 iterations reduces to 2107 milliseconds (material sort enabled).
 
 A hypothetical CPU implementation of refraction would likely be significantly less efficient as it would not be taking
 advantage of a number of opportunities at parallelization. Specifically, the many of the linear algebra operations
@@ -91,40 +91,36 @@ where the antialiased version is much smoother. It is also visible in the edges 
 
 There is a small performance penalty associated with stochastic sampled antialiasing, which is unsurprising as the
 sampling requires the generation of random numbers per pixel for each iteration. Specifically, with 10 iterations, the
-difference is 2219 milliseconds versus 2100 milliseconds without anti-aliasing.
+difference is 2219 milliseconds versus 2100 milliseconds without anti-aliasing (with material sort enabled)
 
 Compared to a hypothetical CPU implementation, stochastic anti-aliasing would likely greatly benefit from being
-implemented on the GPU since there is a blatant pixel-level parallelism, where each pixel (with relative independence)
+implemented on the GPU since there is clear pixel-level parallelism, where each pixel (with relative independence)
 chooses which subpixel to cast the ray from.
 
 This feature might be optimized by choosing alternate methods of determining the subpixels. Currently, the subpixels
 are determined through a pseudo-random number generator on the GPU. Performance could be potentially improved by
 using a more deterministic method of sampling subpixels.
 
-### Depth of field (work-in-progress)
-![faulty depth of field](visuals/faulty_DoF.png)
+### Depth of field
+![depth of field](visuals/depth_of_field.gif)
 
 Real cameras have a non-infinitesimal lens size and as a consequence have a focal length where the objects appear the
 clearest and objects become blurier the further away they are. This implementation attempts to simulate this effect by
-mapping each pixel to a point on a disk that acts as a lens and casting rays.
+mapping pixels to a points on a disk that acts as a lens and casting rays.
 
-*The focal length and lens radius can be dynamically changed by pressing up-down and left-right respectively.*
+The focal length and lens radius can be dynamically changed by pressing **up-down** and **left-right** respectively.
 
-TODO: bugfixes
-
-Similar to the anti-aliasing, depth-of-field also incurs a small performance penalty but unlike the stochastic sampling,
-is deterministically implemented, mapping each pixel of the input to a point on a disk (which requires the usage of
-the somewhat expensive `sin` and `cos` functions in CUDA). Overall, the runtime increases from the 2100 milliseconds to 
-2206 milliseconds.
+Similar to the anti-aliasing, depth-of-field also incurs a small performance penalty.
+Each randomly sampled pixel is mapped to a point on a disk (which requires the usage of
+the somewhat expensive `sin` and `cos` functions in CUDA). Overall, the runtime increases from 130ms for 10 iterations to 132 ms.
 
 Similar to antialiasing, this is also a feature that will likely perform better on the GPU (in contrast to a
 hypothetical CPU implementation) as there is an obvious parallelization over each pixel as each pixel's operations are
-performed independently. So, the implementation would greatly benefit from being on the GPU.
+performed independently. So, the implementation likely greatly benefits from being on the GPU.
 
-This feature could be further optimized by consider alternative methods of sampling from the "lens". Currently, the
-implementation maps pixels bijectively from the unit square to a unit disk (as described in PBRT).
-However, such a precise mapping might not be in fact necessary, and more loose mappings, even those determined
-probabilistically with less computation might be able to render appropriately.
+This feature could be further optimized by considering alternative methods of sampling from the "lens". Currently, the
+implementation maps arbitrary points of the unit square onto the unit disk. However, a more precise mapping that bijectively maps screen pixels to a disk (as described in PBRT) might be practical (which would allow for optimizations like
+caching the first bounce).
 
 ### OBJ Mesh loading and Bounding boxes
 
@@ -220,8 +216,9 @@ anti-aliasing and depth-of-field lens.
 
 ## Bloopers
 
-#### Buggy implementation of depth-of-field lens
+#### Buggy implementations of depth-of-field lens
 ![depth of field blooper](visuals/depth_of_field_blooper.png)
+![fauly depth of field](visuals/faulty_DoF.png)
 
 #### Incorrect refract implementations
 ![buggy refract 1](visuals/incorrect_refract1.png)      
