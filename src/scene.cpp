@@ -271,7 +271,12 @@ int Scene::loadCamera()
 			camera.lookAt = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 		} else if (tokens[0] == "UP") {
 			camera.up = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
+		} else if (tokens[0] == "FOC_LEN") {
+			camera.focus_len = stof(tokens[1]);
+		} else if (tokens[0] == "LENS_RAD") {
+			camera.lens_radius = stof(tokens[1]);
 		}
+		printf("focus_len %f\trad %f\n", camera.focus_len, camera.lens_radius);
 
 		safe_getline(fp_in, line);
 	}

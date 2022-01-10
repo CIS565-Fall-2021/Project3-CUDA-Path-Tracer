@@ -34,11 +34,8 @@ using hrclock = std::chrono::high_resolution_clock; /* for performance measureme
 #define SORT_BY_MAT 0
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 0
-#define STOCHASTIC_ANTIALIAS 1
+#define STOCHASTIC_ANTIALIAS 0
 /* note: caching the first bounce is disabled if antialias is turned on */
-#define DEPTH_OF_FIELD 0
-#define LENS_RADIUS 0.5f
-#define FOC_LEN 3.f
 
 __host__ __device__
 thrust::default_random_engine makeSeededRandomEngine(int iter, int index, int depth)
@@ -146,17 +143,6 @@ __host__ __device__ vec2 sample_disk(vec2 uv)
 	}
 
 	return r * vec2(cos(th), sin(th));
-	
-//	alternatively, could sample points at random:
-//	/* pick a random point in the unit disk centered at 0 */
-//	float x, y;
-//	thrust::uniform_real_distribution<float> un11(-1, 1);
-//
-//	do {
-//		x = un11(rng);
-//		y = un11(rng);
-//	} while (x * x + y * y > 1);
-//	return vec2(x, y);
 }
 
 /**
@@ -184,10 +170,11 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	segment.color = vec3(1.0f, 1.0f, 1.0f);
 
 	segment.ray.origin = cam.position;
-#if DEPTH_OF_FIELD
-	vec2 lens_point = LENS_RADIUS * sample_disk(vec2(u01(rng), u01(rng)));
-	segment.ray.origin += vec3(lens_point, 0.0f);
-#endif
+
+	if (cam.lens_radius > 0.0f) {
+		vec2 lens_point = cam.lens_radius * sample_disk(vec2(u01(rng), u01(rng)));
+		segment.ray.origin += vec3(lens_point, 0.0f);
+	}
 
 	segment.ray.direction = glm::normalize(cam.view
 #if STOCHASTIC_ANTIALIAS
@@ -197,16 +184,16 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 		- cam.right * cam.pixelLength.x * ((float) x - (float) cam.resolution.x * 0.5f)
 		- cam.up * cam.pixelLength.y * ((float) y - (float) cam.resolution.y * 0.5f)
 #endif
+	
 	);
 
-#if DEPTH_OF_FIELD
 	/* Based on PBRT 6.2.3 and RayTracingInOneWeekend 12.2 */
-
-	float ft = FOC_LEN / glm::dot(segment.ray.direction, cam.view); /* the "z" coordinate of the ray if the focus is perpendicular to the z-axis */
-	vec3 p_focus = segment.ray.origin + segment.ray.direction * ft; /* "pFocus = (*ray)(ft)" from PBRT */
+	if (cam.lens_radius > 0.0f) {
+		float ft = cam.focus_len / glm::dot(segment.ray.direction, cam.view); /* the "z" coordinate of the ray if the focus is perpendicular to the z-axis */
+		vec3 p_focus = segment.ray.origin + segment.ray.direction * ft; /* "pFocus = (*ray)(ft)" from PBRT */
 	
-	segment.ray.direction = glm::normalize(p_focus - segment.ray.origin);
-#endif
+		segment.ray.direction = glm::normalize(p_focus - segment.ray.origin);
+	}
 
 	segment.pixelIndex = index;
 	segment.remainingBounces = traceDepth;

@@ -153,6 +153,7 @@ void runCuda()
 
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+	Camera &cam = scene->state.camera;
 	if (action == GLFW_PRESS) {
 		switch (key) {
 		case GLFW_KEY_ESCAPE:
@@ -164,11 +165,34 @@ void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods
 			break;
 		case GLFW_KEY_SPACE:
 			camchanged = true;
-			renderState = &scene->state;
-			Camera &cam = renderState->camera;
 			cam.lookAt = ogLookAt;
 			break;
+		case GLFW_KEY_UP:
+			/* increase focal distance */
+			camchanged = true;
+			cam.focus_len = glm::max(0.0f, cam.focus_len + 0.2f);
+			printf("focal length: %f\n", scene->state.camera.focus_len);
+			break;
+		case GLFW_KEY_DOWN:
+			/* decrease focal distance */
+			camchanged = true;
+			cam.focus_len = glm::max(0.0f, cam.focus_len - 0.2f);
+			printf("focal length: %f\n", scene->state.camera.focus_len);
+			break;
+		case GLFW_KEY_RIGHT:
+			/* increase lens radius */
+			camchanged = true;
+			cam.lens_radius= glm::max(0.0f, cam.lens_radius + 0.1f);
+			printf("lens radius: %f\n", scene->state.camera.lens_radius);
+			break;
+		case GLFW_KEY_LEFT:
+			/* decrease lens radius */
+			camchanged = true;
+			cam.lens_radius= glm::max(0.0f, cam.lens_radius - 0.1f);
+			printf("lens radius: %f\n", scene->state.camera.lens_radius);
+			break;
 		}
+
 	}
 }
 

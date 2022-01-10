@@ -108,8 +108,9 @@ Real cameras have a non-infinitesimal lens size and as a consequence have a foca
 clearest and objects become blurier the further away they are. This implementation attempts to simulate this effect by
 mapping each pixel to a point on a disk that acts as a lens and casting rays.
 
-TODO: bugfixes
+*The focal length and lens radius can be dynamically changed by pressing up-down and left-right respectively.*
 
+TODO: bugfixes
 
 Similar to the anti-aliasing, depth-of-field also incurs a small performance penalty but unlike the stochastic sampling,
 is deterministically implemented, mapping each pixel of the input to a point on a disk (which requires the usage of
