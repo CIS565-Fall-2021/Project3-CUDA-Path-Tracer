@@ -102,13 +102,14 @@ are determined through a pseudo-random number generator on the GPU. Performance 
 using a more deterministic method of sampling subpixels.
 
 ### Depth of field (work-in-progress)
+![faulty depth of field](faulty_DoF.png)
+
 Real cameras have a non-infinitesimal lens size and as a consequence have a focal length where the objects appear the
 clearest and objects become blurier the further away they are. This implementation attempts to simulate this effect by
 mapping each pixel to a point on a disk that acts as a lens and casting rays.
 
 TODO: bugfixes
 
-See bloopers for visual.
 
 Similar to the anti-aliasing, depth-of-field also incurs a small performance penalty but unlike the stochastic sampling,
 is deterministically implemented, mapping each pixel of the input to a point on a disk (which requires the usage of
