@@ -102,7 +102,7 @@ are determined through a pseudo-random number generator on the GPU. Performance 
 using a more deterministic method of sampling subpixels.
 
 ### Depth of field (work-in-progress)
-![faulty depth of field](faulty_DoF.png)
+![faulty depth of field](visuals/faulty_DoF.png)
 
 Real cameras have a non-infinitesimal lens size and as a consequence have a focal length where the objects appear the
 clearest and objects become blurier the further away they are. This implementation attempts to simulate this effect by
