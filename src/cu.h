@@ -47,7 +47,7 @@ __host__ __device__ T min(T v) {
 
 template <typename T, typename... U>
 __host__ __device__ T min(T v1, T v2, U ... vs) {
-	return max(v1 < v2 ? v1 : v2, vs...);
+	return min(v1 < v2 ? v1 : v2, vs...);
 }
 
 

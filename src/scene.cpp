@@ -72,30 +72,20 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 
 	int size = tris.size();
 	
-	for (int i = 0; i < vertices.size(); i++) {
-		printf("vertices[%d]: %f\n", i, vertices[i]);
-	}
-
 	/* an obj file can contain multiple shapes; iterate over them: */
 	for (auto &s : shapes) {
 		size_t index_offset = 0;
 		auto &mesh = s.mesh;
 		auto &indices = mesh.indices;
 
-		printf("shape\n");
-
 		/* iterate over faces of the mesh (specifically the #vertices in each face */
 		for (unsigned char fv : mesh.num_face_vertices) {
-			printf("face %d\n", fv);
 			auto idx = indices[index_offset];
 
 
 			vec3 shape_first_point = { vertices[3 * idx.vertex_index + 0],
 				vertices[3 * idx.vertex_index + 1],
 				vertices[3 * idx.vertex_index + 2] };
-
-			printf("first point: (%f, %f, %f)\n", shape_first_point.x, shape_first_point.y, shape_first_point.z);
-			printf("idx: %d\n", idx.vertex_index);
 
 			/* iterate over vertices of each face */
 			for (unsigned char v = 1; v < fv; v += 2) {
@@ -111,33 +101,10 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 						vertices[3 * idx2.vertex_index + 1],
 						vertices[3 * idx2.vertex_index + 2]),
 				});
-				printf("idx1: %d\n", idx1.vertex_index);
-				printf("idx2: %d\n", idx2.vertex_index);
-				printf("added triangle\n");
 			}
 			index_offset += fv;
 		}
 	}
-	//for (int i = size; i < tris.size(); i++) {
-	//	Triangle &tri = tris[i];
-	//	for (vec3 v : tri.v) {
-	//		mincoords.x = glm::min(mincoords.x, v.x);
-	//		mincoords.y = glm::min(mincoords.y, v.y);
-	//		mincoords.z = glm::min(mincoords.z, v.z);
-	//		maxcoords.x = glm::max(maxcoords.x, v.x);
-	//		maxcoords.y = glm::max(maxcoords.y, v.y);
-	//		maxcoords.z = glm::max(maxcoords.z, v.z);
-	//		printf("added (%f, %f, %f)\n", v.x, v.y, v.z);
-	//	}
-	//}
-	//for (int i = 0; i + 2 < vertices.size(); i += 3) { /* for bounding box */
-	//	mincoords.x = glm::min(mincoords.x, vertices[i]);
-	//	mincoords.y = glm::min(mincoords.y, vertices[i+1]);
-	//	mincoords.z = glm::min(mincoords.z, vertices[i+2]);
-	//	maxcoords.x = glm::max(maxcoords.x, vertices[i]);
-	//	maxcoords.y = glm::max(maxcoords.y, vertices[i+1]);
-	//	maxcoords.z = glm::max(maxcoords.z, vertices[i+2]);
-	//}
 	return tris.size() - size;
 }
 
@@ -276,7 +243,6 @@ int Scene::loadCamera()
 		} else if (tokens[0] == "LENS_RAD") {
 			camera.lens_radius = stof(tokens[1]);
 		}
-		printf("focus_len %f\trad %f\n", camera.focus_len, camera.lens_radius);
 
 		safe_getline(fp_in, line);
 	}

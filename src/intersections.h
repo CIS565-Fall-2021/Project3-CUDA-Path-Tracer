@@ -8,7 +8,7 @@
 #include "utilities.h"
 #include "cu.h"
 
-#define BOUNDING_BOX 0
+#define BOUNDING_BOX 1
 
 /* Handy-dandy hash function that provides seeds for random number generation. */
 __host__ __device__ inline unsigned int hash(unsigned int a)
@@ -48,7 +48,7 @@ __host__ __device__ float triangle_intersection_test(const Triangle tri, const R
 	if (!glm::intersectRayTriangle(r.origin, r.direction, tri.v[0], tri.v[1], tri.v[2], b_coord))
 		return -1.0f; /* no collision */
 	
-	*normal = glm::normalize(glm::cross(tri.v[2]-tri.v[0], tri.v[1]-tri.v[0]));
+	*normal = -glm::normalize(glm::cross(tri.v[2]-tri.v[0], tri.v[1]-tri.v[0]));
 	
 	*intersect = getPointOnRay(r, b_coord.z);
 	return b_coord.z;
@@ -74,27 +74,38 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
 
 	glm::vec3 tmp_intersect;
 	glm::vec3 tmp_normal;
-	bool hit = false;
 
 
 #if BOUNDING_BOX
 	/* do box-intersection with bounding boxes */
-	printf("mincoords: (%f, %f, %f)\tmaxcoords: (%f, %f, %f)\n",
-		mesh.mincoords.x, mesh.mincoords.y, mesh.mincoords.z,
-		mesh.maxcoords.x, mesh.maxcoords.y, mesh.maxcoords.z);
 
 	glm::vec3 d = glm::normalize(r.direction);
-	auto max_of_mins = max(0.f,
-		(mesh.mincoords.x - r.origin.x) / d.x,
-		(mesh.mincoords.y - r.origin.y) / d.y,
-		(mesh.mincoords.z - r.origin.z) / d.z);
-	auto min_of_maxes = min(
-		(mesh.maxcoords.x - r.origin.x) / d.x,
-		(mesh.maxcoords.y - r.origin.y) / d.y,
-		(mesh.maxcoords.z - r.origin.z) / d.z);
+
+
+	glm::vec3 mincoords = glm::vec3(
+		d.x < 0 ? mesh.maxcoords.x : mesh.mincoords.x,
+		d.y < 0 ? mesh.maxcoords.y : mesh.mincoords.y,
+		d.z < 0 ? mesh.maxcoords.z : mesh.mincoords.z
+	);
+	glm::vec3 maxcoords = glm::vec3(
+		d.x >= 0 ? mesh.maxcoords.x : mesh.mincoords.x,
+		d.y >= 0 ? mesh.maxcoords.y : mesh.mincoords.y,
+		d.z >= 0 ? mesh.maxcoords.z : mesh.mincoords.z
+	);
+
+	float max_of_mins = max(0.f,
+		(mincoords.x - r.origin.x) / d.x,
+		(mincoords.y - r.origin.y) / d.y,
+		(mincoords.z - r.origin.z) / d.z);
+	float min_of_maxes = min(
+		(maxcoords.x - r.origin.x) / d.x,
+		(maxcoords.y - r.origin.y) / d.y,
+		(maxcoords.z - r.origin.z) / d.z);
 	
-	if (min_of_maxes < max_of_mins)
+	
+	if (min_of_maxes < max_of_mins) {
 		return -1.0f;
+	}
 #endif
 
 	for (size_t i = mesh.triangle_start; i < mesh.triangle_start + mesh.triangle_n; i++) {
@@ -104,19 +115,14 @@ __host__ __device__ float meshIntersectionTest(Geom mesh, Ray r,
 			t_min = t;
 			tri_intersect_point = tmp_intersect;
 			tri_normal = tmp_normal;
-			//printf("triangle %lld is closer\n", i);
-			hit = true;
 		}
 
 	}
 
-	if (t_min > 0.0f && hit) {
+	if (t_min < FLT_MAX) {
 		*intersectionPoint = tri_intersect_point;
-	//	*normal = glm::normalize(multiplyMV(mesh.invTranspose, glm::vec4(tri_normal, 1.0f)));
 		*normal = tri_normal;
 		*outside = glm::dot(r.direction, *normal) < 0;
-	//printf("normal: (%f, %f, %f) (%f, %f, %f) %d\n", normal->x, normal->y, normal->z, r.direction.x, r.direction.y, r.direction.z, int(*outside));
-	//printf("intersect = (%f, %f, %f)\n", intersectionPoint->x, intersectionPoint->y, intersectionPoint->z);
 		return t_min;
 	}
 

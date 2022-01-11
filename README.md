@@ -90,8 +90,7 @@ The difference is especially noticeable on the top edge of the ideal diffused su
 where the antialiased version is much smoother. It is also visible in the edges of the cornell box.
 
 There is a small performance penalty associated with stochastic sampled antialiasing, which is unsurprising as the
-sampling requires the generation of random numbers per pixel for each iteration. Specifically, with 10 iterations, the
-difference is 2219 milliseconds versus 2100 milliseconds without anti-aliasing (with material sort enabled)
+sampling requires the generation of random numbers per pixel for each iteration. Specifically, with 1000 iterations, the runtime is 39979 milliseconds without antialiasing versus 40006 milliseconds with anti-aliasing, a 0.07% increaase.
 
 Compared to a hypothetical CPU implementation, stochastic anti-aliasing would likely greatly benefit from being
 implemented on the GPU since there is clear pixel-level parallelism, where each pixel (with relative independence)
@@ -112,7 +111,7 @@ The focal length and lens radius can be dynamically changed by pressing **up-dow
 
 Similar to the anti-aliasing, depth-of-field also incurs a small performance penalty.
 Each randomly sampled pixel is mapped to a point on a disk (which requires the usage of
-the somewhat expensive `sin` and `cos` functions in CUDA). Overall, the runtime increases from 130ms for 10 iterations to 132 ms.
+the somewhat expensive `sin` and `cos` functions in CUDA). Overall, the runtime increases from 130ms for 10 iterations to 132 ms, a 1.5% increase in runtime.
 
 Similar to antialiasing, this is also a feature that will likely perform better on the GPU (in contrast to a
 hypothetical CPU implementation) as there is an obvious parallelization over each pixel as each pixel's operations are
@@ -133,10 +132,8 @@ triangles begin and the number of triangles it contains.
 For efficiency, the mesh also stores the minimum and maximum coordinates in 3-dimensions. Specifically, when iterating
 over the vertices of the faces, the smallest and largest encountered x, y, and z coordinates are stored which describe
 the box that bounds the mesh entirely. Then, ray collisions with the mesh are performed first by checking for
-intersections with the bounding box, and then by performing a triangle intersection test which every triangle in the
+intersections with the bounding box, and then by performing a triangle intersection test for every triangle in the
 mesh.
-
-Loading of OBJ files, triangle intersect, and rendering is complete. TODO: debug bounding boxes
 
 There is a very significant performance penalty associated with loading arbitary meshes into the scene. As the meshes
 are broken down into and represented as triangles; complex meshes introduce a huge number of triangles into the scene
@@ -145,6 +142,9 @@ and since we are naively checking every ray against every object for collisions,
 The bounding box method accelerates the feature by first checking the rays against a box that encapsulates the mesh,
 then only checking for triangles if the ray intersects the box, effectively eliminating a large portion (typically
 a strong majority) of the intersection checks.
+
+Specifically, rendering 10 iterations of the above Cornell scene with the teapot takes 24109 ms without bounding boxes
+and 18907 ms with bounding boxes, a 21.58% decrease.
 
 A hypothetical CPU implementation would not have significant advantages over the GPU implementation as we would still
 have to check every ray against every object (with or without accelerators like bounding boxes) but would lose the
@@ -160,16 +160,19 @@ performance as our current implementation, if the ray intersects the bounding bo
 in the mesh whereas a much smaller number can suffice.
 
 ## Performance Analysis
-(following recent bugfix, will update these timing shortly to include timings without material sort)
+#### Open Cornell Box
 ![cornell box runtimes](visuals/runtimes_cornell.png)
-
-The above chart is the performance measurements of the Cornell box with three spheres (a perfect diffuse, a perfect
-refract, and a blue mixed reflect-refract) whose image is shown under *Refraction*.
-
 ![cornell box runtimes 2](visuals/runtimes_cornell_2.png)
 
-The above chart shows the runtimes for the same cornell box but with a "front" wall added, the blue sphere removed (to
-maintain the same number of objects), and the camera moved forward into the now-closed box.
+The above chart is the performance measurements of the open Cornell box with three spheres (a perfect diffuse, a perfect
+refract, and a blue mixed reflect-refract) whose image is shown under *Refraction*.
+
+#### Closed Cornell Box
+![closed cornell box](visuals/cornell_closed.png)
+![cornell box runtimes 3](visuals/runtimes_cornell_3.png)
+![cornell box runtimes 4](visuals/runtimes_cornell_4.png)
+
+The above chart shows the runtimes for the same cornell box but with a "front" wall added, and the camera moved forward into the now-closed box.
 
 ### Comparison of open and closed scenes
 For closed scenes, unsurprisingly, stream compaction does not provide a performance benefit as the rays do not
@@ -180,38 +183,35 @@ change in results.
 ### Stream Comparison in Single Iteration
 ![compact performance](visuals/compact_perf.png)
 
-Stream compaction results in a clear decrease in the time elapsed per depth-level in an iteration, especially as the
-depth increases. For the illustrated data, we begin with 600000 paths exactly, which takes about 60ms for depth-level 1. However, with stream compaction, we more than halve the runtime by the fourth depth-level and reach 14ms by depth 8.
+Stream compaction results in a clear decrease in the time elapsed per depth-level in an iteration for open scenes,
+especially as the depth increases. For the illustrated data, we begin with 600000 paths exactly, which takes about 60ms
+for depth-level 1. However, with stream compaction, we more than halve the runtime by the fourth depth-level and reach
+14ms by depth 8.
 As such, especially for renders with large depth-limits, stream compacting has a major runtime improvement as we
-progress through each iteration. Note that these benefits only exist if rays terminate (otherwise, like the above
-case with the closed scene, we waste time by running the stream compact algorithm).
-
+progress through each iteration. Note that these benefits only exist if rays terminate. Otherwise, as shown in the
+performance plots with the closed scene, we waste time by running the stream compact algorithm.
 
 ### Material sorting
 Sorting the rays and path-segments by material so that those with the same material are contiguous in memory
-results in a significant performance decrease. The potential benefit from material sort was due to an expected
+results in a significant performance decrease as shown in the above graphs.
+The potential benefit from material sort is due to an expected
 reduction in divergence: The shading kernel's behavior for each ray depends on its material and the kernel branches on the properties of the material. Therefore, by having rays and path segments of the same material grouped together,
 we increase the chances of a warp having a more homogenous makeup of material, resulting in a greater chance of
 executing the same intersect/shading routines and thus reducing divergence.
 
 However, in the Cornell box scenes that were tested the material sort resulted in a net decrease in performance, most
-likely because, as there is only a few materials in the scene, consecutive rays are more likely to be shading the
-same material and the decrease in divergence given by the sorting does not outweigh the time spent sorting the data
+likely because, as there are only a few materials in the scene, consecutive rays are more likely to be shading the
+same material and the decrease from divergence given by the sorting does not outweigh the time spent sorting the data
 by material. As a future performance inquiry, a scene with a very large number of materials could be benchmarked with
-and without material sort where the sorting might provide a net benefit.
+and without material sort to see whether the sorting might provide a net benefit.
 
 ### Caching first bounces
 The above charts effectively show the change in performance for different max ray depths when the first bounce is
-cached. That is, by observing the change in runtime of the subsequent kernel calls and comparing across an open versus a closed cornell box, we can analyze the performance benefit of the caching. There is a measurable improvement in
-performance in both the open and the closed box case (almost every iteration except the first one is faster than the
-corresponding iterations with other optimizations) but the improvement is quite small. We might expect there to be a
-more significant improvement with greater depth limits but in either case, the difference is small to the point that
-even if the rays bounce for a greater number of iterations (as in the closed box case), the benefits are small.
-Furthermore, enabling this optimization prevents us from implementing various visual improvements like stochastic
-anti-aliasing and depth-of-field lens.
+cached. That is, by observing the change in runtime of the subsequent kernel calls and comparing across an open versus a closed cornell box, we can analyze the performance benefit of the caching.
 
-
-
+There is a measurable improvement in performance in both the open and the closed box case consistently in every iteration,  except the first one where we do the caching. However, the improvement is not that large (altough we can expect there to be a more significant improvement with smaller depth limits).
+Furthermore, enabling this optimization prevents us from implementing various visual improvements using random number
+generation like stochastic anti-aliasing and depth-of-field lens.
 
 
 ## Bloopers
@@ -225,8 +225,11 @@ anti-aliasing and depth-of-field lens.
 ![buggy refract 2](visuals/incorrect_refract2.png)
 ![buggy refract 2](visuals/incorrect_refract3.png)
 
-#### Incorrect reflection implementation
+#### Incorrect random sampling
 ![buggy reflect](visuals/buggy_reflect.png)
+
+#### Buggy mesh rendering
+![buggy teapot](visuals/faulty_teapot.png)
 
 ## Acknowledgments and External libraries
 * Added [tiny object loader](https://github.com/tinyobjloader/tinyobjloader/).

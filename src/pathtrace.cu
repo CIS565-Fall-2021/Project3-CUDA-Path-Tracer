@@ -29,13 +29,13 @@ using cu::cPtr;
 using cu::cVec;
 
 using hrclock = std::chrono::high_resolution_clock; /* for performance measurements */
-#define MEASURE_PERF 1
+#define MEASURE_PERF 0
 
 #define SORT_BY_MAT 0
 #define COMPACT 1
-#define CACHE_FIRST_BOUNCE 0
+#define CACHE_FIRST_BOUNCE 1
 #define STOCHASTIC_ANTIALIAS 0
-#define DEPTH_OF_FIELD 1
+#define DEPTH_OF_FIELD 0
 /* note: caching the first bounce is disabled if antialias or depth-of-field is turned on */
 
 __host__ __device__
@@ -437,12 +437,13 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 
 	int depth = 0;
 	cPtr<PathSegment> dv_path_end = dv_paths + pixelcount;
-	size_t num_paths = dv_path_end - dv_paths;
+	size_t num_paths = pixelcount;
 
 	// --- PathSegment Tracing Stage ---
 	// Shoot ray into scene, bounce between objects, push shading chunks
 
 #if MEASURE_PERF
+	static long long total_time = 0;
 	auto prev_time = hrclock::now();
 #endif
 
@@ -533,7 +534,8 @@ void pathtrace(uchar4 *pbo, int frame, int iter)
 #if MEASURE_PERF
 	auto t = hrclock::now();
 	auto s = std::chrono::duration_cast<std::chrono::milliseconds>(t-prev_time);
-	printf("time elapsed at iter %d: %ld\n", iter, s.count());
+	total_time += s.count();
+	printf("time elapsed at iter %d: %ld\ttotal time: %ld\n", iter, s.count(), total_time);
 	prev_time = t;
 #endif
 
