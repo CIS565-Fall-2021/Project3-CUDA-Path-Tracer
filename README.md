@@ -28,11 +28,11 @@ This project implements a path tracer on the GPU using CUDA, parallelizing on th
 	* For surfaces that are a mix of diffuse and specular, probabilistically chooses between the effects
 * Removal of terminated rays using stream compaction
 * Sorting of path segments and rays by material type on the GPU prior to shading
-* Caching first bounces (since these are always the same when not using methods like antialiasing)
+* Caching first bounces (as these are always the same when not using methods like antialiasing)
 * Refraction with Fresnel effects using Schlick's approximation
 * Stochastic Sampled Antialiasing
-* Physically-based depth of field (work-in-progress)
-* Arbitrary OBJ mesh loading and rendering using triangle intersections (complete) with bounding boxes (in-progress)
+* Physically-based depth of field
+* Arbitrary OBJ mesh loading and rendering using triangle intersections with bounding boxes
 
 
 ## Visuals
@@ -104,10 +104,11 @@ using a more deterministic method of sampling subpixels.
 ![depth of field](visuals/depth_of_field.gif)
 
 Real cameras have a non-infinitesimal lens size and as a consequence have a focal length where the objects appear the
-clearest and objects become blurier the further away they are. This implementation attempts to simulate this effect by
-mapping pixels to a points on a disk that acts as a lens and casting rays.
+clearest, with objects become blurier the further away they are from the focus.
+This implementation attempts to simulate this effect by mapping pixels to a points on a disk that acts as a lens
+and casting rays.
 
-The focal length and lens radius can be dynamically changed by pressing **up-down** and **left-right** respectively.
+* The focal length and lens radius can be dynamically changed by pressing **up-down** and **left-right** respectively.
 
 Similar to the anti-aliasing, depth-of-field also incurs a small performance penalty.
 Each randomly sampled pixel is mapped to a point on a disk (which requires the usage of
@@ -124,6 +125,7 @@ caching the first bounce).
 ### OBJ Mesh loading and Bounding boxes
 
 ![teapot](visuals/teapot.png)
+![teapot2](visuals/teapot2.png)
 
 Arbitrary meshes in the form of OBJ files can be loaded into the scene. The meshes are broken down into and represented as triangles. Specifically, a contiguous array of triangles is kept in memory (and later transferred to device memory for rendering). The meshes are loaded by iterating over the faces and breaking up and generating triangles for the faces,
 then appending these triangles to the contiguous array. Each mesh stores the index in the triangle array of where its
@@ -140,8 +142,7 @@ are broken down into and represented as triangles; complex meshes introduce a hu
 and since we are naively checking every ray against every object for collisions, this reduces performance by the order of the number of triangles in the meshes introduced.
 
 The bounding box method accelerates the feature by first checking the rays against a box that encapsulates the mesh,
-then only checking for triangles if the ray intersects the box, effectively eliminating a large portion (typically
-a strong majority) of the intersection checks.
+then only checking for triangles if the ray intersects the box, effectively eliminating a significant portion of the intersection checks.
 
 Specifically, rendering 10 iterations of the above Cornell scene with the teapot takes 24109 ms without bounding boxes
 and 18907 ms with bounding boxes, a 21.58% decrease.
@@ -153,18 +154,18 @@ ability to make those checks massively parallel, likely resulting in a net slowd
 The bounding box method eliminates many unnecessary checks but much more precise optimizations could be made on this
 feature. Specifically, the mesh (and potentially the entire scene) could be represented by a hierarchical data
 structure whose "cells" contain a much smaller number of triangles. Then, for each ray, we would first determine
-the cells that the ray intersect and then only check the objects within those cells for intersection. We could
+the cells that the ray intersects and then only check the objects within those cells for intersection. We could
 further start at the nearest cell and expand outwards, stopping when an object of a cell has an intersect as no
 farther cells could be the nearest intersect for this ray. The hierarchical data structure would greatly increase
-performance as our current implementation, if the ray intersects the bounding box, checks it against every triangle
-in the mesh whereas a much smaller number can suffice.
+performance since in the current implementation, if the ray intersects the bounding box, it is checked against
+every triangle in the mesh whereas a much smaller number of checks can suffice.
 
 ## Performance Analysis
 #### Open Cornell Box
 ![cornell box runtimes](visuals/runtimes_cornell.png)
 ![cornell box runtimes 2](visuals/runtimes_cornell_2.png)
 
-The above chart is the performance measurements of the open Cornell box with three spheres (a perfect diffuse, a perfect
+The above charts are performance measurements of the open Cornell box with three spheres (a perfect diffuse, a perfect
 refract, and a blue mixed reflect-refract) whose image is shown under *Refraction*.
 
 #### Closed Cornell Box
@@ -172,7 +173,7 @@ refract, and a blue mixed reflect-refract) whose image is shown under *Refractio
 ![cornell box runtimes 3](visuals/runtimes_cornell_3.png)
 ![cornell box runtimes 4](visuals/runtimes_cornell_4.png)
 
-The above chart shows the runtimes for the same cornell box but with a "front" wall added, and the camera moved forward into the now-closed box.
+The above charts show the runtimes for the same cornell box but with a "front" wall added, and the camera moved forward into the now-closed box.
 
 ### Comparison of open and closed scenes
 For closed scenes, unsurprisingly, stream compaction does not provide a performance benefit as the rays do not
@@ -206,12 +207,17 @@ by material. As a future performance inquiry, a scene with a very large number o
 and without material sort to see whether the sorting might provide a net benefit.
 
 ### Caching first bounces
-The above charts effectively show the change in performance for different max ray depths when the first bounce is
-cached. That is, by observing the change in runtime of the subsequent kernel calls and comparing across an open versus a closed cornell box, we can analyze the performance benefit of the caching.
-
 There is a measurable improvement in performance in both the open and the closed box case consistently in every iteration,  except the first one where we do the caching. However, the improvement is not that large (altough we can expect there to be a more significant improvement with smaller depth limits).
 Furthermore, enabling this optimization prevents us from implementing various visual improvements using random number
 generation like stochastic anti-aliasing and depth-of-field lens.
+
+![cache depth comparison](visuals/cache_depths.png)
+
+The above chart shows the time in milliseconds of the tenth iteration of a render at different maximum depth levels
+with and without caching.
+The scene rendered is the Cornell box with the specular teapot. The chart shows that for small values of depth, there is
+a noticeable improvement, up to 10% in performance but the effect diminishes as the depth increases since the
+performance improvement only applies to the first depth level.
 
 
 ## Bloopers

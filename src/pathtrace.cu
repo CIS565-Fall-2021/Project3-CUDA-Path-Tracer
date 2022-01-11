@@ -34,8 +34,8 @@ using hrclock = std::chrono::high_resolution_clock; /* for performance measureme
 #define SORT_BY_MAT 0
 #define COMPACT 1
 #define CACHE_FIRST_BOUNCE 1
-#define STOCHASTIC_ANTIALIAS 0
-#define DEPTH_OF_FIELD 0
+#define STOCHASTIC_ANTIALIAS 1
+#define DEPTH_OF_FIELD 1
 /* note: caching the first bounce is disabled if antialias or depth-of-field is turned on */
 
 __host__ __device__
@@ -186,7 +186,7 @@ __global__ void generateRayFromCamera(Camera cam, int iter, int traceDepth, Path
 	/* Based on PBRT 6.2.3 and RayTracingInOneWeekend 12.2 */
 	if (cam.lens_radius > 0.0f) {
 		vec2 lens_point = sample_disk(vec2(u01(rng), u01(rng)));
-		segment.ray.origin += cam.lens_radius * ( lens_point.x * cam.right + lens_point.y * cam.up);
+		segment.ray.origin += cam.lens_radius * (lens_point.x * cam.right + lens_point.y * cam.up);
 	
 		segment.ray.direction = glm::normalize(cam.position + segment.ray.direction * cam.focus_len - segment.ray.origin);
 	}
@@ -263,13 +263,6 @@ __global__ void computeIntersections(
 	/* move the intersection point a bit back so it doesn't actually intersect the object, like getPointOnRay */
 	intersection.intersect_point = intersect_point - .0001f * glm::normalize(ray.direction);
 	intersection.geom_index = hit_geom_index;
-
-	if (intersection.materialId == 4) {
-	/*	printf("t: %f, normal = (%f, %f, %f), outside = %d, intersect = (%f, %f, %f), geom_index = %d\n",
-		intersection.t, intersection.surfaceNormal.x, intersection.surfaceNormal.y, intersection.surfaceNormal.z,
-		int(outside), intersect_point.x, intersect_point.y, intersect_point.z, intersection.geom_index);*/
-	}
-	
 }
 
 // LOOK: "fake" shader demonstrating what you might do with the info in
