@@ -8,6 +8,7 @@ CUDA Path Tracer
 * Tested on: Windows 10, i7-8850H @ 2.592GHz 24GB, Quadro P1000
 
 ![cover](visuals/cover_dof.png)
+![cover dragon](visuals/cover_dragon.png)
 
 ## Project Overview
 A path tracer is a program that renders 3-dimensional scenes by mimicking, in reverse, the scattering of light from a
@@ -181,7 +182,7 @@ terminate: they continue to bounce off until all of them reach the max depth lim
 in a net performance negative in this case as we are wasting time running the stream compact algorithm without any
 change in results.
 
-### Stream Comparison in Single Iteration
+### Stream Compaction in a Single Iteration
 ![compact performance](visuals/compact_perf.png)
 
 Stream compaction results in a clear decrease in the time elapsed per depth-level in an iteration for open scenes,
@@ -236,6 +237,10 @@ performance improvement only applies to the first depth level.
 
 #### Buggy mesh rendering
 ![buggy teapot](visuals/faulty_teapot.png)
+
+
+## Changes to CMakeLists
+Modified to require Vulkan headers in preparation of transition to Vulkan, also replaced utilities.h with new util.h.
 
 ## Acknowledgments and External libraries
 * Added [tiny object loader](https://github.com/tinyobjloader/tinyobjloader/).

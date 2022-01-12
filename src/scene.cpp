@@ -8,7 +8,7 @@
 #include "tiny_obj_loader.h"
 
 #include "scene.h"
-#include "utilities.h"
+#include "util.h"
 
 
 using std::string;
@@ -16,9 +16,10 @@ using std::vector;
 using std::stoi;
 using std::stof;
 
-using utilities::safe_getline;
 using glm::vec3;
 using glm::vec4;
+using util::getline;
+using util::tokenize_string;
 
 
 Scene::Scene(string filename)
@@ -33,9 +34,9 @@ Scene::Scene(string filename)
 
 	while (fp_in.good()) {
 		string line;
-		safe_getline(fp_in, line);
+		line = getline(fp_in);
 		if (!line.empty()) {
-			vector<string> tokens = utilities::tokenize_string(line);
+			vector<string> tokens = tokenize_string(line);
 			if (tokens[0] == "MATERIAL")
 				loadMaterial(tokens[1]);
 			if (tokens[0] == "OBJECT")
@@ -75,31 +76,30 @@ int Scene::load_obj(string inputfile, glm::vec3 &mincoords, glm::vec3 &maxcoords
 	/* an obj file can contain multiple shapes; iterate over them: */
 	for (auto &s : shapes) {
 		size_t index_offset = 0;
-		auto &mesh = s.mesh;
-		auto &indices = mesh.indices;
+		const mesh_t &mesh = s.mesh;
+		const vector<index_t> &indices = mesh.indices;
 
 		/* iterate over faces of the mesh (specifically the #vertices in each face */
 		for (unsigned char fv : mesh.num_face_vertices) {
-			auto idx = indices[index_offset];
+			int idx = indices[index_offset].vertex_index;
 
-
-			vec3 shape_first_point = { vertices[3 * idx.vertex_index + 0],
-				vertices[3 * idx.vertex_index + 1],
-				vertices[3 * idx.vertex_index + 2] };
+			vec3 shape_first_point = { vertices[3 * idx + 0],
+				vertices[3 * idx + 1],
+				vertices[3 * idx + 2] };
 
 			/* iterate over vertices of each face */
 			for (unsigned char v = 1; v < fv; v += 2) {
-				auto idx1 = indices[index_offset + v];
-				auto idx2 = indices[index_offset + v + 1];
+				int idx1 = indices[index_offset + v].vertex_index;
+				int idx2 = indices[index_offset + v + 1].vertex_index;
 
 				 this->tris.push_back({ /* create triangle based on the two vertices */
 					shape_first_point,
-					vec3(vertices[3 * idx1.vertex_index + 0],
-						vertices[3 * idx1.vertex_index + 1],
-						vertices[3 * idx1.vertex_index + 2]),
-					vec3(vertices[3 * idx2.vertex_index + 0],
-						vertices[3 * idx2.vertex_index + 1],
-						vertices[3 * idx2.vertex_index + 2]),
+					vec3(vertices[3 * idx1 + 0],
+						vertices[3 * idx1 + 1],
+						vertices[3 * idx1 + 2]),
+					vec3(vertices[3 * idx2 + 0],
+						vertices[3 * idx2 + 1],
+						vertices[3 * idx2 + 2]),
 				});
 			}
 			index_offset += fv;
@@ -121,7 +121,7 @@ int Scene::loadGeom(string objectid)
 	string line;
 
 	//load object type
-	safe_getline(fp_in, line);
+	line = getline(fp_in);
 	if (!line.empty() && fp_in.good()) {
 		if (line == "sphere") {
 			printf("Creating new sphere...\n");
@@ -136,25 +136,23 @@ int Scene::loadGeom(string objectid)
 			newGeom.type = GeomType::MESH;
 			newGeom.triangle_start = tris.size();
 
-			string inputfile;
-			safe_getline(fp_in, inputfile);
+			string inputfile = getline(fp_in);
 			newGeom.triangle_n = load_obj(inputfile, newGeom.mincoords, newGeom.maxcoords);
 
 		}
 	}
 
 	//link material
-	safe_getline(fp_in, line);
+	line = getline(fp_in);
 	if (!line.empty() && fp_in.good()) {
-		vector<string> tokens = utilities::tokenize_string(line);
+		vector<string> tokens = tokenize_string(line);
 		newGeom.materialid = stoi(tokens[1]);
 		printf("Connecting Geom %s to Material %d...\n", objectid.c_str(), newGeom.materialid);
 	}
 
 	//load transformations
-	safe_getline(fp_in, line);
-	while (!line.empty() && fp_in.good()) {
-		vector<string> tokens = utilities::tokenize_string(line);
+	for (line = getline(fp_in); !line.empty() && fp_in.good(); line = getline(fp_in)) {
+		vector<string> tokens = tokenize_string(line);
 
 		//load tranformations
 		if (tokens[0] == "TRANS")
@@ -163,11 +161,9 @@ int Scene::loadGeom(string objectid)
 			newGeom.rotation = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 		if (tokens[0] == "SCALE")
 			newGeom.scale = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
-
-		safe_getline(fp_in, line);
 	}
 
-	newGeom.transform = utilities::make_transform_matrix(newGeom.translation, newGeom.rotation, newGeom.scale);
+	newGeom.transform = util::make_transform_matrix(newGeom.translation, newGeom.rotation, newGeom.scale);
 	newGeom.inverseTransform = glm::inverse(newGeom.transform);
 	newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
 
@@ -193,8 +189,6 @@ int Scene::loadGeom(string objectid)
 			newGeom.maxcoords.z = glm::max(newGeom.maxcoords.z, v.z);
 			}
 		}
-//		newGeom.mincoords = vec3(newGeom.transform * vec4(newGeom.mincoords, 1.f));
-//		newGeom.maxcoords = vec3(newGeom.transform * vec4(newGeom.maxcoords, 1.f));
 	}
 
 	geoms.push_back(newGeom);
@@ -211,9 +205,8 @@ int Scene::loadCamera()
 
 	//load static properties
 	for (int i = 0; i < 5; i++) {
-		string line;
-		safe_getline(fp_in, line);
-		vector<string> tokens = utilities::tokenize_string(line);
+		string line = getline(fp_in);
+		vector<string> tokens = tokenize_string(line);
 		if (tokens[0] == "RES") {
 			camera.resolution.x = stoi(tokens[1]);
 			camera.resolution.y = stoi(tokens[2]);
@@ -228,10 +221,9 @@ int Scene::loadCamera()
 		}
 	}
 
-	string line;
-	safe_getline(fp_in, line);
-	while (!line.empty() && fp_in.good()) {
-		vector<string> tokens = utilities::tokenize_string(line);
+	;
+	for (string line = getline(fp_in); !line.empty() && fp_in.good(); line = getline(fp_in)) {
+		vector<string> tokens = tokenize_string(line);
 		if (tokens[0] == "EYE") {
 			camera.position = vec3(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 		} else if (tokens[0] == "LOOKAT") {
@@ -243,8 +235,6 @@ int Scene::loadCamera()
 		} else if (tokens[0] == "LENS_RAD") {
 			camera.lens_radius = stof(tokens[1]);
 		}
-
-		safe_getline(fp_in, line);
 	}
 
 	//calculate fov based on resolution
@@ -281,8 +271,8 @@ int Scene::loadMaterial(string materialid)
 	//load static properties
 	for (int i = 0; i < 7; i++) {
 		string line;
-		safe_getline(fp_in, line);
-		vector<string> tokens = utilities::tokenize_string(line);
+		line = getline(fp_in);
+		vector<string> tokens = tokenize_string(line);
 		if (tokens[0] == "RGB") {
 			vec3 color(stof(tokens[1]), stof(tokens[2]), stof(tokens[3]));
 			newMaterial.color = color;

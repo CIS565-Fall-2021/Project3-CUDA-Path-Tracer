@@ -13,7 +13,6 @@
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
 #include <glm/gtc/matrix_inverse.hpp>
-#include "utilities.h"
 #include "pathtrace.h"
 #include "intersections.h"
 #include "interactions.h"

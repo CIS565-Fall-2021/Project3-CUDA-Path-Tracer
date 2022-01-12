@@ -1,7 +1,19 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #include <ctime>
+#include <string>
+#include <stdlib.h>
+
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 #include "main.h"
+#include "glslUtility.hpp"
 #include "preview.h"
+
+extern int width, height; /* from main */
+
 
 GLuint positionLocation = 0;
 GLuint texcoordsLocation = 1;
@@ -185,7 +197,7 @@ void mainLoop()
 		glfwPollEvents();
 		runCuda();
 
-		string title = "CIS565 Path Tracer | " + std::to_string(iteration) + " Iterations";
+		std::string title = "CIS565 Path Tracer | " + std::to_string(iteration) + " Iterations";
 		glfwSetWindowTitle(window, title.c_str());
 
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);

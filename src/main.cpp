@@ -1,6 +1,16 @@
+#include <string>
+
+#include <glm/glm.hpp>
+#include <glm/gtx/transform.hpp>
+
+#include <vulkan.h>
+
 #include "main.h"
 #include "preview.h"
-#include <cstring>
+#include "scene.h"
+#include "sceneStructs.h"
+#include "util.h"
+
 
 using glm::vec3;
 
@@ -34,10 +44,15 @@ int height;
 
 int main(int argc, char **argv)
 {
+	uint32_t extensionCount = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+	printf("vulkan extensions: %d\n", extensionCount);
+
+
 	startTimeString = currentTimeString();
 
 	if (argc < 2) {
-		printf("Usage: %s SCENEFILE.txt\n", argv[0]);
+		fprintf(stderr, "Usage: %s SCENEFILE.txt\n", argv[0]);
 		return 1;
 	}
 
@@ -53,6 +68,7 @@ int main(int argc, char **argv)
 	width = cam.resolution.x;
 	height = cam.resolution.y;
 
+	glm::length(glm::vec3(0,0,0));
 	vec3 view = cam.view;
 	vec3 up = cam.up;
 	vec3 right = glm::cross(view, up);

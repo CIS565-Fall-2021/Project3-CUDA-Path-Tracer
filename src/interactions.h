@@ -1,7 +1,10 @@
 #pragma once
 
-#include "intersections.h"
 #include <thrust/random.h>
+
+#include "intersections.h"
+#include "util.h"
+
 
 // CHECKITOUT
 /**
@@ -16,7 +19,7 @@ glm::vec3 calculateRandomDirectionInHemisphere(
 
 	float up = sqrt(u01(rng)); // cos(theta)
 	float over = sqrt(1 - up * up); // sin(theta)
-	float around = u01(rng) * TWO_PI;
+	float around = u01(rng) * 2 * PI;
 
 	// Find a direction that is not the normal based off of whether or not the
 	// normal's components are all equal to sqrt(1/3) or whether or not at

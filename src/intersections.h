@@ -5,7 +5,6 @@
 #include <glm/gtx/intersect.hpp>
 
 #include "sceneStructs.h"
-#include "utilities.h"
 #include "cu.h"
 
 #define BOUNDING_BOX 1

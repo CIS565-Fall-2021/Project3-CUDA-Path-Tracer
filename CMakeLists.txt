@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.1)
 
 project(cis565_path_tracer)
 
+OPTION(USE_D2D_WSI "Build the project using Direct to Display swapchain" OFF)
+
+
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
@@ -35,7 +38,8 @@ if(WIN32)
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
 endif(WIN32)
 ########################################
-
+# OPENGL Setup (remove later, after Vulkan)
+########################################
 find_package(OpenGL REQUIRED)
 
 if(UNIX)
@@ -58,9 +62,44 @@ else(UNIX)
     set(LIBRARIES ${GLEW_LIBRARY} ${GLFW_LIBRARY} ${OPENGL_LIBRARY})
 endif(UNIX)
 
+########################################
+# GLM Setup
+########################################
 set(GLM_ROOT_DIR "external")
 find_package(GLM REQUIRED)
 include_directories(${GLM_INCLUDE_DIRS})
+
+ 
+########################################
+# Vulkan Setup (based on Project 5)
+########################################
+find_package(Vulkan REQUIRED)
+
+set(VULKAN_PATH ${Vulkan_INCLUDE_DIRS})
+STRING(REGEX REPLACE "/Include" "" VULKAN_PATH ${VULKAN_PATH})
+
+set(VULKAN_LIB_LIST "vulkan-1")
+
+include_directories(${Vulkan_INCLUDE_DIRS}/vulkan)
+link_directories(${VULKAN_PATH}/Bin;${VULKAN_PATH}/Lib;)
+
+
+if(WIN32)
+	add_definitions(-DVK_USE_PLATFORM_WIN32_KHR -DNOMINMAX)
+	# should add something here?
+else(WIN32)
+
+	IF(USE_D2D_WSI)
+		MESSAGE("Using direct to display extension...")
+		add_definitions(-D_DIRECT2DID_DIRECT2DISPLAYSPLAY)
+	ELSE(USE_D2D_WSI)
+		find_package(XCB REQUIRED)
+		add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
+	ENDIF(USE_D2D_WSI)
+endif(WIN32)
+
+
+
 
 set(headers
     src/main.h
@@ -72,7 +111,7 @@ set(headers
     src/scene.h
     src/sceneStructs.h
     src/preview.h
-    src/utilities.h
+    src/util.h
     )
 
 set(sources
@@ -83,7 +122,7 @@ set(sources
     src/pathtrace.cu
     src/scene.cpp
     src/preview.cpp
-    src/utilities.cpp
+    src/util.cpp
     )
 
 list(SORT headers)
@@ -94,8 +133,11 @@ source_group(Sources FILES ${sources})
 
 #add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
 
+
 cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
+    ${VULKAN_LIB_LIST}
     #stream_compaction  # TODO: uncomment if using your stream compaction
     )
