@@ -126,6 +126,7 @@ __global__ void gbufferToPBO(uchar4* pbo, glm::ivec2 resolution, GBufferPixel* g
 static Scene * hst_scene = NULL;
 static glm::vec3 * dev_image = NULL;
 static Geom * dev_geoms = NULL;
+static Mesh * dev_meshes = NULL;
 static Material * dev_materials = NULL;
 static PathSegment * dev_paths = NULL;  
 static PathSegment * dev_final_paths = NULL;
@@ -138,7 +139,7 @@ static std::vector<cudaArray_t> dev_texArrays;
 static std::vector<cudaTextureObject_t> texObjs;
 
 // Mesh Data for the GPU
-static MeshData dev_mesh_data;
+static PrimData dev_prim_data;
 
 // Denoising
 static glm::vec3* dev_denoised_image = NULL;
@@ -211,14 +212,15 @@ void pathtraceInit(Scene *scene) {
 
     mallocAndCopy<Geom>(dev_geoms, scene->geoms);
     mallocAndCopy<Material>(dev_materials, scene->materials);
+    mallocAndCopy<Mesh>(dev_meshes, scene->meshes);
 
     // Mesh GPU data malloc
-    mallocAndCopy<Mesh>(dev_mesh_data.meshes, scene->meshes);
-    mallocAndCopy<uint16_t>(dev_mesh_data.indices, scene->mesh_indices);
-    mallocAndCopy<glm::vec3>(dev_mesh_data.vertices, scene->mesh_vertices);
-    mallocAndCopy<glm::vec3>(dev_mesh_data.normals, scene->mesh_normals);
-    mallocAndCopy<glm::vec2>(dev_mesh_data.uvs, scene->mesh_uvs);
-    mallocAndCopy<glm::vec4>(dev_mesh_data.tangents, scene->mesh_tangents);
+    mallocAndCopy<Primitive>(dev_prim_data.primitives, scene->primitives);
+    mallocAndCopy<uint16_t>(dev_prim_data.indices, scene->mesh_indices);
+    mallocAndCopy<glm::vec3>(dev_prim_data.vertices, scene->mesh_vertices);
+    mallocAndCopy<glm::vec3>(dev_prim_data.normals, scene->mesh_normals);
+    mallocAndCopy<glm::vec2>(dev_prim_data.uvs, scene->mesh_uvs);
+    mallocAndCopy<glm::vec4>(dev_prim_data.tangents, scene->mesh_tangents);
 
     // Create Texture Memory
     texObjs.clear(); dev_texArrays.clear();
@@ -256,7 +258,7 @@ void pathtraceFree() {
     cudaFree(dev_denoised_image);
 
     // Mesh GPU data free
-    dev_mesh_data.free();
+    dev_prim_data.free();
 
     for (int i = 0; i < texObjs.size(); i++) {
       cudaDestroyTextureObject(texObjs[i]);
@@ -317,8 +319,9 @@ __global__ void computeIntersections(
     , int num_paths
     , PathSegment * pathSegments
     , Geom * geoms
+    , Mesh * meshes
     , int geoms_size
-    , MeshData mesh_data
+    , PrimData mesh_data
     , ShadeableIntersection * intersections
     )
 {
@@ -363,7 +366,7 @@ __global__ void computeIntersections(
             }
             else if (geom.type == MESH)
             {
-                t = meshIntersectionTest(geom, mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, tmp_tangent, tmp_materialId);
+                t = meshIntersectionTest(geom, meshes[geom.meshid], mesh_data, pathSegment.ray, tmp_intersect, tmp_normal, tmp_uv, tmp_tangent, tmp_materialId);
             }
             // TODO: add more intersection tests here... triangle? metaball? CSG?
 
@@ -418,9 +421,14 @@ __global__ void shadeBSDF(
       Material material = materials[intersection.materialId];
       Color materialColor = material.pbrMetallicRoughness.baseColorFactor;
 
+      Color emissiveColor = material.emissiveFactor;
+      if (material.emissiveTexture.index >= 0) {
+        emissiveColor *= sampleTexture(textures[material.emissiveTexture.index], intersection.uv);
+      }
+
       // If the material indicates that the object was a light, "light" the ray
-      if (glm::length(material.emissiveFactor) > 0.0f) {
-        pathSegment.color *= (materialColor * material.emissiveFactor);
+      if (glm::length(emissiveColor) > 0.0f) {
+        pathSegment.color *= emissiveColor;
         pathSegment.remainingBounces = 0;
       }
       else {
@@ -499,7 +507,7 @@ __global__ void generateGBuffer(
   if (idx < num_paths)
   {
     gBuffer[idx].t = shadeableIntersections[idx].t;
-    gBuffer[idx].n = shadeableIntersections[idx].surfaceNormal; // *0.5f + glm::vec3(0.5f);
+    gBuffer[idx].n = shadeableIntersections[idx].surfaceNormal;
     glm::vec3 point = getPointOnRay(pathSegments[idx].ray, shadeableIntersections[idx].t);
     gBuffer[idx].p = point;
   }
@@ -649,8 +657,9 @@ void pathtrace(int frame, int iter, bool denoise, int filterSize, int filterPass
           , num_paths
           , dev_paths
           , dev_geoms
+          , dev_meshes
           , hst_scene->geoms.size()
-          , dev_mesh_data
+          , dev_prim_data
           , dev_intersections
           );
         checkCUDAError("trace one bounce");

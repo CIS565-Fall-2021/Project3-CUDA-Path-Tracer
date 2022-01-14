@@ -55,7 +55,7 @@ FOVY        45
 ITERATIONS  500
 DEPTH       8
 FILE        cornell
-EYE         2 -3 3
+EYE         0 5 5
 LOOKAT      0 5 0
 UP          0 1 0
 
@@ -100,4 +100,4 @@ ROTAT       0 0 0
 SCALE       .01 10 10
 
 
-GLTF ../scenes/models/duck/Duck.gltf
+GLTF ../scenes/models/damagedhelmet/DamagedHelmet.gltf

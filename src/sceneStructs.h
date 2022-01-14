@@ -24,6 +24,11 @@ struct Ray {
 };
 
 struct Mesh {
+  int prim_count;
+  int prim_offset;
+};
+
+struct Primitive {
     int count;
     int i_offset;
     int v_offset;
@@ -36,8 +41,8 @@ struct Mesh {
     glm::mat4 pivot_xform;
 };
 
-struct MeshData {
-    Mesh* meshes;
+struct PrimData {
+    Primitive* primitives;
     glm::vec3* vertices;
     glm::vec3* normals;
     uint16_t* indices;
@@ -45,7 +50,7 @@ struct MeshData {
     glm::vec4* tangents;
 
     void free() {
-      cudaFree(meshes);
+      cudaFree(primitives);
       cudaFree(vertices);
       cudaFree(normals);
       cudaFree(indices);
@@ -131,6 +136,8 @@ struct Material {
     PbrMetallicRoughness pbrMetallicRoughness;
 
     NormalTextureInfo normalTexture;
+    TextureInfo emissiveTexture;
+
     //tinygltf::OcclusionTextureInfo occlusionTexture;
     //tinygltf::TextureInfo emissiveTexture;
     glm::vec3 emissiveFactor;  // length 3. default [0, 0, 0]
