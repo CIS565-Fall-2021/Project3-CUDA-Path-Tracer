@@ -7,6 +7,8 @@
 #include "tiny_gltf.h"
 
 #define BACKGROUND_COLOR (glm::vec3(0.0f))
+#define NEAR 1.f
+#define FAR 50.f
 
 typedef glm::vec3 Color;
 
@@ -22,6 +24,11 @@ struct Ray {
 };
 
 struct Mesh {
+  int prim_count;
+  int prim_offset;
+};
+
+struct Primitive {
     int count;
     int i_offset;
     int v_offset;
@@ -34,8 +41,8 @@ struct Mesh {
     glm::mat4 pivot_xform;
 };
 
-struct MeshData {
-    Mesh* meshes;
+struct PrimData {
+    Primitive* primitives;
     glm::vec3* vertices;
     glm::vec3* normals;
     uint16_t* indices;
@@ -43,7 +50,7 @@ struct MeshData {
     glm::vec4* tangents;
 
     void free() {
-      cudaFree(meshes);
+      cudaFree(primitives);
       cudaFree(vertices);
       cudaFree(normals);
       cudaFree(indices);
@@ -124,9 +131,13 @@ struct Material {
     float indexOfRefraction;
     float emittance;
 
+    bool gltf = false;
+
     PbrMetallicRoughness pbrMetallicRoughness;
 
     NormalTextureInfo normalTexture;
+    TextureInfo emissiveTexture;
+
     //tinygltf::OcclusionTextureInfo occlusionTexture;
     //tinygltf::TextureInfo emissiveTexture;
     glm::vec3 emissiveFactor;  // length 3. default [0, 0, 0]
@@ -141,6 +152,8 @@ struct Camera {
     glm::vec3 right;
     glm::vec2 fov;
     glm::vec2 pixelLength;
+    glm::mat4 viewMat;
+    glm::mat4 projMat;
 };
 
 struct RenderState {
@@ -169,6 +182,14 @@ struct ShadeableIntersection {
   glm::vec2 uv;
   glm::vec4 tangent;
 };
+
+struct GBufferPixel {
+  float t;
+  glm::vec3 n;  //normal
+  glm::vec3 p;  //position
+  float z;      //z-depth
+};
+
 
 // Predicate for checking if a path is complete or not
 struct isPathCompleted {

@@ -210,91 +210,94 @@ __host__ __device__ bool hitBox(const glm::vec3 ro, const glm::vec3 rd, const gl
 /**
  * Test intersection between a ray and a mesh
  */
-__host__ __device__ float meshIntersectionTest(Geom geom, MeshData md, Ray r,
+__host__ __device__ float meshIntersectionTest(Geom geom, Mesh mesh, PrimData md, Ray r,
     glm::vec3& intersectionPoint, glm::vec3& normal, glm::vec2& uv, glm::vec4& tangent, int& materialid) {
   
     glm::vec3 ro = multiplyMV(geom.inverseTransform, glm::vec4(r.origin, 1.0f));
     glm::vec3 rd = glm::normalize(multiplyMV(geom.inverseTransform, glm::vec4(r.direction, 0.0f)));
 
-    const Mesh& m = md.meshes[geom.meshid];
-
-    // Try intersecting with the bbox first
-    if (!hitBox(ro, rd, m.bbox_min, m.bbox_max))
-      return -1.0f;
-
     bool hit = false;
     float t = FLT_MAX;
 
-    // Test intersection on all triangles in the mesh (Optimization needed)
-    for (int i = 0; i < m.count; i+=3) {
-      
-      int f0 = md.indices[m.i_offset + i + 0];
-      int f1 = md.indices[m.i_offset + i + 1];
-      int f2 = md.indices[m.i_offset + i + 2];
-      
-      glm::vec3 v0, v1, v2;
-      v0 = md.vertices[m.v_offset + f0];
-      v1 = md.vertices[m.v_offset + f1];
-      v2 = md.vertices[m.v_offset + f2];
+    for (int primId = 0; primId < mesh.prim_count; primId++) {
 
-      glm::vec3 bary;
-      if (glm::intersectRayTriangle(ro, rd, v0, v1, v2, bary) && bary.z < t) {
-        hit = true;
-        // Face Normal
-        // normal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
-          
-        // Interpolate Normal
-        if (m.n_offset >= 0) {
-          glm::vec3 n0, n1, n2;
-          n0 = md.normals[m.n_offset + f0];
-          n1 = md.normals[m.n_offset + f1];
-          n2 = md.normals[m.n_offset + f2];
-          lerp<glm::vec3>(normal, n0, n1, n2, bary.x, bary.y);
+      const Primitive& m = md.primitives[mesh.prim_offset + primId];
+
+      // Try intersecting with the bbox first
+      if (!hitBox(ro, rd, m.bbox_min, m.bbox_max))
+        continue;
+
+      // Test intersection on all triangles in the mesh (Optimization needed)
+      for (int i = 0; i < m.count; i += 3) {
+
+        int f0 = md.indices[m.i_offset + i + 0];
+        int f1 = md.indices[m.i_offset + i + 1];
+        int f2 = md.indices[m.i_offset + i + 2];
+
+        glm::vec3 v0, v1, v2;
+        v0 = md.vertices[m.v_offset + f0];
+        v1 = md.vertices[m.v_offset + f1];
+        v2 = md.vertices[m.v_offset + f2];
+
+        glm::vec3 bary;
+        if (glm::intersectRayTriangle(ro, rd, v0, v1, v2, bary) && bary.z < t) {
+          hit = true;
+          // Face Normal
+          // normal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+
+          // Interpolate Normal
+          if (m.n_offset >= 0) {
+            glm::vec3 n0, n1, n2;
+            n0 = md.normals[m.n_offset + f0];
+            n1 = md.normals[m.n_offset + f1];
+            n2 = md.normals[m.n_offset + f2];
+            lerp<glm::vec3>(normal, n0, n1, n2, bary.x, bary.y);
+          }
+
+          // Interpolate UV
+          glm::vec2 uv0, uv1, uv2;
+          if (m.uv_offset >= 0) {
+            uv0 = md.uvs[m.uv_offset + f0];
+            uv1 = md.uvs[m.uv_offset + f1];
+            uv2 = md.uvs[m.uv_offset + f2];
+            lerp<glm::vec2>(uv, uv0, uv1, uv2, bary.x, bary.y);
+          }
+
+          // Interpolate Tangent
+          glm::vec4 t0, t1, t2;
+          if (m.t_offset >= 0) {
+            t0 = md.tangents[m.t_offset + f0];
+            t1 = md.tangents[m.t_offset + f1];
+            t2 = md.tangents[m.t_offset + f2];
+            lerp<glm::vec4>(tangent, t0, t1, t2, bary.x, bary.y);
+          }
+          else {
+            // Calculate tangent vector: 
+            // https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
+
+            glm::vec3 dp1 = v1 - v0;
+            glm::vec3 dp2 = v2 - v0;
+            glm::vec2 du1 = uv1 - uv0;
+            glm::vec2 du2 = uv2 - uv0;
+
+            float r = 1.0F / (du1.x * du2.y - du2.x * du1.y);
+            glm::vec3 sdir((du2.y * dp1.x - du1.y * dp2.x) * r, (du2.y * dp1.y - du1.y * dp2.y) * r,
+              (du2.y * dp1.z - du1.y * dp2.z) * r);
+            glm::vec3 tdir((du1.x * dp2.x - du2.x * dp1.x) * r, (du1.x * dp2.y - du2.x * dp1.y) * r,
+              (du1.x * dp2.z - du2.x * dp1.z) * r);
+
+            tangent = glm::vec4(
+              glm::normalize(sdir - normal * glm::dot(normal, sdir)),
+              glm::dot(glm::cross(normal, sdir), tdir) < 0.f ? -1.f : 1.f);
+          }
+
+          t = bary.z;
+
+          materialid = m.mat_id;
         }
-
-        // Interpolate UV
-        glm::vec2 uv0, uv1, uv2;
-        if (m.uv_offset >= 0) {
-          uv0 = md.uvs[m.uv_offset + f0];
-          uv1 = md.uvs[m.uv_offset + f1];
-          uv2 = md.uvs[m.uv_offset + f2];
-          lerp<glm::vec2>(uv, uv0, uv1, uv2, bary.x, bary.y);
-        }
-
-        // Interpolate Tangent
-        glm::vec4 t0, t1, t2;
-        if (m.t_offset >= 0) {
-          t0 = md.tangents[m.t_offset + f0];
-          t1 = md.tangents[m.t_offset + f1];
-          t2 = md.tangents[m.t_offset + f2];
-          lerp<glm::vec4>(tangent, t0, t1, t2, bary.x, bary.y);
-        }
-        else {
-          // Calculate tangent vector: 
-          // https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
-
-          glm::vec3 dp1 = v1 - v0;
-          glm::vec3 dp2 = v2 - v0;
-          glm::vec2 du1 = uv1 - uv0;
-          glm::vec2 du2 = uv2 - uv0;
-
-          float r = 1.0F / (du1.x * du2.y - du2.x * du1.y);
-          glm::vec3 sdir((du2.y * dp1.x - du1.y * dp2.x) * r, (du2.y * dp1.y - du1.y * dp2.y) * r,
-            (du2.y * dp1.z - du1.y * dp2.z) * r);
-          glm::vec3 tdir((du1.x * dp2.x - du2.x * dp1.x) * r, (du1.x * dp2.y - du2.x * dp1.y) * r,
-            (du1.x * dp2.z - du2.x * dp1.z) * r);
-
-          tangent = glm::vec4(
-            glm::normalize(sdir - normal * glm::dot(normal, sdir)),
-            glm::dot(glm::cross(normal, sdir), tdir) < 0.f ? -1.f : 1.f);
-        }
-
-        t = bary.z;
-
-        materialid = m.mat_id;
       }
     }
-    
+ 
     Ray rt;
     rt.origin = ro;
     rt.direction = rd;

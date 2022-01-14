@@ -57,31 +57,6 @@ Scene::Scene(string filename) {
     std::default_random_engine eng(rd());
     std::uniform_real_distribution<float> u01(0.f, 1.f);
     std::uniform_real_distribution<float> u11(-1.f, 1.f);
-
-    //for (int i = 0; i < 500; i++) {
-
-    //  Material newMat;
-    //  newMat.pbrMetallicRoughness.baseColorFactor = Color(u01(eng), u01(eng), u01(eng));
-    //  newMat.pbrMetallicRoughness.metallicFactor = 0.f;
-    //  materials.push_back(newMat);
-
-    //}
-
-    //for (int i = 0; i < 2000; i++) {
-    //  Geom newGeom;
-    //  newGeom.type = SPHERE;
-    //  newGeom.materialid = rand() % 500 + 5;
-    //  newGeom.translation = glm::vec3(5.f*u11(eng), 3.f*u11(eng)+3.f, 5.f*u11(eng));
-    //  newGeom.rotation = glm::vec3(0.f);
-    //  newGeom.scale = glm::vec3(0.1f);
-
-    //  //load tranformations
-    //  newGeom.transform = utilityCore::buildTransformationMatrix(
-    //    newGeom.translation, newGeom.rotation, newGeom.scale);
-    //  newGeom.inverseTransform = glm::inverse(newGeom.transform);
-    //  newGeom.invTranspose = glm::inverseTranspose(newGeom.transform);
-    //  geoms.push_back(newGeom);
-    //}
 }
 
 int Scene::loadGeom(string objectid) {
@@ -229,6 +204,7 @@ int Scene::loadMaterial(string materialid) {
                 float r = atof(tokens[1].c_str());
                 newMaterial.hasReflective = r;
                 newMaterial.pbrMetallicRoughness.metallicFactor = r;
+                newMaterial.pbrMetallicRoughness.roughnessFactor = 0.0;
             } else if (strcmp(tokens[0].c_str(), "REFR") == 0) {
                 newMaterial.hasRefractive = atof(tokens[1].c_str());
             } else if (strcmp(tokens[0].c_str(), "REFRIOR") == 0) {
@@ -236,7 +212,7 @@ int Scene::loadMaterial(string materialid) {
             } else if (strcmp(tokens[0].c_str(), "EMITTANCE") == 0) {
                 float e = atof(tokens[1].c_str());
                 newMaterial.emittance = e;
-                newMaterial.emissiveFactor = glm::vec3(e, e, e);
+                newMaterial.emissiveFactor = e * newMaterial.color;
             }
         }
         materials.push_back(newMaterial);
@@ -271,6 +247,7 @@ int Scene::loadGLTFNode(const std::vector<tinygltf::Node>& nodes,
   if (node.mesh == -1)
     return 0;
 
+  // glTF mesh is a geom
   Geom newGeom;
   newGeom.type = MESH;
   newGeom.meshid = meshes.size() + node.mesh;
@@ -347,6 +324,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
   int mat_offset = materials.size();
   for (const tinygltf::Material& gltfMat : model.materials) {
     Material newMat;
+    newMat.gltf = true;
     newMat.tex_offset = tex_offset;
     newMat.pbrMetallicRoughness.baseColorTexture = gltfMat.pbrMetallicRoughness.baseColorTexture;
     newMat.pbrMetallicRoughness.baseColorFactor = glm::make_vec3(gltfMat.pbrMetallicRoughness.baseColorFactor.data());
@@ -354,14 +332,13 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
     newMat.pbrMetallicRoughness.metallicFactor = gltfMat.pbrMetallicRoughness.metallicFactor;
     newMat.pbrMetallicRoughness.roughnessFactor = gltfMat.pbrMetallicRoughness.roughnessFactor;
     newMat.normalTexture = gltfMat.normalTexture;
-    //newMat.emissiveFactor = glm::make_vec3(gltfMat.emissiveFactor.data());
-    //newMat.emissiveTexture = gltfMat.emissiveTexture;
+    newMat.emissiveFactor = glm::make_vec3(gltfMat.emissiveFactor.data());
+    newMat.emissiveTexture = gltfMat.emissiveTexture;
     materials.push_back(newMat);
   }
 
   // Iterate through all texture declaration in glTF file
   for (const tinygltf::Texture& gltfTexture : model.textures) {
-    std::cout << "Found texture: " << gltfTexture.name << std::endl;
     Texture loadedTexture;
     const tinygltf::Image& image = model.images[gltfTexture.source];
     loadedTexture.components = image.component;  // number of components
@@ -373,19 +350,19 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
     textures.push_back(loadedTexture);
   }
 
-  //glm::mat4 xform = utilityCore::buildTransformationMatrix(glm::vec3(0, 6, 0), glm::vec3(0), glm::vec3(scale, scale, scale));
-  glm::mat4 xform(1.f);
-
   // Get all meshes
   for (const tinygltf::Mesh& gltfMesh : model.meshes) {
     std::cout << "Current mesh has " << gltfMesh.primitives.size()
       << " primitives:\n";
-
-    // Create a mesh object
     Mesh loadedMesh;
+    loadedMesh.prim_count = gltfMesh.primitives.size();
+    loadedMesh.prim_offset = primitives.size();
 
     // For each primitive
-    for (const tinygltf::Primitive& meshPrimitive : gltfMesh.primitives) {      
+    for (const tinygltf::Primitive& meshPrimitive : gltfMesh.primitives) {
+      Primitive prim;
+
+      // Create a mesh object
       const tinygltf::Accessor& indicesAccessor = model.accessors[meshPrimitive.indices];
       const tinygltf::BufferView& bufferView = model.bufferViews[indicesAccessor.bufferView];
       const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
@@ -393,12 +370,12 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
 
       const auto byteStride = indicesAccessor.ByteStride(bufferView);
       const size_t count = indicesAccessor.count;
-      loadedMesh.count = count;
+      prim.count = count;
 
-      loadedMesh.mat_id = mat_offset + meshPrimitive.material;
+      prim.mat_id = mat_offset + meshPrimitive.material;
 
       // Load indices
-      loadedMesh.i_offset = mesh_indices.size();
+      prim.i_offset = mesh_indices.size();
       for (int i = 0; i < indicesAccessor.count; ++i) {
         mesh_indices.push_back(indices[i]);
       }
@@ -425,12 +402,12 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               std::cout << "found position attribute\n";
 
               // get the position min/max for computing the boundingbox
-              loadedMesh.bbox_min.x = attribAccessor.minValues[0];
-              loadedMesh.bbox_min.y = attribAccessor.minValues[1];
-              loadedMesh.bbox_min.z = attribAccessor.minValues[2];
-              loadedMesh.bbox_max.x = attribAccessor.maxValues[0];
-              loadedMesh.bbox_max.y = attribAccessor.maxValues[1];
-              loadedMesh.bbox_max.z = attribAccessor.maxValues[2];
+              prim.bbox_min.x = attribAccessor.minValues[0];
+              prim.bbox_min.y = attribAccessor.minValues[1];
+              prim.bbox_min.z = attribAccessor.minValues[2];
+              prim.bbox_max.x = attribAccessor.maxValues[0];
+              prim.bbox_max.y = attribAccessor.maxValues[1];
+              prim.bbox_max.z = attribAccessor.maxValues[2];
 
               // TODO: Allow custom xform
               //utilityCore::xformVec3(loadedMesh.bbox_max, xform);
@@ -440,7 +417,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 offset = 3;
 
               // Store mesh vertices
-              loadedMesh.v_offset = mesh_vertices.size();
+              prim.v_offset = mesh_vertices.size();
               for (int i = 0; i < attribAccessor.count; i++) {
                 glm::vec3 v;
                 int idx = i * offset;
@@ -455,7 +432,7 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
             else if (attribute.first == "NORMAL") {
               std::cout << "found normal attribute\n";
 
-              loadedMesh.n_offset = mesh_normals.size();
+              prim.n_offset = mesh_normals.size();
 
               if (offset == 0)
                 offset = 3;
@@ -464,8 +441,8 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
               // coordinates into "facevarying" order) for each face
               // 
               // For each triangle :
-              mesh_normals.resize(loadedMesh.n_offset + attribAccessor.count);
-              for (int i = 0; i < loadedMesh.count; i+=3) {
+              mesh_normals.resize(prim.n_offset + attribAccessor.count);
+              for (int i = 0; i < prim.count; i+=3) {
                 // get the i'th triange's indexes
                 int f0 = indices[i + 0];
                 int f1 = indices[i + 1];
@@ -489,22 +466,22 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 n2.z = data[i2 + 2];
 
                 // Put them in the array in the correct order
-                mesh_normals[loadedMesh.n_offset + f0] = n0;
-                mesh_normals[loadedMesh.n_offset + f1] = n1;
-                mesh_normals[loadedMesh.n_offset + f2] = n2;
+                mesh_normals[prim.n_offset + f0] = n0;
+                mesh_normals[prim.n_offset + f1] = n1;
+                mesh_normals[prim.n_offset + f2] = n2;
               }
             }
             else if (attribute.first == "TEXCOORD_0") {
               std::cout << "found texture attribute\n";
 
-              loadedMesh.uv_offset = mesh_uvs.size();
+              prim.uv_offset = mesh_uvs.size();
               
               if (offset == 0)
                 offset = 2;
 
-              mesh_uvs.resize(loadedMesh.uv_offset + attribAccessor.count);
+              mesh_uvs.resize(prim.uv_offset + attribAccessor.count);
               // For each triangle :
-              for (int i = 0; i < loadedMesh.count; i += 3) {
+              for (int i = 0; i < prim.count; i += 3) {
                 // get the i'th triange's indexes
                 int f0 = indices[i + 0];
                 int f1 = indices[i + 1];
@@ -525,22 +502,22 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 t2.y = data[i2 + 1];
 
                 // Put them in the array in the correct order
-                mesh_uvs[loadedMesh.uv_offset + f0] = t0;
-                mesh_uvs[loadedMesh.uv_offset + f1] = t1;
-                mesh_uvs[loadedMesh.uv_offset + f2] = t2;
+                mesh_uvs[prim.uv_offset + f0] = t0;
+                mesh_uvs[prim.uv_offset + f1] = t1;
+                mesh_uvs[prim.uv_offset + f2] = t2;
               }
             }
             else if (attribute.first == "TANGENT") {
               std::cout << "found tangent attribute\n";
 
-              loadedMesh.t_offset = mesh_tangents.size();
+              prim.t_offset = mesh_tangents.size();
 
               if (offset == 0)
                 offset = 4;
 
-              mesh_tangents.resize(loadedMesh.t_offset + attribAccessor.count);
+              mesh_tangents.resize(prim.t_offset + attribAccessor.count);
               // For each triangle :
-              for (int i = 0; i < loadedMesh.count; i += 3) {
+              for (int i = 0; i < prim.count; i += 3) {
                 // get the i'th triange's indexes
                 int f0 = indices[i + 0];
                 int f1 = indices[i + 1];
@@ -567,9 +544,9 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
                 t2.w = data[i2 + 3];
 
                 // Put them in the array in the correct order
-                mesh_tangents[loadedMesh.t_offset + f0] = t0;
-                mesh_tangents[loadedMesh.t_offset + f1] = t1;
-                mesh_tangents[loadedMesh.t_offset + f2] = t2;
+                mesh_tangents[prim.t_offset + f0] = t0;
+                mesh_tangents[prim.t_offset + f1] = t1;
+                mesh_tangents[prim.t_offset + f2] = t2;
               }
             }
           }
@@ -578,6 +555,8 @@ int Scene::loadGLTF(const std::string& filename, float scale) {
           std::cerr << "primitive mode not implemented";
           break;
       }
+
+      primitives.push_back(prim);
     }
 
     meshes.push_back(loadedMesh);

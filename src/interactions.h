@@ -65,20 +65,23 @@ glm::vec3 calculateImperfectSpecularDirection(
     dir.y = sin(phi) * sin(theta);
     dir.z = cos(theta);
     
-    /// construct an under-constrained coordinate using reflection as up axis
-    glm::vec3 r = glm::normalize(reflect);
-    glm::mat3 m;
-    m[2] = r;
-    m[0] = glm::normalize(glm::vec3(0, r.z, -r.y));
-    m[1] = glm::cross(m[2], m[1]);
+    glm::mat3 worldToLocal;
+    worldToLocal[2] = normal;
+    worldToLocal[1] = glm::vec3(tangent);  // t
+    worldToLocal[0] = glm::cross(normal, worldToLocal[1]) * tangent.w;  // b
 
-    // Transform dir from specular-space to tangent-space
-    dir = glm::normalize(m * dir);
+    glm::vec3 r = glm::normalize(worldToLocal*reflect);
     
-    // Transform dir from tangent-space to world-space
-    glm::vec3 t(tangent);
-    glm::vec3 b = glm::cross(normal, t) * tangent.w;
-    dir = t * dir.x + b * dir.y + normal * dir.z;
+    /// construct an under-constrained coordinate using reflection as up axis
+    glm::mat3 sampleToLocal;
+    sampleToLocal[2] = r;
+    sampleToLocal[0] = glm::normalize(glm::vec3(0, r.z, -r.y));
+    sampleToLocal[1] = glm::cross(sampleToLocal[2], sampleToLocal[1]);
+
+    glm::mat3 localToWorld = glm::inverse(worldToLocal);
+    glm::mat3 sampleToWorld = localToWorld * sampleToLocal;
+
+    dir = glm::normalize(sampleToWorld * dir);
 
     return dir;
 }
@@ -193,8 +196,8 @@ void scatterRay(
     if (u01(rng) < pM) {
       // Specular
       glm::vec3 reflect = glm::reflect(pathSegment.ray.direction, normal);
-      newDir = calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR);
-      //newDir = reflect;  //<---- use this for perfect specular
+      newDir = m.gltf ? calculateImperfectSpecularDirection(normal, reflect, i.tangent, rng, pR) : reflect;
+      // newDir = reflect;  //<---- use this for perfect specular
       color = pM * albedo;
     }
     else {
@@ -203,8 +206,9 @@ void scatterRay(
       color = (1.f - pM) * albedo;
     }
 
-    pathSegment.ray.origin = intersect;
+    pathSegment.ray.origin = intersect + (newDir * 0.0001f);;
     pathSegment.ray.direction = glm::normalize(newDir);
     pathSegment.color *= color;
 }
+
 
