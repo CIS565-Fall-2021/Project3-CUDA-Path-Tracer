@@ -1,45 +1,91 @@
 #pragma once
 
+#include <thrust/random.h>
+
 #include "intersections.h"
+#include "util.h"
+
 
 // CHECKITOUT
 /**
  * Computes a cosine-weighted random direction in a hemisphere.
  * Used for diffuse lighting.
  */
-__host__ __device__
+__host__ __device__ __forceinline__
 glm::vec3 calculateRandomDirectionInHemisphere(
-        glm::vec3 normal, thrust::default_random_engine &rng) {
-    thrust::uniform_real_distribution<float> u01(0, 1);
+	glm::vec3 normal, thrust::default_random_engine &rng)
+{
+	thrust::uniform_real_distribution<float> u01(0, 1);
 
-    float up = sqrt(u01(rng)); // cos(theta)
-    float over = sqrt(1 - up * up); // sin(theta)
-    float around = u01(rng) * TWO_PI;
+	float up = sqrt(u01(rng)); // cos(theta)
+	float over = sqrt(1 - up * up); // sin(theta)
+	float around = u01(rng) * 2 * PI;
 
-    // Find a direction that is not the normal based off of whether or not the
-    // normal's components are all equal to sqrt(1/3) or whether or not at
-    // least one component is less than sqrt(1/3). Learned this trick from
-    // Peter Kutz.
+	// Find a direction that is not the normal based off of whether or not the
+	// normal's components are all equal to sqrt(1/3) or whether or not at
+	// least one component is less than sqrt(1/3). Learned this trick from
+	// Peter Kutz.
 
-    glm::vec3 directionNotNormal;
-    if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
-        directionNotNormal = glm::vec3(1, 0, 0);
-    } else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
-        directionNotNormal = glm::vec3(0, 1, 0);
-    } else {
-        directionNotNormal = glm::vec3(0, 0, 1);
-    }
+	glm::vec3 directionNotNormal;
+	if (abs(normal.x) < SQRT_OF_ONE_THIRD) {
+		directionNotNormal = glm::vec3(1, 0, 0);
+	} else if (abs(normal.y) < SQRT_OF_ONE_THIRD) {
+		directionNotNormal = glm::vec3(0, 1, 0);
+	} else {
+		directionNotNormal = glm::vec3(0, 0, 1);
+	}
 
-    // Use not-normal direction to generate two perpendicular directions
-    glm::vec3 perpendicularDirection1 =
-        glm::normalize(glm::cross(normal, directionNotNormal));
-    glm::vec3 perpendicularDirection2 =
-        glm::normalize(glm::cross(normal, perpendicularDirection1));
+	// Use not-normal direction to generate two perpendicular directions
+	glm::vec3 perpendicularDirection1 =
+		glm::normalize(glm::cross(normal, directionNotNormal));
+	glm::vec3 perpendicularDirection2 =
+		glm::normalize(glm::cross(normal, perpendicularDirection1));
 
-    return up * normal
-        + cos(around) * over * perpendicularDirection1
-        + sin(around) * over * perpendicularDirection2;
+	return up * normal
+		+ cos(around) * over * perpendicularDirection1
+		+ sin(around) * over * perpendicularDirection2;
 }
+
+
+
+__host__ __device__ __forceinline__
+float schlick_approx(float n2_n1, float cos1)
+{
+	float R_0 = (1.0f - n2_n1) / (1.0f + n2_n1);
+	R_0 = R_0 * R_0;
+	const float p = (1-cos1);
+	float s = p * p;
+	s *= s;
+	return R_0 + (1 - R_0) * s * p; 
+}
+
+/* helper for scatterRay that performs refraction (with Fresnel effects) */
+__host__ __device__ __forceinline__
+void refract(Ray &ray, PathSegment &path_segment,
+	const glm::vec3 &intersect, const glm::vec3 &normal, bool outside, const Material &m,
+	thrust::default_random_engine &rng, thrust::uniform_real_distribution<float> &u01)
+{
+		//based on PBRT 8.2 and RayTracingInOneWeekend
+		glm::vec3 unit_dir = glm::normalize(ray.direction);
+
+		bool outwards = glm::dot(unit_dir, normal) > 0.0f; /* is this ray leaving the object? */
+		float n2_n1 = outside ? 1.0f/m.indexOfRefraction :  m.indexOfRefraction; /* ratio of n2 to n1 */
+
+		float cosine = min(abs(glm::dot(unit_dir, normal)), 1.0f);
+		float sine = sqrt(1.0f - cosine * cosine);
+
+		bool reflects = (n2_n1 * sine > 1.0f) /*sine of second angle >=1 implies internal reflection */
+			|| (schlick_approx(n2_n1, cosine) > u01(rng));
+
+		ray.direction = glm::normalize(reflects ? glm::reflect(unit_dir, normal * (1.0f - 2 * outwards))
+			: glm::refract(unit_dir, normal * (1.0f - 2 * outwards), n2_n1));
+
+		ray.origin = intersect + 0.001f * normal * (2 * reflects - 1.0f) * (1.0f - 2 * outwards);
+
+		if (reflects)
+			path_segment.color *= m.specular.color;
+}
+
 
 /**
  * Scatter a ray with some probabilities according to the material properties.
@@ -68,12 +114,25 @@ glm::vec3 calculateRandomDirectionInHemisphere(
  */
 __host__ __device__
 void scatterRay(
-        PathSegment & pathSegment,
-        glm::vec3 intersect,
-        glm::vec3 normal,
-        const Material &m,
-        thrust::default_random_engine &rng) {
-    // TODO: implement this.
-    // A basic implementation of pure-diffuse shading will just call the
-    // calculateRandomDirectionInHemisphere defined above.
+	PathSegment &path_segment,
+	glm::vec3 intersect,
+	glm::vec3 normal,
+	bool outside,
+	const Material &m,
+	thrust::default_random_engine &rng)
+{
+	Ray &ray = path_segment.ray;
+	// reflection if prob is <reflect_prob, refraction if prob > refract_prob, diffuse otherwise
+	thrust::uniform_real_distribution<float> u01(0, 1);
+	float prob = u01(rng);
+
+	if (prob > 1 - m.hasRefractive) { /* refraction */
+		refract(ray, path_segment, intersect, normal, outside, m, rng, u01);
+	} else {
+		path_segment.color *= m.color; /* these are same for reflect/diffuse */
+		ray.origin = intersect;
+		ray.direction = prob < m.hasReflective ? glm::reflect(ray.direction, normal) /* reflection */
+			: calculateRandomDirectionInHemisphere(normal, rng); /* diffuse*/
+	}
+
 }
