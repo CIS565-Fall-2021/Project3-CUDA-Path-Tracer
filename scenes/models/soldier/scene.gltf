@@ -1,0 +1,332 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 9783,
+      "max": [
+        20.48611068725586,
+        21.59817123413086,
+        94.09017181396484
+      ],
+      "min": [
+        -20.486112594604492,
+        -17.40167999267578,
+        -0.1052509993314743
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 117396,
+      "componentType": 5126,
+      "count": 9783,
+      "max": [
+        1.0,
+        0.9999926686286926,
+        0.9999393820762634
+      ],
+      "min": [
+        -1.0,
+        -0.9999405145645142,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 9783,
+      "max": [
+        1.0,
+        0.9999862313270569,
+        0.9999861717224121,
+        1.0
+      ],
+      "min": [
+        -0.9978947043418884,
+        -0.9999615550041199,
+        -0.9999275207519531,
+        -1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 9783,
+      "max": [
+        0.9882150292396545,
+        0.9715409874916077
+      ],
+      "min": [
+        0.012486999854445457,
+        0.007786000147461891
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 53304,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 234792,
+      "componentType": 5126,
+      "count": 5686,
+      "max": [
+        17.808393478393555,
+        9.558305740356445,
+        90.46537017822266
+      ],
+      "min": [
+        -17.808393478393555,
+        -18.621232986450195,
+        27.357410430908203
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 303024,
+      "componentType": 5126,
+      "count": 5686,
+      "max": [
+        0.9999842643737793,
+        0.9990136623382568,
+        0.9999828934669495
+      ],
+      "min": [
+        -0.9999842643737793,
+        -0.9998276233673096,
+        -0.9999592304229736
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 156528,
+      "componentType": 5126,
+      "count": 5686,
+      "max": [
+        1.0,
+        1.0,
+        0.9989718198776245,
+        1.0
+      ],
+      "min": [
+        -0.9999784827232361,
+        -1.0,
+        -0.9989720582962036,
+        -1.0
+      ],
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 78264,
+      "componentType": 5126,
+      "count": 5686,
+      "max": [
+        0.9087759852409363,
+        0.9881529808044434
+      ],
+      "min": [
+        0.022941000759601593,
+        0.11258699744939804
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 213216,
+      "componentType": 5125,
+      "count": 31104,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "Jaeyeon Nam (https://sketchfab.com/jaeysart)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/squid-game-pinksoldier-8f6112f88ea743e8a468ac017bb2c0e2",
+      "title": "Squid Game : PinkSoldier"
+    },
+    "generator": "Sketchfab-11.87.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 337632,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 123752,
+      "byteOffset": 337632,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 371256,
+      "byteOffset": 461384,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 247504,
+      "byteOffset": 832640,
+      "byteStride": 16,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1080144,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/material_0_baseColor.png"
+    },
+    {
+      "uri": "textures/material_0_metallicRoughness.png"
+    },
+    {
+      "uri": "textures/material_0_normal.png"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "material_0",
+      "normalTexture": {
+        "index": 2
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Object_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TANGENT": 2,
+            "TEXCOORD_0": 3
+          },
+          "indices": 4,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Object_1",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 6,
+            "POSITION": 5,
+            "TANGENT": 7,
+            "TEXCOORD_0": 8
+          },
+          "indices": 9,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1 
+      ],
+      "matrix": [
+        0.05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.05,
+        0.0,
+        0.0,
+        0.05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2,
+        3
+      ],
+      "name": "PinkSoldier_sketch.obj.cleaner.materialmerger.gles"
+    },
+    {
+      "mesh": 0,
+      "name": "Object_2"
+    },
+    {
+      "mesh": 1,
+      "name": "Object_3"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ]
+}

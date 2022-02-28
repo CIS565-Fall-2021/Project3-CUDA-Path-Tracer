@@ -1,0 +1,88 @@
+// Back Light
+MATERIAL 0
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   5
+
+// Fill Light
+MATERIAL 1
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   6
+
+// Key Light
+MATERIAL 2
+RGB         1 1 1
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   20
+
+// Ground
+MATERIAL 3
+RGB         0.4 0.2 0.2
+SPECEX      0
+SPECRGB     0 0 0
+REFL        0
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Specular white
+MATERIAL 4
+RGB         .98 .98 .98
+SPECEX      0
+SPECRGB     .98 .98 .98
+REFL        1
+REFR        0
+REFRIOR     0
+EMITTANCE   0
+
+// Camera
+CAMERA
+RES         1280 720
+FOVY        45
+ITERATIONS  5000
+DEPTH       8
+FILE        cornell
+EYE         2 -3 3
+LOOKAT      0 5 0
+UP          0 1 0
+
+// Back Light
+OBJECT 0
+cube
+material 0
+TRANS       0 10 -8
+ROTAT       45 0 0
+SCALE       10 10 .1
+
+// Fill Light
+OBJECT 1
+cube
+material 0
+TRANS       4 8 8
+ROTAT       0 45 0
+SCALE       5 5 .1
+
+// Key Light
+OBJECT 2
+cube
+material 0
+TRANS       -4 8 8
+ROTAT       0 -45 0
+SCALE       5 5 .1
+
+GLTF ../scenes/models/ground/Ground.gltf
+
+GLTF ../scenes/models/damagedhelmet/DamagedHelmet.gltf
