@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-project(cis565_path_tracer)
+project(cuda_path_tracer)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -10,8 +10,8 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Enable C++11 for host code
-set(CMAKE_CXX_STANDARD 11)
+# Enable C++14 for host code
+set(CMAKE_CXX_STANDARD 14)
 
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -26,7 +26,10 @@ endif()
 find_package(CUDA 10 REQUIRED)
 include(${CMAKE_MODULE_PATH}/CUDAComputesList.cmake)
 
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_GENERATE_CODE})
+list(APPEND CUDA_NVCC_FLAGS 
+    ${CUDA_GENERATE_CODE}
+    --expt-relaxed-constexpr
+)
 list(APPEND CUDA_NVCC_FLAGS_DEBUG "-g -G")
 set(CUDA_VERBOSE_BUILD ON)
 
@@ -36,6 +39,7 @@ if(WIN32)
 endif(WIN32)
 ########################################
 
+set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 
 if(UNIX)
@@ -60,11 +64,13 @@ endif(UNIX)
 
 set(GLM_ROOT_DIR "external")
 find_package(GLM REQUIRED)
-include_directories(${GLM_INCLUDE_DIRS})
+include_directories(${GLM_INCLUDE_DIRS} "external/include")
+message("\tFind GLM_INCLUDE_DIRS at: ${GLM_INCLUDE_DIRS}")
 
 set(headers
     src/main.h
     src/image.h
+    src/stb.hpp
     src/interactions.h
     src/intersections.h
     src/glslUtility.hpp
@@ -73,29 +79,50 @@ set(headers
     src/sceneStructs.h
     src/preview.h
     src/utilities.h
-    )
+    src/stream_compaction.h
+    src/static_config.h
+    src/model_loader.hpp
+    src/timer.h
+)
 
 set(sources
     src/main.cpp
-    src/stb.cpp
     src/image.cpp
     src/glslUtility.cpp
     src/pathtrace.cu
     src/scene.cpp
     src/preview.cpp
     src/utilities.cpp
-    )
+    src/stream_compaction.cu
+    src/static_config.cpp
+    src/obj_loader.cpp
+)
+
+set(imgui
+    src/imgui/imconfig.h
+    src/imgui/imgui.cpp
+    src/imgui/imgui.h
+    src/imgui/imgui_draw.cpp
+    src/imgui/imgui_internal.h
+    src/imgui/imgui_widgets.cpp
+    src/imgui/imgui_demo.cpp
+    src/imgui/imgui_impl_glfw.cpp
+    src/imgui/imgui_impl_glfw.h
+    src/imgui/imgui_impl_opengl2.cpp
+    src/imgui/imgui_impl_opengl2.h
+    src/imgui/imgui_impl_opengl3.cpp
+    src/imgui/imgui_impl_opengl3.h
+)
 
 list(SORT headers)
 list(SORT sources)
+list(SORT imgui)
 
-source_group(Headers FILES ${headers})
+source_group(Headers FILES ${headers} ${EXTERNAL_HEADERS})
 source_group(Sources FILES ${sources})
+source_group(imgui FILES ${imgui})
 
-#add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
-
-cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
+cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers} ${imgui})
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
-    #stream_compaction  # TODO: uncomment if using your stream compaction
-    )
+)

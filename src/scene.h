@@ -1,26 +1,35 @@
 #pragma once
 
-#include <vector>
-#include <sstream>
 #include <fstream>
 #include <iostream>
-#include "glm/glm.hpp"
-#include "utilities.h"
-#include "sceneStructs.h"
+#include <sstream>
+#include <vector>
 
-using namespace std;
+#include "glm/glm.hpp"
+#include "sceneStructs.h"
+#include "static_config.h"
+#include "utilities.h"
 
 class Scene {
 private:
-    ifstream fp_in;
-    int loadMaterial(string materialid);
-    int loadGeom(string objectid);
-    int loadCamera();
-public:
-    Scene(string filename);
-    ~Scene();
+  std::ifstream fp_in;
+  int loadMaterial(std::string materialid);
+  int loadGeom(std::string objectid);
+  int loadCamera();
 
-    std::vector<Geom> geoms;
-    std::vector<Material> materials;
-    RenderState state;
+  std::vector<Geom> loadObjMesh(const std::string& file_path,
+                                const std::string& material_path = "./");
+
+public:
+  Scene(std::string filename);
+  ~Scene();
+
+  std::vector<Geom> geoms;
+  std::vector<Material> materials;
+  RenderState state;
+
+  struct Boundary {
+    glm::vec3 min_xyz;
+    glm::vec3 max_xyz;
+  } boundary;
 };
