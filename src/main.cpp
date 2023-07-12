@@ -11,9 +11,11 @@ static bool middleMousePressed = false;
 static double lastX;
 static double lastY;
 
-int ui_iterations = 10;
-int startupIterations = 10;
+int ui_iterations = 500;
+int startupIterations = 500;
 int lastLoopIterations = 0;
+string lastSceneFile = "";
+
 bool ui_showGbuffer = false;
 int ui_GbufferMode = GBUFFER_NORMAL;  //switch between different gbuffers
 bool ui_denoise = false;
@@ -23,6 +25,7 @@ float ui_colorWeight = 0.166f;
 float ui_normalWeight = 0.442f;
 float ui_positionWeight = 0.166f;
 bool ui_saveAndExit = false;
+string ui_sceneFile = "";
 
 static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
@@ -53,6 +56,20 @@ int main(int argc, char** argv) {
 
     const char *sceneFile = argv[1];
 
+    //// Load scene file
+    loadScene(sceneFile);
+
+    // Initialize CUDA and GL components
+    init();
+
+    // GLFW main loop
+    mainLoop();
+
+    return 0;
+}
+
+
+void loadScene(string sceneFile) {
     // Load scene file
     scene = new Scene(sceneFile);
 
@@ -82,13 +99,7 @@ int main(int argc, char** argv) {
     ogLookAt = cam.lookAt;
     zoom = glm::length(cam.position - ogLookAt);
 
-    // Initialize CUDA and GL components
-    init();
-
-    // GLFW main loop
-    mainLoop();
-
-    return 0;
+    lastSceneFile = sceneFile;
 }
 
 void saveImage() {
@@ -115,6 +126,13 @@ void saveImage() {
 }
 
 void runCuda() {
+
+    //if (lastSceneFile != ui_sceneFile) {
+    //  if (scene) delete scene;
+    //  loadScene(ui_sceneFile);
+    //  lastSceneFile = ui_sceneFile;
+    //}
+  
     if (lastLoopIterations != ui_iterations) {
       lastLoopIterations = ui_iterations;
       camchanged = true;
