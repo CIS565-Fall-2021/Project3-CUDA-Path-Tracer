@@ -208,7 +208,7 @@ void drawGui(int windowWidth, int windowHeight) {
     ImGui::SetWindowFontScale(1);
 
     ImGui::Text("press H to hide GUI completely.");
-    if (ImGui::IsKeyPressed('H')) {
+    if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_H)) {
       ui_hide = !ui_hide;
     }
 
