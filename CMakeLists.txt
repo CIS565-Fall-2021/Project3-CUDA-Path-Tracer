@@ -33,6 +33,7 @@ set(CUDA_VERBOSE_BUILD ON)
 if(WIN32)
     # Set up include and lib paths
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
+    include_directories(external/include/ImGuiFileDialog/dirent)
 endif(WIN32)
 ########################################
 
@@ -107,6 +108,8 @@ set(imgui
     imgui/imstb_truetype.h
     )
 
+set(imguifile external/include/ImGuiFileDialog/ImGuiFileDialog.cpp)
+
 list(SORT headers)
 list(SORT sources)
 list(SORT imgui)
@@ -117,7 +120,7 @@ source_group(imgui FILES ${imgui})
 
 #add_subdirectory(stream_compaction)  # TODO: uncomment if using your stream compaction
 
-cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers} ${imgui})
+cuda_add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers} ${imgui} ${imguifile})
 target_link_libraries(${CMAKE_PROJECT_NAME}
     ${LIBRARIES}
     #stream_compaction  # TODO: uncomment if using your stream compaction

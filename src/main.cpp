@@ -27,6 +27,8 @@ float ui_positionWeight = 0.166f;
 bool ui_saveAndExit = false;
 string ui_sceneFile = "";
 
+cudaGraphicsResource_t pbo_resource;
+
 static bool camchanged = true;
 static float dtheta = 0, dphi = 0;
 static glm::vec3 cammove;
@@ -39,8 +41,8 @@ Scene *scene;
 RenderState *renderState;
 int iteration;
 
-int width;
-int height;
+int width = 800;
+int height = 800;
 
 //-------------------------------
 //-------------MAIN--------------
@@ -54,10 +56,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    const char *sceneFile = argv[1];
+    const char *startScene = argv[1];
 
     //// Load scene file
-    loadScene(sceneFile);
+    if (startScene) {
+      loadScene(startScene);
+      lastSceneFile = ui_sceneFile = startScene;
+    }
 
     // Initialize CUDA and GL components
     init();
@@ -127,12 +132,18 @@ void saveImage() {
 
 void runCuda() {
 
-    //if (lastSceneFile != ui_sceneFile) {
-    //  if (scene) delete scene;
-    //  loadScene(ui_sceneFile);
-    //  lastSceneFile = ui_sceneFile;
-    //}
+    if (lastSceneFile != ui_sceneFile) {
+      if (scene)
+        delete scene;  // clean up CPU-side scene data
+
+      loadScene(ui_sceneFile);
+      lastSceneFile = ui_sceneFile;
+      iteration = 0;
+    }
   
+    if (scene == nullptr)
+      return;
+
     if (lastLoopIterations != ui_iterations) {
       lastLoopIterations = ui_iterations;
       camchanged = true;
@@ -158,16 +169,17 @@ void runCuda() {
         camchanged = false;
       }
 
-    // Map OpenGL buffer object for writing from CUDA on a single GPU
-    // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
-
     if (iteration == 0) {
         pathtraceFree();
         pathtraceInit(scene);
     }
 
-    uchar4* pbo_dptr = NULL;
-    cudaGLMapBufferObject((void**)&pbo_dptr, pbo);
+    // Map OpenGL buffer object for writing from CUDA on a single GPU
+    // No data is moved (Win & Linux). When mapped to CUDA, OpenGL should not use this buffer
+    cudaGraphicsMapResources(1, &pbo_resource, 0);
+    uchar4* pbo_dptr = nullptr;
+    size_t num_bytes;
+    cudaGraphicsResourceGetMappedPointer((void**)&pbo_dptr, &num_bytes, pbo_resource);
 
     bool denoise = ui_denoise;
     if (iteration < ui_iterations) {
@@ -187,7 +199,7 @@ void runCuda() {
     }
 
     // unmap buffer object
-    cudaGLUnmapBufferObject(pbo);
+    cudaGraphicsUnmapResources(1, &pbo_resource, 0);
 
     if (ui_saveAndExit) {
       saveImage();

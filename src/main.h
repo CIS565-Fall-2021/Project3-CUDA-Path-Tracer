@@ -44,6 +44,8 @@ extern float ui_positionWeight;
 extern bool ui_saveAndExit;
 extern string ui_sceneFile;
 
+extern cudaGraphicsResource_t pbo_resource;
+
 void loadScene(string scene);
 void runCuda();
 void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);

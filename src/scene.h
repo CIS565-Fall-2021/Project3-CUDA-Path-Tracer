@@ -23,7 +23,7 @@ private:
     int loadGLTF(const std::string& filename, float scale);
 public:
     Scene(string filename);
-    ~Scene();
+    ~Scene() {};
 
     std::vector<Geom> geoms;
     std::vector<Material> materials;

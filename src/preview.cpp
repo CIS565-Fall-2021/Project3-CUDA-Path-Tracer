@@ -8,6 +8,7 @@
 #include "../imgui/imgui.h"
 #include "../imgui/imgui_impl_glfw.h"
 #include "../imgui/imgui_impl_opengl3.h"
+#include "ImGuiFileDialog/ImGuiFileDialog.h"
 
 GLuint positionLocation = 0;
 GLuint texcoordsLocation = 1;
@@ -86,7 +87,7 @@ GLuint initShader() {
 void deletePBO(GLuint* pbo) {
     if (pbo) {
         // unregister this buffer object with CUDA
-        cudaGLUnregisterBufferObject(*pbo);
+        cudaGraphicsUnregisterResource(pbo_resource);
 
         glBindBuffer(GL_ARRAY_BUFFER, *pbo);
         glDeleteBuffers(1, pbo);
@@ -110,7 +111,6 @@ void cleanupCuda() {
 }
 
 void initCuda() {
-    cudaGLSetGLDevice(0);
 
     // Clean up on program exit
     atexit(cleanupCuda);
@@ -130,8 +130,8 @@ void initPBO() {
 
     // Allocate data for the buffer. 4-channel 8-bit image
     glBufferData(GL_PIXEL_UNPACK_BUFFER, size_tex_data, NULL, GL_DYNAMIC_COPY);
-    cudaGLRegisterBufferObject(pbo);
 
+    cudaGraphicsGLRegisterBuffer(&pbo_resource, pbo, cudaGraphicsMapFlagsWriteDiscard);
 }
 
 void errorCallback(int error, const char* description) {
@@ -213,6 +213,24 @@ void drawGui(int windowWidth, int windowHeight) {
     }
 
     if (ImGui::CollapsingHeader("Render Settings")) {
+      // open Dialog Simple
+      if (ImGui::Button("Change Scene"))
+        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose Scene File", ".txt", "../scenes/.");
+
+      // display
+      if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+      {
+        // action if OK
+        if (ImGuiFileDialog::Instance()->IsOk())
+        {
+          ui_sceneFile = ImGuiFileDialog::Instance()->GetFilePathName();
+          //std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+        }
+
+        // close
+        ImGuiFileDialog::Instance()->Close();
+      }
+
       ImGui::SliderInt("Iterations", &ui_iterations, 1, startupIterations);
     }
 
@@ -247,7 +265,7 @@ void mainLoop() {
     //time_point_t time_start_cpu;
     //time_point_t time_end_cpu;
     //time_start_cpu = std::chrono::high_resolution_clock::now();
-    while (!glfwWindowShouldClose(window)) {
+    while (window && !glfwWindowShouldClose(window)) {
         glfwPollEvents();
         runCuda();
 
